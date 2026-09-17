@@ -11,16 +11,18 @@ Ferramenta open source para consulta e distribuição de Documentos Fiscais Elet
 3. **Broker AMQP embutido** (reusa o submódulo server do `pascal-amqp-faa`, que já roda dentro do processo hospedeiro sem exigir infraestrutura externa), com compatibilidade para apontar a um AMQP externo (RabbitMQ etc.) por falar o protocolo 0-9-1 padrão.
 4. **Convenção de routing-key fixada**: `<tipo>.<categoria>.<uf>.<cnpj>` numa exchange topic única `dfe` (ver `docs/architecture.md`). É a interface pública mais importante do projeto — não muda por decisão de PR isolado depois de haver consumidores reais.
 5. **Licenciamento**: MIT neste repositório; ACBr como dependência LGPLv3, integração preservando a separação (sem incorporar código ACBr sob a licença MIT deste repo).
+6. **Integração com ACBr via ACBrLib** (API estilo C, DLL/`.so`), não os componentes clássicos — confirmado Windows+Linux 32/64 bits, expõe `NFE_DistribuicaoDFePorUltNSU`/`CTE_DistribuicaoDFe`/`MDFE_DistribuicaoDFePorUltNSU`, resposta em INI já com o XML embutido por seção (parseável com `TIniFile` da RTL, dual-compiler). Ver `docs/architecture.md`, "Integração com ACBr — decidido: ACBrLib", para as fontes e o trade-off aceito (dependência de binário compilado). Maturidade prática do build Linux/FPC ainda não testada.
+7. **Regras de Distribuição de DFe verificadas contra as NTs oficiais** (não mais suposição): intervalo mínimo 1h sem escalonamento de backoff; código de cStat de consumo indevido NÃO é universal (656 NFe/CT-e, 678 MDF-e) — ver `docs/referencias/README.md`.
 
 ## Explicitamente em aberto (decidir na implementação, não aqui)
 
-- **Fronteira de integração com ACBr**: componentes clássicos (VCL/LCL) vs. ACBrLib (API estilo C, mais cross-platform). Decidir com os componentes instalados e testados de verdade.
 - **Formato de entrega/hospedagem**: console, Windows Service, daemon Linux — provavelmente mais de um, com um core sem dependência de GUI/serviço por baixo (mesmo padrão de múltiplos hosts finos que o `pascal-amqp-faa` já usa).
 - **Mecanismo de persistência do cursor de NSU**: arquivo próprio vs. reuso do WAL do `pascal-amqp-faa` vs. SQLite. Requisito fixo: nunca avançar o cursor antes de os documentos daquele lote terem sido publicados com sucesso no broker.
 - **Mecanismo de auto-registro de provider** (unit initialization vs. registro explícito em config).
 
 ## Onde procurar mais contexto
 
-- `docs/architecture.md`: fluxo completo, contrato de provider, convenção de routing-key, riscos técnicos do cursor de NSU.
+- `docs/architecture.md`: fluxo completo, contrato de provider, convenção de routing-key, riscos técnicos do cursor de NSU, decisão de integração com ACBr.
+- `docs/referencias/`: cópias e citações literais das NTs oficiais de Distribuição de DFe — fonte de verdade para qualquer regra de protocolo (cStat, intervalos, formato de lote).
 - `CONTRIBUTING.md`: o que é exigido de um PR que adiciona um novo tipo de documento.
 - `../pascal-amqp-faa/CLAUDE.md`: arquitetura e regras dual-compiler do broker AMQP que serve de base (regras de "o que não usar no FPC" valem aqui igual, uma vez que o código comece a ser escrito).
