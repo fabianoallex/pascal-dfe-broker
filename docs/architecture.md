@@ -73,6 +73,17 @@ Ponto de maior risco técnico do projeto: SEFAZ rejeita (statusCode 656) consult
 - Escrita do novo cursor só depois que os documentos daquele lote foram publicados com sucesso no broker — nunca antes.
 - Mecanismo de armazenamento (arquivo próprio vs. reuso do WAL do pascal-amqp-faa vs. SQLite) ainda **em aberto** — decidir na implementação da v1 (NFe), documentar aqui quando decidido.
 
+## Modelo de erro e orquestrador
+
+Esboçado em `src/DFe.Errors.pas`, `src/DFe.Types.pas` (classificação de cStat) e `src/DFe.Orquestrador.pas`.
+
+- **Exceção é "a chamada falhou"; cStat é "a chamada funcionou e a SEFAZ respondeu isto".** `IDFeDistribuicaoClient.Consultar` só levanta exceção quando a chamada em si não produz um `TDFeLoteBruto` interpretável: `EDFeComunicacaoFalhou` (rede/TLS/timeout, transitório), `EDFeCertificadoInvalido` (certificado expirado/senha errada/revogado, não transitório — pausa a unidade de trabalho até correção manual) e `EDFeRespostaInvalida` (resposta recebida mas ilegível). A semântica de protocolo da SEFAZ (nenhum documento, documentos localizados, consumo indevido, serviço indisponível) fica no campo `CStat`, interpretado por uma função pura só (`DFe.Types.ClassificarCStat`) — misturar os dois impediria distinguir uma rejeição de protocolo de uma falha de rede olhando só o tipo da exceção.
+  **Atenção:** os códigos de cStat usados (137/138/656/108/109) vêm de conhecimento de domínio, não foram conferidos contra a especificação vigente nesta sessão — conferir antes de implementar o provider NFe de verdade.
+- **`TDFeOrquestrador` é agnóstico do modelo de execução.** Não cria thread nem timer — expõe `ExecutarCiclo`, que quem hospeda (console/serviço/daemon, ainda em aberto) chama periodicamente. Cada `TDFeUnidadeTrabalho` (par provider+certificado) guarda seu próprio estado de agendamento (`ProximaConsultaEm`, backoff), para que consumo indevido de um certificado não afete os demais.
+- **Backoff exponencial só no consumo indevido (cStat 656)**, dobrando o intervalo até um teto (`DFE_BACKOFF_MAXIMO_SEGUNDOS`), resetando ao intervalo base assim que uma consulta é aceita. Falha de comunicação transitória mantém o intervalo atual sem escalar — não é o mesmo tipo de penalidade.
+- **Cursor só avança depois de publicar todos os eventos do lote com sucesso**, e o orquestrador continua buscando lotes seguintes no mesmo ciclo enquanto `UltimoNSU < MaxNSU` (até um teto de segurança `DFE_MAX_LOTES_POR_CICLO`, contra loop indevido por bug de interpretação do retorno).
+- **Observabilidade é só um hook no-op por enquanto** (`RegistrarAviso`/`RegistrarErro`, protected virtual) — conectar a um mecanismo real é decisão futura; o pascal-amqp-faa já tem um modelo pronto (Fase 4.1, opt-in e read-only) que vale avaliar reaproveitar.
+
 ## Modelo de execução
 
 Broker AMQP roda **embutido** no processo (reusa o submódulo server do pascal-amqp-faa) — não há dependência obrigatória de RabbitMQ externo, mas o projeto continua compatível com apontar para um broker externo, por falar AMQP 0-9-1 padrão.

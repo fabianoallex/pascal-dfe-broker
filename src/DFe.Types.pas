@@ -70,6 +70,37 @@ type
 
   TDFeEventoNormalizadoArray = array of TDFeEventoNormalizado;
 
+  { Como o orquestrador interpreta o CStat de um TDFeLoteBruto -- concentrar
+    essa leitura numa unica funcao pura (ClassificarCStat) em vez de espalhar
+    "if CStat = 656" pelo core é o que torna essa interpretacao testavel
+    isoladamente e documentada num lugar so.
+
+    ATENCAO: os codigos abaixo (137/138/656/108/109) sao conhecimento de
+    dominio do Manual de Orientacao do Contribuinte / NT da Distribuicao de
+    DFe, nao verificado contra a especificacao vigente nesta sessao -- CONFERIR
+    antes de codar a implementacao real do provider NFe. }
+  TDFeClassificacaoCStat = (
+    dccDocumentosLocalizados,  // cStat 138: ha itens em TDFeLoteBruto.Itens
+    dccNenhumDocumento,        // cStat 137: consulta ok, nada novo
+    dccConsumoIndevido,        // cStat 656: consultou antes do intervalo minimo permitido -- acionar backoff, NUNCA reconsultar no mesmo ciclo
+    dccServicoIndisponivel,    // cStat 108/109: SEFAZ em manutencao/paralisada -- transitorio, tratar como falha de comunicacao
+    dccDesconhecido            // qualquer outro codigo -- tratar de forma conservadora (como transitorio), nunca assumir sucesso
+  );
+
+function ClassificarCStat(const ACStat: Integer): TDFeClassificacaoCStat;
+
 implementation
+
+function ClassificarCStat(const ACStat: Integer): TDFeClassificacaoCStat;
+begin
+  case ACStat of
+    138: Result := dccDocumentosLocalizados;
+    137: Result := dccNenhumDocumento;
+    656: Result := dccConsumoIndevido;
+    108, 109: Result := dccServicoIndisponivel;
+  else
+    Result := dccDesconhecido;
+  end;
+end;
 
 end.
