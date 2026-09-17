@@ -40,10 +40,10 @@ type
   { Persistencia do cursor de NSU, namespaced por (tipo de documento,
     certificado, UF) -- e' o chamador de IDFeCursorStore (o core, nao o
     provider) que monta essa chave, o provider so pede/grava pelo Namespace
-    que recebeu. Mecanismo de armazenamento concreto ainda em aberto (ver
-    docs/architecture.md); esta interface e' o que qualquer implementacao
-    (arquivo proprio, SQLite, reuso do WAL do pascal-amqp-faa) precisa
-    cumprir. }
+    que recebeu. Implementacao real: DFe.CursorStore.Arquivo.pas
+    (TDFeCursorStoreArquivo) -- ver docs/architecture.md, "Persistencia do
+    cursor de NSU", para a justificativa de nao usar SQLite nem o WAL do
+    pascal-amqp-faa. }
   IDFeCursorStore = interface
     ['{3A1D9E4F-8C2A-4F1B-9E4F-8C2A4F1B9E4F}']
     { Namespace tipico: '<tipo>/<cnpjCpf>/<uf>', ex.: 'nfe/12345678000199/rs'.
