@@ -23,6 +23,18 @@ Detalhes de design — convenção de exchange/routing-key, contrato de provider
 
 Delphi e FPC/Lazarus, **desde o início** — mesmo padrão dual-compiler do pascal-amqp-faa. Onde o suporte do ACBr a Lazarus for uma limitação real, o limite fica documentado explicitamente, não escondido nem contornado às custas de funcionalidade.
 
+## Notas Técnicas de referência
+
+Este projeto segue as seguintes versões das Notas Técnicas oficiais de Distribuição de DFe (cópias e citações literais em [`docs/referencias/`](docs/referencias/README.md)):
+
+| Documento | Versão | Baixado em |
+|---|---|---|
+| NT 2014.002 (NFe) | 1.02d, março/2021 | 2026-09-17 |
+| NT 2015/002 (CT-e) | 1.00a, agosto/2016 | 2026-09-17 |
+| NT 2015/002 (MDF-e) | 1.00b, março/2016 | 2026-09-17 |
+
+Se a versão vigente no [Portal Nacional da NF-e](https://www.nfe.fazenda.gov.br/portal) for mais recente que a listada aqui, esta tabela e `docs/referencias/` estão desatualizados — trate como um bug e abra uma issue.
+
 ## Licença
 
 Este projeto é licenciado sob [MIT](LICENSE). Os componentes ACBr usados como dependência são licenciados sob **LGPLv3** — a integração é feita preservando a separação de licenciamento (o projeto não incorpora código-fonte ACBr sob a licença MIT deste repositório).
