@@ -10,8 +10,8 @@
   DFe.Types.ClassificarCStat. Essa separacao existe de proposito: excecao e'
   "a chamada falhou", CStat e' "a chamada funcionou e a SEFAZ respondeu isto"
   -- misturar os dois faria o orquestrador nao conseguir distinguir uma
-  rejeicao de protocolo (656) de uma falha de rede so olhando o tipo da
-  excecao. }
+  rejeicao de protocolo (consumo indevido) de uma falha de rede so olhando o
+  tipo da excecao. }
 
 interface
 
@@ -23,8 +23,9 @@ type
 
   { Falha de transporte/comunicacao com a SEFAZ antes de existir qualquer
     resposta interpretavel: timeout, TLS, DNS, SOAP fault sem corpo util.
-    Transitorio -- o orquestrador mantem o agendamento normal (nao aciona o
-    backoff de consumo indevido, que e' especifico do cStat 656). }
+    Transitorio -- o orquestrador mantem o agendamento normal (isto e'
+    diferente de consumo indevido, que nao e' excecao nenhuma -- ver
+    comentario de topo deste unit). }
   EDFeComunicacaoFalhou = class(EDFeError);
 
   { O certificado nao pode ser usado: expirado, senha incorreta, cadeia

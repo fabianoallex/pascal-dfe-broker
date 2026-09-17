@@ -24,21 +24,21 @@ uses
   DFe.RoutingKey;
 
 const
-  { CONFERIR contra a NT/manual vigente da Distribuicao de DFe antes de usar
-    em producao -- este e' um valor conservador de design, nao uma garantia
-    de conformidade. }
+  { 1 hora -- confirmado (nao mais suposicao) contra as NTs oficiais em
+    2026-09-17, ver docs/referencias/README.md. E' tambem o intervalo de
+    "desbloqueio automatico" apos consumo indevido: a SEFAZ nao escalona o
+    bloqueio a cada violacao repetida, entao o orquestrador nao escalona
+    tambem -- ver ExecutarUnidade, caso dccConsumoIndevido. }
   DFE_INTERVALO_BASE_SEGUNDOS_PADRAO = 3600;
-  DFE_BACKOFF_MULTIPLICADOR = 2;
-  DFE_BACKOFF_MAXIMO_SEGUNDOS = 24 * 3600;
   { Trava de seguranca contra loop indefinido caso MaxNSU nunca alcance
     UltimoNSU por algum defeito de interpretacao do retorno da SEFAZ. }
   DFE_MAX_LOTES_POR_CICLO = 20;
 
 type
   { Uma combinacao (provider, certificado) habilitada na configuracao, com o
-    proprio estado de agendamento -- cada unidade tem seu backoff
-    independente, porque consumo indevido de um certificado nao deve afetar
-    os demais. }
+    proprio estado de agendamento -- cada unidade decide sozinha quando
+    rodar de novo, porque consumo indevido ou pausa de um certificado nao
+    deve afetar os demais. }
   TDFeUnidadeTrabalho = class
   private
     FProvider: IDFeProvider;
@@ -46,7 +46,6 @@ type
     FCertificado: TDFeCertificado;
     FCursorStore: IDFeCursorStore;
     FIntervaloBaseSegundos: Integer;
-    FIntervaloAtualSegundos: Integer;
     FProximaConsultaEm: TDateTime;
     FPausada: Boolean;
     FMotivoPausa: string;
@@ -61,8 +60,10 @@ type
     property Client: IDFeDistribuicaoClient read FClient;
     property Certificado: TDFeCertificado read FCertificado;
     property CursorStore: IDFeCursorStore read FCursorStore;
+    { Cadencia fixa da unidade -- sem escalonamento (ver comentario de
+      DFE_INTERVALO_BASE_SEGUNDOS_PADRAO): tanto o ciclo normal quanto a
+      recuperacao apos consumo indevido usam este mesmo intervalo. }
     property IntervaloBaseSegundos: Integer read FIntervaloBaseSegundos;
-    property IntervaloAtualSegundos: Integer read FIntervaloAtualSegundos write FIntervaloAtualSegundos;
     property ProximaConsultaEm: TDateTime read FProximaConsultaEm write FProximaConsultaEm;
     property Pausada: Boolean read FPausada write FPausada;
     property MotivoPausa: string read FMotivoPausa write FMotivoPausa;
@@ -76,10 +77,6 @@ type
     para ser testavel isoladamente. }
   function MontarNamespaceCursor(const ATipoDocumento: string;
     const ACertificado: TDFeCertificado): string;
-
-  { Calcula o proximo intervalo de backoff apos consumo indevido (cStat 656),
-    dobrando o intervalo atual ate o teto DFE_BACKOFF_MAXIMO_SEGUNDOS. }
-  function ProximoBackoffSegundos(const AIntervaloAtualSegundos: Integer): Integer;
 
 type
   { Liga uma lista de unidades de trabalho ao publicador. Nao possui thread
@@ -125,16 +122,6 @@ begin
   Result := LowerCase(ATipoDocumento) + '/' + ACertificado.CnpjCpf + '/' + LowerCase(ACertificado.UF);
 end;
 
-function ProximoBackoffSegundos(const AIntervaloAtualSegundos: Integer): Integer;
-var
-  LProximo: Int64;
-begin
-  LProximo := Int64(AIntervaloAtualSegundos) * DFE_BACKOFF_MULTIPLICADOR;
-  if LProximo > DFE_BACKOFF_MAXIMO_SEGUNDOS then
-    LProximo := DFE_BACKOFF_MAXIMO_SEGUNDOS;
-  Result := LProximo;
-end;
-
 function SegundosParaTimeDelta(const ASegundos: Integer): TDateTime;
 begin
   Result := ASegundos / SecsPerDay;
@@ -154,7 +141,6 @@ begin
   FCertificado := ACertificado;
   FCursorStore := ACursorStore;
   FIntervaloBaseSegundos := AIntervaloBaseSegundos;
-  FIntervaloAtualSegundos := AIntervaloBaseSegundos;
   FProximaConsultaEm := 0; // 0 = liberada para rodar assim que ExecutarCiclo for chamado
   FPausada := False;
 end;
@@ -263,30 +249,30 @@ begin
     if LFalhouChamada then
     begin
       if not AUnidade.Pausada then
-        AUnidade.ProximaConsultaEm := Agora + SegundosParaTimeDelta(AUnidade.IntervaloAtualSegundos);
+        AUnidade.ProximaConsultaEm := Agora + SegundosParaTimeDelta(AUnidade.IntervaloBaseSegundos);
       Exit;
     end;
 
-    LClassificacao := ClassificarCStat(LLote.CStat);
+    LClassificacao := ClassificarCStat(LLote.CStat, AUnidade.Provider.CodigoConsumoIndevido);
 
     case LClassificacao of
       dccConsumoIndevido:
         begin
-          AUnidade.IntervaloAtualSegundos := ProximoBackoffSegundos(AUnidade.IntervaloAtualSegundos);
-          AUnidade.ProximaConsultaEm := Agora + SegundosParaTimeDelta(AUnidade.IntervaloAtualSegundos);
-          RegistrarAviso(AUnidade, Format('Consumo indevido (cStat=656); backoff para %ds', [AUnidade.IntervaloAtualSegundos]));
+          // Sem escalonamento: a SEFAZ desbloqueia automaticamente apos 1h,
+          // sempre a mesma janela -- ver DFE_INTERVALO_BASE_SEGUNDOS_PADRAO
+          // e docs/referencias/README.md.
+          AUnidade.ProximaConsultaEm := Agora + SegundosParaTimeDelta(AUnidade.IntervaloBaseSegundos);
+          RegistrarAviso(AUnidade, Format('Consumo indevido (cStat=%d); proxima tentativa em %ds', [LLote.CStat, AUnidade.IntervaloBaseSegundos]));
           Exit;
         end;
       dccServicoIndisponivel, dccDesconhecido:
         begin
           RegistrarAviso(AUnidade, Format('cStat=%d (%s) nao processado; mantendo agendamento atual', [LLote.CStat, LLote.XMotivo]));
-          AUnidade.ProximaConsultaEm := Agora + SegundosParaTimeDelta(AUnidade.IntervaloAtualSegundos);
+          AUnidade.ProximaConsultaEm := Agora + SegundosParaTimeDelta(AUnidade.IntervaloBaseSegundos);
           Exit;
         end;
       dccNenhumDocumento, dccDocumentosLocalizados:
         begin
-          AUnidade.IntervaloAtualSegundos := AUnidade.IntervaloBaseSegundos;
-
           LEventos := AUnidade.Provider.Decodificar(LLote, AUnidade.Certificado);
           for I := 0 to High(LEventos) do
             FPublicador.Publicar(MontarRoutingKey(LEventos[I]), LEventos[I].XmlPayload);
@@ -297,7 +283,7 @@ begin
 
           LContinuar := (LLote.UltimoNSU < LLote.MaxNSU) and (LLotesProcessados < DFE_MAX_LOTES_POR_CICLO);
           if not LContinuar then
-            AUnidade.ProximaConsultaEm := Agora + SegundosParaTimeDelta(AUnidade.IntervaloAtualSegundos);
+            AUnidade.ProximaConsultaEm := Agora + SegundosParaTimeDelta(AUnidade.IntervaloBaseSegundos);
         end;
     else
       // qualquer valor futuro de TDFeClassificacaoCStat que este case nao
@@ -305,7 +291,7 @@ begin
       // nao fazer nada em silencio.
       begin
         RegistrarAviso(AUnidade, Format('Classificacao de cStat nao tratada (cStat=%d); mantendo agendamento atual', [LLote.CStat]));
-        AUnidade.ProximaConsultaEm := Agora + SegundosParaTimeDelta(AUnidade.IntervaloAtualSegundos);
+        AUnidade.ProximaConsultaEm := Agora + SegundosParaTimeDelta(AUnidade.IntervaloBaseSegundos);
       end;
     end;
   end;

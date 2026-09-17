@@ -46,7 +46,7 @@ type
   { Retorno bruto de uma chamada de Distribuicao de DFe, antes de qualquer
     interpretacao especifica de tipo de documento. }
   TDFeLoteBruto = record
-    CStat: Integer;    // codigo de status da SEFAZ (137 = nenhum documento localizado, 138 = documentos localizados, 656 = consumo indevido, etc.)
+    CStat: Integer;    // codigo de status da SEFAZ (137 = nenhum documento localizado, 138 = documentos localizados; o codigo de consumo indevido VARIA por tipo de documento -- ver ClassificarCStat abaixo)
     XMotivo: string;
     UltimoNSU: Int64;  // maior NSU devolvido neste lote
     MaxNSU: Int64;     // maior NSU disponivel no ambiente da SEFAZ (UltimoNSU < MaxNSU => ha mais lotes a buscar)
@@ -72,34 +72,44 @@ type
 
   { Como o orquestrador interpreta o CStat de um TDFeLoteBruto -- concentrar
     essa leitura numa unica funcao pura (ClassificarCStat) em vez de espalhar
-    "if CStat = 656" pelo core é o que torna essa interpretacao testavel
+    "if CStat = codigo" pelo core é o que torna essa interpretacao testavel
     isoladamente e documentada num lugar so.
 
-    ATENCAO: os codigos abaixo (137/138/656/108/109) sao conhecimento de
-    dominio do Manual de Orientacao do Contribuinte / NT da Distribuicao de
-    DFe, nao verificado contra a especificacao vigente nesta sessao -- CONFERIR
-    antes de codar a implementacao real do provider NFe. }
+    Fontes primarias conferidas em 2026-09-17 (copias em
+    docs/referencias/, ver o README la para os links oficiais e o porque
+    de cada fato): NT 2014.002 v1.02d (NFe), NT 2015/002 v1.00a (CT-e),
+    NT 2015/002 v1.00b (MDF-e). 137/138/108/109 sao identicos nos tres
+    servicos -- confirmado, nao mais suposicao. }
   TDFeClassificacaoCStat = (
     dccDocumentosLocalizados,  // cStat 138: ha itens em TDFeLoteBruto.Itens
     dccNenhumDocumento,        // cStat 137: consulta ok, nada novo
-    dccConsumoIndevido,        // cStat 656: consultou antes do intervalo minimo permitido -- acionar backoff, NUNCA reconsultar no mesmo ciclo
+    dccConsumoIndevido,        // consultou antes do intervalo minimo (1h) -- o CODIGO NUMERICO NAO E UNIVERSAL, ver ACodigoConsumoIndevido abaixo
     dccServicoIndisponivel,    // cStat 108/109: SEFAZ em manutencao/paralisada -- transitorio, tratar como falha de comunicacao
     dccDesconhecido            // qualquer outro codigo -- tratar de forma conservadora (como transitorio), nunca assumir sucesso
   );
 
-function ClassificarCStat(const ACStat: Integer): TDFeClassificacaoCStat;
+  { O codigo de "Rejeicao: Consumo Indevido" NAO e' o mesmo em todos os
+    tipos de documento -- NFe e CT-e usam 656, MDF-e usa 678 (ver
+    docs/referencias/README.md). Por isso nao ha uma constante global
+    DFE_CSTAT_CONSUMO_INDEVIDO: cada IDFeProvider expõe o proprio codigo
+    (ver DFe.Provider.CodigoConsumoIndevido) e passa para esta funcao. }
+function ClassificarCStat(const ACStat: Integer;
+  const ACodigoConsumoIndevido: Integer): TDFeClassificacaoCStat;
 
 implementation
 
-function ClassificarCStat(const ACStat: Integer): TDFeClassificacaoCStat;
+function ClassificarCStat(const ACStat: Integer;
+  const ACodigoConsumoIndevido: Integer): TDFeClassificacaoCStat;
 begin
   case ACStat of
     138: Result := dccDocumentosLocalizados;
     137: Result := dccNenhumDocumento;
-    656: Result := dccConsumoIndevido;
     108, 109: Result := dccServicoIndisponivel;
   else
-    Result := dccDesconhecido;
+    if ACStat = ACodigoConsumoIndevido then
+      Result := dccConsumoIndevido
+    else
+      Result := dccDesconhecido;
   end;
 end;
 

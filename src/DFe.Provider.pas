@@ -27,9 +27,12 @@ type
   IDFeDistribuicaoClient = interface
     ['{6E2B7B1E-2B7C-4A2D-9C7B-1B7B2B7C4A2D}']
     { AUltimoNSU e' o cursor atual (0 na primeira consulta de um certificado).
-      Implementacoes devem levantar excecao especifica (a definir) quando a
-      SEFAZ devolver consumo indevido (CStat 656) -- o chamador decide o que
-      fazer (tipicamente: nao reagendar antes do intervalo minimo). }
+      Consumo indevido NAO e' excecao: a SEFAZ responde normalmente com um
+      cStat de rejeicao (656 para NFe/CT-e, 678 para MDF-e -- ver
+      docs/referencias/README.md), entao a implementacao real deve devolver
+      esse TDFeLoteBruto tal como veio, e o orquestrador classifica via
+      DFe.Types.ClassificarCStat. So levantar excecao (ver DFe.Errors) quando
+      a chamada em si falhar antes de existir uma resposta interpretavel. }
     function Consultar(const ACertificado: TDFeCertificado;
       const AUltimoNSU: Int64): TDFeLoteBruto;
   end;
@@ -63,6 +66,14 @@ type
     { Codigo curto e estavel usado em routing-key, namespace de configuracao
       e namespace de persistencia de cursor: 'nfe', 'cte', 'mdfe', ... }
     function Identificador: string;
+
+    { O codigo de cStat que a SEFAZ usa para "Rejeicao: Consumo Indevido"
+      NESTE tipo de documento -- NAO e' universal (NFe/CT-e = 656,
+      MDF-e = 678; ver docs/referencias/README.md, conferido em 2026-09-17
+      contra as NTs oficiais). O orquestrador usa isto ao chamar
+      DFe.Types.ClassificarCStat -- e' o provider quem sabe esse numero,
+      nunca o core. }
+    function CodigoConsumoIndevido: Integer;
 
     { Traduz o lote bruto (generico, ja sem o envelope gzip+base64) para o
       evento interno padronizado (TDFe.Types.TDFeEventoNormalizado), de
