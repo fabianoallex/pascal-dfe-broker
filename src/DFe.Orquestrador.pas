@@ -191,7 +191,19 @@ var
   I: Integer;
 begin
   for I := 0 to High(FUnidades) do
-    ExecutarUnidade(FUnidades[I]);
+  begin
+    { Isolamento por unidade: um host roda desassistido por longos periodos
+      (ver DFe.Host.Loop) -- um bug numa unidade (ou uma excecao que
+      ExecutarUnidade nao modela, ver DFe.Errors) nao pode derrubar o
+      processo inteiro e parar de atender as outras unidades/certificados.
+      Ainda assim NAO e' engolido em silencio: passa por RegistrarErro. }
+    try
+      ExecutarUnidade(FUnidades[I]);
+    except
+      on E: Exception do
+        RegistrarErro(FUnidades[I], Format('Excecao nao tratada processando a unidade: %s: %s', [E.ClassName, E.Message]));
+    end;
+  end;
 end;
 
 procedure TDFeOrquestrador.ExecutarUnidade(const AUnidade: TDFeUnidadeTrabalho);
@@ -243,7 +255,9 @@ begin
         LFalhouChamada := True;
       end;
       // qualquer outra excecao (bug, falha inesperada) propaga -- nao e'
-      // um caso modelado, entao nao deve ser engolida em silencio.
+      // um caso modelado. Nao e' engolida em silencio (ExecutarCiclo loga
+      // via RegistrarErro) nem derruba as outras unidades (isolamento por
+      // unidade em ExecutarCiclo).
     end;
 
     if LFalhouChamada then

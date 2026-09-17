@@ -96,12 +96,14 @@ Esboçado em `src/DFe.Errors.pas`, `src/DFe.Types.pas` (classificação de cStat
 
 Broker AMQP roda **embutido** no processo (reusa o submódulo server do pascal-amqp-faa) — não há dependência obrigatória de RabbitMQ externo, mas o projeto continua compatível com apontar para um broker externo, por falar AMQP 0-9-1 padrão.
 
-Formato de entrega/hospedagem: **em aberto**. Candidatos considerados:
-- Console (Windows/Linux) — mais simples, bom para desenvolvimento e para Linux via systemd.
-- Windows Service — necessário para operação "esqueça e funcione" em ambiente Windows corporativo, que é onde a maior parte dos ERPs Delphi já roda.
-- Daemon Linux (FPC `daemonapp` ou unit systemd) — companion natural do dual-compiler.
+**Decidido: mais de um formato de entrega, todos hosts finos sobre o mesmo core** (`TDFeOrquestrador` + `TDFeHostLoop`, em `src/DFe.Host.Loop.pas`) — mesmo padrão que o pascal-amqp-faa já usa para seus hosts de teste/exemplo (programas separados reusando as mesmas units de core), em vez de escolher um único formato:
 
-Tendência (não decidida): um core sem dependência de GUI/serviço, com múltiplos entry points finos por cima dele — mesmo padrão que o pascal-amqp-faa já usa para seus hosts de teste/exemplo (programas separados reusando as mesmas units de core).
+- **Console (Windows/Linux, dual-compiler)** — o host universal: bom para desenvolvimento, e também **é** o formato de produção no Linux, rodado sob **systemd** (`Type=simple`, `Restart=on-failure`). Deliberadamente **sem** nenhuma lógica de "virar daemon" (fork duplo, PID file) escrita à mão — isso é exatamente o que o systemd já resolve por fora do processo; escrever essa lógica de novo seria complexidade sem necessidade real.
+- **Serviço Windows (Delphi/VCL, `Vcl.SvcMgr.TService`)** — necessário para operação "esqueça e funcione" em ambiente Windows corporativo, onde a maior parte dos ERPs Delphi já roda. É **Delphi-only de propósito**: um Serviço Windows é uma noção inerentemente Windows, e o Lazarus não tem um `TService` equivalente pronto — não há perda real de portabilidade em deixar esse host específico fora do FPC (quem usa Lazarus/Windows tem o host console como alternativa). Mesmo padrão de "sample `Vcl`" que o pascal-amqp-faa já usa (`AutorizadorSimVcl`, `RetaguardaVcl`, etc.).
+- **`TDFeHostLoop`** encapsula só a cadência (chama `TDFeOrquestrador.ExecutarCiclo` a cada `DFE_HOST_TICK_SEGUNDOS_PADRAO` = 60s, configurável) — nenhum dos dois hosts reimplementa esse laço. 60s de tick não gera nenhuma consulta extra a SEFAZ: o orquestrador só age de verdade quando `ProximaConsultaEm` permite (cadência real de 1h por unidade); o tick do host só decide com que atraso máximo o processo reage a uma janela que acabou de abrir.
+- Consequência direta no orquestrador: como um host roda desassistido por longos períodos, `TDFeOrquestrador.ExecutarCiclo` agora isola cada unidade de trabalho num `try/except` — uma exceção não modelada numa unidade (bug, falha inesperada) é logada via `RegistrarErro` e não derruba o processamento das demais unidades/certificados, nem o processo inteiro.
+
+Ainda **não escritos**: os `.dpr`/`.lpr` dos dois hosts em si (dependem da integração real com ACBrLib e da inicialização do broker embutido, que ainda não existem) — o que existe agora é a mecânica de loop (`DFe.Host.Loop.pas`), testável isoladamente sem nenhuma dessas dependências.
 
 ## Integração com ACBr — decidido: ACBrLib
 

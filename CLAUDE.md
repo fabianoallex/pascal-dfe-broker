@@ -14,6 +14,7 @@ Ferramenta open source para consulta e distribuição de Documentos Fiscais Elet
 6. **Integração com ACBr via ACBrLib** (API estilo C, DLL/`.so`), não os componentes clássicos — confirmado Windows+Linux 32/64 bits, expõe `NFE_DistribuicaoDFePorUltNSU`/`CTE_DistribuicaoDFe`/`MDFE_DistribuicaoDFePorUltNSU`, resposta em INI já com o XML embutido por seção (parseável com `TIniFile` da RTL, dual-compiler). Ver `docs/architecture.md`, "Integração com ACBr — decidido: ACBrLib", para as fontes e o trade-off aceito (dependência de binário compilado). Maturidade prática do build Linux/FPC ainda não testada.
 7. **Regras de Distribuição de DFe verificadas contra as NTs oficiais** (não mais suposição): intervalo mínimo 1h sem escalonamento de backoff; código de cStat de consumo indevido NÃO é universal (656 NFe/CT-e, 678 MDF-e) — ver `docs/referencias/README.md`.
 8. **Cursor de NSU persistido em arquivo próprio** (`src/DFe.CursorStore.Arquivo.pas`, `TDFeCursorStoreArquivo`) — texto plano `namespace=nsu`, sem cache em memória (sempre lê/escreve o arquivo inteiro; volume é irrisório), escrita sempre via arquivo temporário + substituição atômica. SQLite e reuso do WAL do `pascal-amqp-faa` foram avaliados e rejeitados por desproporção — ver `docs/architecture.md`, "Persistência do cursor de NSU", para a justificativa completa. **Não é thread-safe para escritas concorrentes** — assume o orquestrador sequencial atual.
+9. **Formato de entrega: mais de um host fino, mesmo core.** Console (dual-compiler, Windows/Linux — no Linux **é** o host de produção, rodado sob systemd, sem daemonização própria) + Serviço Windows (Delphi/VCL `TService`, Delphi-only de propósito — Serviço Windows é uma noção inerentemente Windows). Ambos usam `TDFeHostLoop` (`src/DFe.Host.Loop.pas`) para a cadência de tick (60s padrão, configurável) sobre `TDFeOrquestrador.ExecutarCiclo`. Consequência: `ExecutarCiclo` agora isola cada unidade de trabalho num `try/except` (uma unidade com bug não derruba as demais nem o processo). Os `.dpr`/`.lpr` dos hosts em si ainda não existem (dependem da integração ACBrLib real). Ver `docs/architecture.md`, "Modelo de execução".
 
 ## Gotchas dual-compiler já encontrados
 
@@ -21,7 +22,6 @@ Ferramenta open source para consulta e distribuição de Documentos Fiscais Elet
 
 ## Explicitamente em aberto (decidir na implementação, não aqui)
 
-- **Formato de entrega/hospedagem**: console, Windows Service, daemon Linux — provavelmente mais de um, com um core sem dependência de GUI/serviço por baixo (mesmo padrão de múltiplos hosts finos que o `pascal-amqp-faa` já usa).
 - **Mecanismo de auto-registro de provider** (unit initialization vs. registro explícito em config).
 
 ## Onde procurar mais contexto
