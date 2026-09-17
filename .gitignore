@@ -1,0 +1,36 @@
+# saidas de compilacao
+build/
+lib/
+backup/
+*.exe
+*.o
+*.a
+*.ppu
+*.rsj
+*.compiled
+*.dcu
+Win32/
+Win64/
+linux/
+
+# recurso .res gerado pelo IDE
+*.res
+
+# certificados digitais e configs locais (nunca versionar certificado real)
+certs/*.pfx
+certs/*.p12
+certs/*.crt
+certs/*.key
+config/*.local.ini
+config/*.local.json
+
+# cache de package-links do lazbuild (especifico da maquina)
+/packagefiles.xml
+
+# arquivos de sessao/IDE
+*.lps
+*.local
+*.identcache
+*.stat
+__history/
+__recovery/
