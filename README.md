@@ -17,6 +17,8 @@ Automatizar a consulta de documentos fiscais que envolvem sua empresa (Distribui
 
 Detalhes de design — convenção de exchange/routing-key, contrato de provider, persistência do cursor de NSU, modelo de execução (serviço Windows, console, daemon Linux) — estão em [`docs/architecture.md`](docs/architecture.md).
 
+> Nota técnica: os web services da SEFAZ exigem certificado digital ICP-Brasil real mesmo em homologação. Por isso, apenas o adaptador que fala com a SEFAZ depende de certificado — o resto do sistema (poller, cursor de NSU, contrato de provider, publicação AMQP) é desenvolvido e testado contra fixtures gravadas, sem precisar de certificado nenhum. Ver "Fronteira testável sem certificado real" em `docs/architecture.md`.
+
 ## Compiladores suportados
 
 Delphi e FPC/Lazarus, **desde o início** — mesmo padrão dual-compiler do pascal-amqp-faa. Onde o suporte do ACBr a Lazarus for uma limitação real, o limite fica documentado explicitamente, não escondido nem contornado às custas de funcionalidade.

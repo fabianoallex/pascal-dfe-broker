@@ -17,6 +17,8 @@ Automating the query of fiscal documents that involve your company (DFe Distribu
 
 Design details — exchange/routing-key convention, provider contract, NSU cursor persistence, execution model (Windows service, console, Linux daemon) — live in [`docs/architecture.md`](docs/architecture.md).
 
+> Technical note: SEFAZ web services require a real ICP-Brasil digital certificate even in the staging (homologação) environment. Because of that, only the SEFAZ-facing adapter depends on a certificate — the rest of the system (poller, NSU cursor, provider contract, AMQP publishing) is developed and tested against recorded fixtures, with no certificate required. See "Fronteira testável sem certificado real" in `docs/architecture.md`.
+
 ## Supported compilers
 
 Delphi and FPC/Lazarus, **from day one** — the same dual-compiler pattern as pascal-amqp-faa. Where ACBr's Lazarus support is a real limitation, that limit is documented explicitly rather than hidden or worked around at the cost of functionality.
