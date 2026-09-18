@@ -4,7 +4,9 @@ program SpikeSim;
   Objetivo: transformar as hipoteses 1-4 em fatos. Liga TACBrNFe.OnTransmit
   (dentro do TDFeDistribuicaoClientACBrNFe REAL) a respostas roteirizadas e
   chama Consultar. Nao e' o simulador -- nada aqui e' reaproveitavel como
-  esta (acesso ao campo privado FACBrNFe por offset, gzip via ACBrCompress).
+  esta (gzip via ACBrCompress, cenarios soltos). Desde a Fase 1 usa a
+  costura oficial IDFeTransmissor (DFe.Transmissor) em vez do acesso ao
+  campo privado por offset da primeira versao.
 
   Uso: SpikeSim <arquivo.pfx> <senha> }
 
@@ -13,22 +15,23 @@ program SpikeSim;
 uses
   Interfaces,
   SysUtils,
-  ACBrNFe,
   ACBrCompress,
   ACBrDFe.Conversao,
   synacode,
+  DFe.Transmissor,
   DFe.Types,
   DFe.Errors,
+  DFe.Provider,
   DFe.Client.ACBrNFe;
 
 type
   TCenario = (cenSemNovidade, cenComDocumento, cenConsumoIndevido, cenTimeout,
     cenHttp500, cenCorpoIlegivel);
 
-  TSpike = class
+  TSpike = class(TInterfacedObject, IDFeTransmissor)
     Cenario: TCenario;
-    procedure Transmitir(const Dados, URL, SoapAction, MimeType: String;
-      var Resposta: String; var HTTPResultCode: Integer; var InternalErrorCode: Integer);
+    function Transmitir(const AEnvelope, AURL, ASoapAction,
+      AMimeType: string): TDFeRespostaTransmissao;
   end;
 
 const
@@ -71,32 +74,34 @@ begin
     string(EncodeBase64(GZipCompress(LXml))) + '</docZip></loteDistDFeInt>';
 end;
 
-procedure TSpike.Transmitir(const Dados, URL, SoapAction, MimeType: String;
-  var Resposta: String; var HTTPResultCode: Integer; var InternalErrorCode: Integer);
+function TSpike.Transmitir(const AEnvelope, AURL, ASoapAction,
+  AMimeType: string): TDFeRespostaTransmissao;
 begin
-  WriteLn('  [OnTransmit] URL=', URL);
-  WriteLn('  [OnTransmit] SoapAction=', SoapAction, '  MimeType="', MimeType, '"');
-  WriteLn('  [OnTransmit] Envelope=', Dados);
-  HTTPResultCode := 200;
+  WriteLn('  [Transmitir] URL=', AURL);
+  WriteLn('  [Transmitir] SoapAction=', ASoapAction, '  MimeType="', AMimeType, '"');
+  WriteLn('  [Transmitir] Envelope=', AEnvelope);
+  Result.Texto := '';
+  Result.HTTPResultCode := 200;
+  Result.InternalErrorCode := 0;
   case Cenario of
     cenSemNovidade:
-      Resposta := Envelope(RetDist('137', 'Nenhum documento localizado', '000000000000000', '000000000000000', ''));
+      Result.Texto := Envelope(RetDist('137', 'Nenhum documento localizado', '000000000000000', '000000000000000', ''));
     cenComDocumento:
-      Resposta := Envelope(RetDist('138', 'Documento localizado', '000000000000001', '000000000000001', DocZip));
+      Result.Texto := Envelope(RetDist('138', 'Documento localizado', '000000000000001', '000000000000001', DocZip));
     cenConsumoIndevido:
-      Resposta := Envelope(RetDist('656', 'Rejeicao: Consumo Indevido', '000000000000000', '000000000000000', ''));
+      Result.Texto := Envelope(RetDist('656', 'Rejeicao: Consumo Indevido', '000000000000000', '000000000000000', ''));
     cenTimeout:
       begin
-        HTTPResultCode := 0;
-        InternalErrorCode := 10060;
+        Result.HTTPResultCode := 0;
+        Result.InternalErrorCode := 10060;
       end;
     cenHttp500:
       begin
-        HTTPResultCode := 500;
-        InternalErrorCode := 12345; // erro interno qualquer, sem corpo
+        Result.HTTPResultCode := 500;
+        Result.InternalErrorCode := 12345; // erro interno qualquer, sem corpo
       end;
     cenCorpoIlegivel:
-      Resposta := '<html><body>Bad Gateway</body></html>';
+      Result.Texto := '<html><body>Bad Gateway</body></html>';
   end;
 end;
 
@@ -109,7 +114,7 @@ begin
     Result := Result + IntToHex(Ord(S[I]), 2) + ' ';
 end;
 
-procedure Rodar(AClient: TDFeDistribuicaoClientACBrNFe; ASpike: TSpike;
+procedure Rodar(const AClient: IDFeDistribuicaoClient; ASpike: TSpike;
   ACenario: TCenario; const ANome: string; const ACert: TDFeCertificado);
 var
   LLote: TDFeLoteBruto;
@@ -139,11 +144,11 @@ begin
 end;
 
 var
-  LClient: TDFeDistribuicaoClientACBrNFe;
+  LClient: IDFeDistribuicaoClient;
   LSpike: TSpike;
+  LTransmissor: IDFeTransmissor;
   LCred: TDFeCredencialCertificado;
   LCert: TDFeCertificado;
-  LACBr: TACBrNFe;
 begin
   if ParamCount < 2 then
   begin
@@ -157,14 +162,10 @@ begin
   LCert.CnpjCpf := CNPJ_TESTE;
   LCert.UF := 'RS';
 
-  LClient := TDFeDistribuicaoClientACBrNFe.Create(LCred, taHomologacao);
   LSpike := TSpike.Create;
-  try
-    { Acesso ao campo privado FACBrNFe (1o campo da classe): so' no spike. }
-    LACBr := TACBrNFe(PPointer(PByte(LClient) + TInterfacedObject.InstanceSize)^);
-    WriteLn('campo privado resolvido como: ', LACBr.ClassName);
-    LACBr.OnTransmit := LSpike.Transmitir;
-
+  LTransmissor := LSpike; // dono do ciclo de vida (contagem de referencia)
+  LClient := TDFeDistribuicaoClientACBrNFe.Create(LCred, taHomologacao, LTransmissor);
+  begin
     Rodar(LClient, LSpike, cenSemNovidade, '137 sem novidade', LCert);
     Rodar(LClient, LSpike, cenComDocumento, '138 com 1 docZip (xNome acentuado)', LCert);
     Rodar(LClient, LSpike, cenConsumoIndevido, '656 consumo indevido', LCert);
@@ -177,8 +178,5 @@ begin
     { certificado com CNPJ divergente }
     LCert.CnpjCpf := '11444777000161';
     Rodar(LClient, LSpike, cenSemNovidade, 'CNPJ divergente do certificado', LCert);
-  finally
-    LSpike.Free;
-    LClient.Free;
   end;
 end.

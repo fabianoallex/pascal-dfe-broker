@@ -84,7 +84,9 @@ Comportamento observado do client real, por cenário (todos via `OnTransmit`):
 
 **Conclusão: a camada 2 vale a pena** — hipóteses 1 e 3 (as que a derrubariam) passaram. Próximo passo: Fase 1 (costura de injeção), que também elimina o acesso por offset.
 
-### Fase 1 — costura de injeção no client
+### Fase 1 — costura de injeção no client — **FEITA (2026-09-18)**
+
+Implementada como `src/DFe.Transmissor.pas` (`IDFeTransmissor`, `TDFeRespostaTransmissao`; unit pura) + parâmetro opcional `ATransmissor` em `TDFeDistribuicaoClientACBrNFe.Create` (nil = produção, ACBr faz o HTTP). O client liga `FACBrNFe.OnTransmit` a um método próprio só se houver transmissor. O spike agora usa essa costura em vez do acesso por offset e produz exatamente os mesmos resultados. Achado colateral: o ACBr **grava XMLs em disco por padrão** (`Geral.Salvar` e `Arquivos.Salvar` = True); o client agora desliga as duas. Texto do plano original abaixo:
 
 `TDFeDistribuicaoClientACBrNFe` ganha um transmissor opcional (interface ou tipo de método próprio, ex. `IDFeTransmissor.Transmitir(const AEnvelope, AURL, ASoapAction, AMimeType): TDFeRespostaTransmissao`) que, se presente, é ligado a `FACBrNFe.OnTransmit` no construtor. Sem transmissor, comportamento idêntico ao de hoje (produção não muda). O tipo de retorno carrega texto, `HTTPResultCode` e `InternalErrorCode`.
 

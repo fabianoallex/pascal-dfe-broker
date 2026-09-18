@@ -54,6 +54,7 @@ uses
   ACBrUtil.Base,
   DFe.Types,
   DFe.Errors,
+  DFe.Transmissor,
   DFe.Provider,
   DFe.Provider.NFe,
   DFe.Manifestacao;
@@ -90,6 +91,12 @@ type
   TDFeDistribuicaoClientACBrNFe = class(TInterfacedObject, IDFeDistribuicaoClient, IDFeManifestador)
   private
     FACBrNFe: TACBrNFe;
+    { nil em producao (o ACBr faz o HTTP). Guardado como interface para
+      manter o objeto vivo enquanto o ACBr o usa via AoTransmitir. }
+    FTransmissor: IDFeTransmissor;
+    procedure AoTransmitir(const Dados, URL, SoapAction, MimeType: string;
+      var Resposta: string; var HTTPResultCode: Integer;
+      var InternalErrorCode: Integer);
     { Garante certificado carregado, nao vencido e compativel com o CNPJ
       da unidade -- tudo isso e' problema de CONFIGURACAO/CERTIFICADO,
       nunca de comunicacao, entao qualquer falha aqui vira
@@ -111,8 +118,12 @@ type
     { AAmbiente default taProducao de proposito -- homologacao e'
       escolha explicita de quem monta o client (host/config), nunca
       default silencioso escondido aqui. }
+    { ATransmissor: nil (padrao) = comportamento de producao, o ACBr faz o
+      HTTP/TLS. Se informado, ele substitui SO' o transporte (ver
+      DFe.Transmissor) -- usado pelo simulador da SEFAZ e por testes. }
     constructor Create(const ACredencial: TDFeCredencialCertificado;
-      const AAmbiente: TACBrTipoAmbiente = taProducao);
+      const AAmbiente: TACBrTipoAmbiente = taProducao;
+      const ATransmissor: IDFeTransmissor = nil);
     destructor Destroy; override;
 
     function Consultar(const ACertificado: TDFeCertificado;
@@ -177,10 +188,21 @@ end;
 { TDFeDistribuicaoClientACBrNFe }
 
 constructor TDFeDistribuicaoClientACBrNFe.Create(const ACredencial: TDFeCredencialCertificado;
-  const AAmbiente: TACBrTipoAmbiente);
+  const AAmbiente: TACBrTipoAmbiente; const ATransmissor: IDFeTransmissor);
 begin
   inherited Create;
   FACBrNFe := TACBrNFe.Create(nil);
+  FTransmissor := ATransmissor;
+  if Assigned(FTransmissor) then
+    FACBrNFe.OnTransmit := AoTransmitir;
+
+  { O ACBr grava por padrao, sob o diretorio da aplicacao, os XMLs de
+    envio/resposta (Geral.Salvar = True) e cada documento baixado
+    (Arquivos.Salvar = True). O broker entrega tudo por mensagem, nao por
+    arquivo -- achado ao rodar o spike da Fase 0 (apareceu uma pasta
+    Docs\). WebServices.Salvar ja' e' False por padrao. }
+  FACBrNFe.Configuracoes.Geral.Salvar := False;
+  FACBrNFe.Configuracoes.Arquivos.Salvar := False;
 
   { OpenSSL/LibXml2 em vez de WinCrypt/CAPICOM/MSXml -- unica combinacao
     que funciona nos dois compiladores/plataformas (ver decisao 2 em
@@ -207,6 +229,18 @@ destructor TDFeDistribuicaoClientACBrNFe.Destroy;
 begin
   FACBrNFe.Free;
   inherited Destroy;
+end;
+
+procedure TDFeDistribuicaoClientACBrNFe.AoTransmitir(const Dados, URL, SoapAction,
+  MimeType: string; var Resposta: string; var HTTPResultCode: Integer;
+  var InternalErrorCode: Integer);
+var
+  LResposta: TDFeRespostaTransmissao;
+begin
+  LResposta := FTransmissor.Transmitir(Dados, URL, SoapAction, MimeType);
+  Resposta := LResposta.Texto;
+  HTTPResultCode := LResposta.HTTPResultCode;
+  InternalErrorCode := LResposta.InternalErrorCode;
 end;
 
 procedure TDFeDistribuicaoClientACBrNFe.GarantirCertificadoValido(const ACnpjCpf: string);
