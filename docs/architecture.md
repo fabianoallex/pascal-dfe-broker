@@ -201,7 +201,7 @@ Duas decisões de design nasceram de uma incompatibilidade real entre o modelo d
 - **Item malformado de schema conhecido levanta `EDFeRespostaInvalida`** (chave fora de 44 dígitos, evento sem `tpEvento`); **schema desconhecido é ignorado** para um schema novo da SEFAZ não travar o cursor dos demais documentos.
 - **`TipoEvento` integra a routing-key** (`nfe.evento.<TipoEvento>.<uf>.<cnpj>`) — interface pública. Nomes: 110110 `cartacorrecao`, 110111 `cancelamento`, 110112 `cancelamentosubstituicao`, 110140 `epec`, e os quatro de manifestação com o vocabulário de `DFe.Manifestacao`. Código não mapeado sai numérico; **mapeá-lo depois muda a routing-key dele**.
 - **Não implementa `IDFeManifestador`** — enviar evento à SEFAZ exige certificado e fica para uma peça própria.
-- **Efeito colateral a resolver no orquestrador**: uma exceção de `Decodificar` hoje propaga sem reagendar a unidade, repetindo a consulta a cada tick (ver "Próximos marcos" em `CLAUDE.md`).
+- **Exceção de `Decodificar` é tratada pelo orquestrador**: `ExecutarCiclo` agora reagenda a unidade (`Agora + IntervaloBaseSegundos`) em qualquer exceção não modelada, além de logar. Antes, `ProximaConsultaEm` não mudava e a mesma consulta se repetia a cada tick de 60s, provocando consumo indevido (656). O cursor não avança, então a próxima tentativa busca o mesmo lote (entrega ao menos uma vez). Vale igualmente para falha em `Publicar`. Teste: `DecodificarLevanta_ReagendaSemAvancarCursorNemRepetirConsulta`.
 
 ## Estrutura de projeto/pacote e framework de teste — decidido
 
