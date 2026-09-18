@@ -90,7 +90,9 @@ Implementada como `src/DFe.Transmissor.pas` (`IDFeTransmissor`, `TDFeRespostaTra
 
 `TDFeDistribuicaoClientACBrNFe` ganha um transmissor opcional (interface ou tipo de método próprio, ex. `IDFeTransmissor.Transmitir(const AEnvelope, AURL, ASoapAction, AMimeType): TDFeRespostaTransmissao`) que, se presente, é ligado a `FACBrNFe.OnTransmit` no construtor. Sem transmissor, comportamento idêntico ao de hoje (produção não muda). O tipo de retorno carrega texto, `HTTPResultCode` e `InternalErrorCode`.
 
-### Fase 2 — núcleo do simulador (puro, independente de transporte)
+### Fase 2 — núcleo do simulador (puro, independente de transporte) — **FEITA (2026-09-18)**
+
+Implementada em `src/` (todas puras, dual-compiler, no pacote Lazarus): `DFe.Simulador` (núcleo: `TDFeSimuladorSefaz`), `DFe.Simulador.Fixtures` (gerador `resNFe`/`procNFe`/`resEvento`/`procEventoNFe` + chave de acesso com DV correto), `DFe.Simulador.Codec` (CRC32, gzip, base64, `docZip`) e `DFe.Simulador.Client` (camada 1: `IDFeDistribuicaoClient` sobre o núcleo). 52 testes novos (`DFe.Simulador*Tests`), incluindo 10 ponta a ponta com o orquestrador e o `TDFeProviderNFe` reais. **Desvio do plano**: o gzip usa blocos deflate *armazenados* (sem compressão) em vez de `zstream` — `zstream` só existe no FPC e o `System.ZLib` do Delphi tem outra API; gzip armazenado é válido, puro Pascal e idêntico nos dois. Decisões de regra: 137 abre o bloqueio de 1h; consulta bloqueada recebe consumo indevido e **não** reinicia o bloqueio (a NT não diz o contrário); 138 nunca bloqueia; falhas são enfileiradas e consumidas uma por consulta. `TDFeSimuladorClient` mapeia `docZip` corrompido para `EDFeRespostaInvalida` — **aproximação**: o que o ACBr real faz só se sabe na Fase 3. Texto do plano original abaixo:
 
 - Estado por (CNPJ, UF): NSU corrente, `maxNSU`, instante da última consulta.
 - Relógio injetável (mesmo padrão de `TDFeOrquestrador.Agora`) — nunca `Sleep`/tempo real.

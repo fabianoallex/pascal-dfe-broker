@@ -193,6 +193,15 @@ type
     property Recargas: Integer read FRecargas;
   end;
 
+  { Relogio controlavel para o simulador da SEFAZ (DFe.Simulador): ligar
+    ObterAgora a TDFeSimuladorSefaz.Create e avancar Agora a mao -- nenhum
+    Sleep, nenhum tempo real. }
+  TDFeRelogioFake = class
+  public
+    Agora: TDateTime;
+    function ObterAgora: TDateTime;
+  end;
+
 implementation
 
 function CertificadoTeste: TDFeCertificado;
@@ -492,6 +501,13 @@ procedure TDFeConfigWatcherTestavel.Recarregar;
 begin
   inherited Recarregar;
   Inc(FRecargas);
+end;
+
+{ TDFeRelogioFake }
+
+function TDFeRelogioFake.ObterAgora: TDateTime;
+begin
+  Result := Agora;
 end;
 
 end.

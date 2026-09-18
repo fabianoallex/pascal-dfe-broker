@@ -18,6 +18,10 @@ uses
   DFe.Config in '..\..\src\DFe.Config.pas',
   DFe.Manifestacao in '..\..\src\DFe.Manifestacao.pas',
   DFe.Provider.NFe in '..\..\src\DFe.Provider.NFe.pas',
+  DFe.Simulador.Codec in '..\..\src\DFe.Simulador.Codec.pas',
+  DFe.Simulador.Fixtures in '..\..\src\DFe.Simulador.Fixtures.pas',
+  DFe.Simulador in '..\..\src\DFe.Simulador.pas',
+  DFe.Simulador.Client in '..\..\src\DFe.Simulador.Client.pas',
   DFe.TestDoubles in 'DFe.TestDoubles.pas',
   DFe.RoutingKeyTests in 'DFe.RoutingKeyTests.pas',
   DFe.TypesTests in 'DFe.TypesTests.pas',
@@ -27,7 +31,11 @@ uses
   DFe.HostLoopTests in 'DFe.HostLoopTests.pas',
   DFe.ConfigTests in 'DFe.ConfigTests.pas',
   DFe.ManifestacaoTests in 'DFe.ManifestacaoTests.pas',
-  DFe.ProviderNFeTests in 'DFe.ProviderNFeTests.pas';
+  DFe.ProviderNFeTests in 'DFe.ProviderNFeTests.pas',
+  DFe.SimuladorCodecTests in 'DFe.SimuladorCodecTests.pas',
+  DFe.SimuladorFixturesTests in 'DFe.SimuladorFixturesTests.pas',
+  DFe.SimuladorTests in 'DFe.SimuladorTests.pas',
+  DFe.SimuladorClientTests in 'DFe.SimuladorClientTests.pas';
 
 var
   runner: ITestRunner;

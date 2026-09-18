@@ -65,6 +65,22 @@
         <Filename Value="..\src\DFe.Provider.NFe.pas"/>
         <UnitName Value="DFe.Provider.NFe"/>
       </Item>
+      <Item>
+        <Filename Value="..\src\DFe.Simulador.Codec.pas"/>
+        <UnitName Value="DFe.Simulador.Codec"/>
+      </Item>
+      <Item>
+        <Filename Value="..\src\DFe.Simulador.Fixtures.pas"/>
+        <UnitName Value="DFe.Simulador.Fixtures"/>
+      </Item>
+      <Item>
+        <Filename Value="..\src\DFe.Simulador.pas"/>
+        <UnitName Value="DFe.Simulador"/>
+      </Item>
+      <Item>
+        <Filename Value="..\src\DFe.Simulador.Client.pas"/>
+        <UnitName Value="DFe.Simulador.Client"/>
+      </Item>
     </Files>
     <RequiredPkgs>
       <Item>

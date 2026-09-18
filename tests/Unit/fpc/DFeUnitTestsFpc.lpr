@@ -24,7 +24,11 @@ uses
   DFe.HostLoopTests,
   DFe.ConfigTests,
   DFe.ManifestacaoTests,
-  DFe.ProviderNFeTests;
+  DFe.ProviderNFeTests,
+  DFe.SimuladorCodecTests,
+  DFe.SimuladorFixturesTests,
+  DFe.SimuladorTests,
+  DFe.SimuladorClientTests;
 
 var
   ConsoleApp: TTestRunner;
