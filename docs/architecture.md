@@ -162,13 +162,38 @@ CursorPath=cursores.dat      ; opcional
 Provider=nfe
 CnpjCpf=12345678000199
 UF=RS
+Ativo=true                  ; opcional, default true
 ```
 
 Implementado em `src/DFe.Config.pas`:
 
 - **`CarregarConfig`** lê o arquivo e valida cada seção `certificado:*` — levanta exceção nomeando a seção se faltar `Provider`, `CnpjCpf` ou `UF`. Falha alto e cedo, na inicialização do host, em vez de criar uma unidade de trabalho quebrada em silêncio.
 - **Campos de certificado digital "de verdade" (caminho do `.pfx`, senha) ficam FORA deste arquivo de propósito** — pertencem à implementação real de `IDFeDistribuicaoClient` (ACBrLib, ainda não escrita), nunca ao core, que só precisa saber `CnpjCpf`/`UF`/qual provider usar.
-- **`MontarUnidades`** resolve cada provider pelo identificador via `TDFeProviderRegistry` (levanta exceção se não estiver registrado — config referenciando provider não linkado ao programa é erro de deploy) e usa uma **fábrica injetada** (`TDFeClientFactory = function(const ACertificado): IDFeDistribuicaoClient of object`) para criar o client de cada certificado — nunca o `IDFeDistribuicaoClient` diretamente. Isso mantém `DFe.Config` testável sem ACBrLib nenhuma (a fábrica real, quando existir, encapsula certificado digital + ACBrLib; testes passam uma fábrica que devolve fakes) e sem certificado nenhum, pela mesma razão de "Fronteira testável sem certificado real" logo acima.
 - `TDFeClientFactory` é `of object` (método ligado), não `reference to` — closures não existem no FPC 3.2 (mesma regra herdada do `pascal-amqp-faa`).
 
-**Testado de verdade (2026-09-18): 43/43 no FPC** (`DFe.ConfigTests`, 8 testes novos) — `CarregarConfig` com/sem `[dfe]`, com múltiplos certificados, cada campo obrigatório faltando; `MontarUnidades` com provider não registrado e com providers reais registrados via `TDFeProviderRegistry`. 0 erros, 0 falhas, 0 vazamento de memória. Lado Delphi ainda não recompilado com esses 8 testes (arquivos `.dpr`/`.dproj` já atualizados).
+### Mais de um certificado, inclusive do mesmo CNPJ — decidido
+
+Cenário motivador: um certificado prestes a vencer, com um novo já configurado para assumir sem reiniciar a aplicação. Duas descobertas moldaram o desenho:
+
+1. **O NSU da Distribuição de DFe pertence ao CNPJ/UF consultado, não ao certificado que autentica a chamada.** Dois certificados do mesmo CNPJ compartilham a mesma "posição de leitura" na SEFAZ — e como o namespace do cursor já era `<tipo>/<cnpjCpf>/<uf>` (nunca o alias, ver `MontarNamespaceCursor`), a troca de certificado **já não duplica nem perde documento**, sem nenhuma mudança de código.
+2. **Mas os dois nunca podem estar ativos ao mesmo tempo**: a SEFAZ limita consulta por CNPJ, não por certificado — dois certificados consultando o mesmo `(tipo, CnpjCpf, UF)` simultaneamente dobra a taxa de consulta e arrisca consumo indevido (656/678).
+
+Daí o campo **`Ativo`** (default `true`) por seção `[certificado:*]`, e uma validação nova em `CarregarConfig`: **recusa a config se dois certificados ativos compartilharem `(Provider, CnpjCpf, UF)`**. A troca de certificado é sempre "ativa o novo e desativa o velho" via config, nunca os dois ligados ao mesmo tempo.
+
+**Ativação manual via config, não detecção automática de vencimento** — cogitado e adiado: inspecionar a validade real de um certificado X.509 exige a implementação real via ACBrLib, que ainda não existe (ACBrLib não está instalada nesta máquina de desenvolvimento). Revisitar quando essa peça existir.
+
+### Recarregar sem reiniciar — decidido: polling no tick do host
+
+`MontarUnidades` foi **substituída por `RecarregarConfig`**, que reconcilia uma `TDFeConfig` com um `TDFeOrquestrador` **já em execução**, em vez de só construir um array de unidades do zero:
+
+- alias novo → cria a unidade (via `AClientFactory`) e adiciona ao orquestrador, já com `Pausada = not Ativo`;
+- alias existente → **nunca recriado** — só sincroniza `Pausada` com o `Ativo` atual (preserva `ProximaConsultaEm` e todo o resto do estado de agendamento);
+- alias que sumiu da config → **pausado, nunca destruído** (destruir uma unidade em potencial uso seria mais arriscado que só pausá-la).
+
+Carga inicial e recarga a quente usam a mesma função: um orquestrador recém-criado (sem unidades) trata todo alias como "novo", produzindo o mesmo resultado que `MontarUnidades` produzia antes.
+
+**`TDFeConfigWatcher`** embrulha isso para o host: no construtor já faz a carga inicial (chama `Recarregar`), e expõe `VerificarRecarregar` — chamado periodicamente (a decisão foi **reaproveitar o tick do `TDFeHostLoop`**, sem mecanismo de sinalização novo) — que só recarrega de fato se a data de modificação do arquivo mudou desde a última vez. Como `TDFeHostLoop.Tick` já é virtual (ver seção "Modelo de execução"), um host real conecta isso sobrescrevendo `Tick` para chamar `inherited Tick` seguido de `ConfigWatcher.VerificarRecarregar` — nenhuma mudança adicional em `TDFeHostLoop` foi necessária.
+
+Gatilho explícito (sinal do SO, comando externo) foi cogitado e descartado por enquanto: reaproveitar o tick já existente não pede nenhuma infraestrutura nova.
+
+**Testado de verdade (2026-09-18): 52/52 no FPC** (`DFe.ConfigTests`, incluindo `RecarregarConfig` — cria/sincroniza/pausa — e `TDFeConfigWatcher`, com data de modificação controlável via `TDFeConfigWatcherTestavel` em vez de depender do mtime real de um arquivo). 0 erros, 0 falhas, 0 vazamento de memória. Lado Delphi ainda não recompilado com esses testes (arquivos `.dpr`/`.dproj` já referenciam os mesmos arquivos, que só cresceram de conteúdo — não precisam de nova edição, só recompilar).

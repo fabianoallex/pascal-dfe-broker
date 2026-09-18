@@ -107,6 +107,21 @@ type
 
     procedure AdicionarUnidade(const AUnidade: TDFeUnidadeTrabalho);
 
+    { Busca uma unidade pelo alias configurado (TDFeUnidadeTrabalho.
+      Certificado.Identificador -- ver DFe.Config, onde o alias da secao
+      'certificado:<alias>' vira esse campo). Devolve nil se nao
+      encontrar. Usado por DFe.Config.RecarregarConfig para reconciliar a
+      config com o orquestrador em execucao sem recriar unidades que ja
+      existem (e sem perder o estado de agendamento/pausa delas). }
+    function ObterUnidadePorAlias(const AAlias: string): TDFeUnidadeTrabalho;
+
+    { Copia independente das unidades atuais -- quem chama nao pode
+      corromper o estado interno do orquestrador escrevendo no array
+      devolvido (mesmo cuidado de TDFeProviderRegistry.Todos, mas aqui sao
+      referencias de objeto, nao interface -- nao ha refcount para
+      corromper, so a lista em si). }
+    function Unidades: TDFeUnidadeTrabalhoArray;
+
     { Chamado periodicamente por quem hospeda o orquestrador. Cada unidade
       decide sozinha (via ProximaConsultaEm) se e' a vez dela rodar --
       chamar isto com mais frequencia do que o necessario e' seguro e nao
@@ -169,6 +184,28 @@ begin
   LIndiceNovo := Length(FUnidades);
   SetLength(FUnidades, LIndiceNovo + 1);
   FUnidades[LIndiceNovo] := AUnidade;
+end;
+
+function TDFeOrquestrador.ObterUnidadePorAlias(const AAlias: string): TDFeUnidadeTrabalho;
+var
+  I: Integer;
+begin
+  Result := nil;
+  for I := 0 to High(FUnidades) do
+    if SameText(FUnidades[I].Certificado.Identificador, AAlias) then
+    begin
+      Result := FUnidades[I];
+      Break;
+    end;
+end;
+
+function TDFeOrquestrador.Unidades: TDFeUnidadeTrabalhoArray;
+var
+  I: Integer;
+begin
+  SetLength(Result, Length(FUnidades));
+  for I := 0 to High(FUnidades) do
+    Result[I] := FUnidades[I];
 end;
 
 function TDFeOrquestrador.Agora: TDateTime;

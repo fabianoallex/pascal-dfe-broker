@@ -126,6 +126,24 @@ type
     property Chamadas: Integer read FChamadas;
   end;
 
+  { Subclasse de teste de TDFeConfigWatcher: ObterDataModificacao vira
+    controlavel (sem depender do mtime real de um arquivo -- mesmo padrao
+    de Agora/Esperar) e Recarregar conta quantas vezes rodou de verdade,
+    pra teste distinguir "recarregou" de "nao recarregou" sem depender do
+    numero de chamadas da fabrica de client (que so' e' chamada para
+    alias novo, nao para um alias ja existente sendo apenas sincronizado). }
+  TDFeConfigWatcherTestavel = class(TDFeConfigWatcher)
+  private
+    FDataSimulada: TDateTime;
+    FRecargas: Integer;
+  protected
+    function ObterDataModificacao: TDateTime; override;
+  public
+    procedure Recarregar; override;
+    property DataSimulada: TDateTime read FDataSimulada write FDataSimulada;
+    property Recargas: Integer read FRecargas;
+  end;
+
 implementation
 
 function CertificadoTeste: TDFeCertificado;
@@ -347,6 +365,19 @@ function TDFeClientFactoryFake.Fabricar(const ACertificado: TDFeConfigCertificad
 begin
   Inc(FChamadas);
   Result := TDFeDistribuicaoClientFake.Create;
+end;
+
+{ TDFeConfigWatcherTestavel }
+
+function TDFeConfigWatcherTestavel.ObterDataModificacao: TDateTime;
+begin
+  Result := FDataSimulada;
+end;
+
+procedure TDFeConfigWatcherTestavel.Recarregar;
+begin
+  inherited Recarregar;
+  Inc(FRecargas);
 end;
 
 end.
