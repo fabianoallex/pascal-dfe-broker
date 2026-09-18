@@ -50,8 +50,16 @@ begin
   SetLength(LBytes, Length(LAnsi));
   if Length(LAnsi) > 0 then
     Move(LAnsi[1], LBytes[0], Length(LAnsi));
-  Result := TEncoding.UTF8.GetString(LBytes);
-  if Pos(#$FFFD, Result) > 0 then // bytes que nao eram UTF-8: nao era o formato do ACBr
+  try
+    Result := TEncoding.UTF8.GetString(LBytes);
+  except
+    on EEncodingError do // GetString LEVANTA (nao devolve U+FFFD) para UTF-8 invalido
+    begin
+      Result := ATextoDoAcbr;
+      Exit;
+    end;
+  end;
+  if Pos(#$FFFD, Result) > 0 then // U+FFFD no proprio texto: nao era o formato do ACBr
     Result := ATextoDoAcbr;
   {$ENDIF}
 end;

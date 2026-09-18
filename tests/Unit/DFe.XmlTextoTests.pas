@@ -32,13 +32,18 @@ const
   TEXTO_ACENTUADO = 'JOS' + #$00C9 + ' A' + #$00C7 + 'A' + #$00CD + ' LTDA'; // JOSE ACAI LTDA com acentos
 
 { ACBr no Delphi: os bytes UTF-8 do documento viram caracteres pela pagina
-  ANSI do sistema. }
+  ANSI do sistema. ATENCAO: nao usar AnsiString(UTF8Encode(...)) -- o
+  RawByteString de UTF8Encode e' MARCADO como UTF-8, e a conversao para
+  AnsiString seria de TEXTO (E -> C9 -> E), nao a reinterpretacao de BYTES
+  que o ACBr faz (ele tem os bytes crus num AnsiString com a pagina ANSI). }
 function TDFeXmlTextoTests.ComoOAcbrEntrega(const ATexto: string): string;
 var
-  LUtf8: RawByteString;
+  LBytes: TBytes;
+  LAnsi: AnsiString;
 begin
-  LUtf8 := UTF8Encode(ATexto);
-  Result := string(AnsiString(LUtf8));
+  LBytes := TEncoding.UTF8.GetBytes(ATexto);
+  SetString(LAnsi, PAnsiChar(@LBytes[0]), Length(LBytes)); // bytes crus, pagina ANSI
+  Result := string(LAnsi);
 end;
 
 procedure TDFeXmlTextoTests.Ascii_Inalterado;
