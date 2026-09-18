@@ -3,8 +3,8 @@
 {$I dfe.inc}
 
 { Formato de configuracao: INI, sem dependencia externa -- mesma filosofia
-  de DFe.CursorStore.Arquivo e da propria resposta da ACBrLib (ver
-  docs/architecture.md, "Integracao com ACBr"). JSON/YAML foram descartados
+  de DFe.CursorStore.Arquivo (ver docs/architecture.md, "Integracao com
+  ACBr"). JSON/YAML foram descartados
   de proposito: JSON tem API diferente entre Delphi (System.JSON) e FPC
   (fpjson), exigiria uma camada de abstracao; YAML nao tem suporte nativo
   em nenhum dos dois, exigiria biblioteca de terceiros. INI e' RTL padrao
@@ -27,7 +27,7 @@
   Cada secao 'certificado:<alias>' vira uma TDFeUnidadeTrabalho. Campos de
   certificado digital "de verdade" (caminho do .pfx, senha) ficam FORA
   deste arquivo de proposito -- pertencem a implementacao real de
-  IDFeDistribuicaoClient (ACBrLib, ainda nao escrita), nunca ao core, que
+  IDFeDistribuicaoClient (componentes ACBr, ainda nao escrita), nunca ao core, que
   so precisa saber CnpjCpf/UF/qual provider usar.
 
   MAIS DE UM CERTIFICADO PARA O MESMO CNPJ (troca antes do vencimento):
@@ -44,8 +44,8 @@
   (Provider, CnpjCpf, UF) -- a troca e' sempre "ativa o novo e desativa o
   velho", nunca os dois ligados. Ativacao automatica por vencimento do
   certificado foi cogitada e adiada -- exigiria inspecionar o certificado
-  digital de verdade, que so a implementacao real via ACBrLib (ainda nao
-  escrita) podera fazer. ManifestacaoAutomatica e' por certificado/alias e
+  digital de verdade, que so a implementacao real via componentes ACBr
+  (ainda nao escrita) podera fazer. ManifestacaoAutomatica e' por certificado/alias e
   NAO entra nessa colisao -- dois certificados do mesmo CNPJ podem ter
   valores diferentes, ja que so' um dos dois estara Ativo por vez de
   qualquer forma.
@@ -88,12 +88,12 @@ type
   end;
 
   { Fabrica de IDFeDistribuicaoClient para um certificado -- quem monta o
-    orquestrador de verdade passa aqui a implementacao real (ACBrLib);
-    testes passam uma fabrica que devolve fakes. 'of object' (metodo
+    orquestrador de verdade passa aqui a implementacao real (componentes
+    ACBr); testes passam uma fabrica que devolve fakes. 'of object' (metodo
     ligado), nao 'reference to' -- closures nao existem no FPC 3.2 (ver
     CLAUDE.md do pascal-amqp-faa, regra que vale aqui tambem). Isolado
-    assim porque "como construir um client" (certificado, ACBrLib) e'
-    decisao de quem hospeda, nao do parser de config. }
+    assim porque "como construir um client" (certificado, componentes ACBr)
+    e' decisao de quem hospeda, nao do parser de config. }
   TDFeClientFactory = function(const ACertificado: TDFeConfigCertificado): IDFeDistribuicaoClient of object;
 
 { Le e valida o arquivo de configuracao. Levanta excecao com o nome da

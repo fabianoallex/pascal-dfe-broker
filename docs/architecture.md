@@ -117,25 +117,28 @@ Broker AMQP roda **embutido** no processo (reusa o submódulo server do pascal-a
 
 Ainda **não escritos**: os `.dpr`/`.lpr` dos dois hosts em si (dependem da integração real com ACBrLib e da inicialização do broker embutido, que ainda não existem) — o que existe agora é a mecânica de loop (`DFe.Host.Loop.pas`), testável isoladamente sem nenhuma dessas dependências.
 
-## Integração com ACBr — decidido: ACBrLib
+## Integração com ACBr — decidido: componentes clássicos (revertido de ACBrLib)
 
 Duas opções de fronteira de integração com ACBr foram avaliadas:
 
-1. **Componentes ACBr clássicos** (VCL/LCL, ex. `TACBrNFe`) — unidades Object Pascal nativas, compiladas direto no binário, sem DLL/SO. Suporte a Lazarus/FPC existe mas é uma árvore de componentes grande, construída Delphi-first; maturidade específica para Distribuição de DFe em Lazarus não foi testada na prática. Para o nosso caso de uso (só consultar distribuição) essa opção importa uma superfície de dependência bem maior do que o necessário — o componente também faz emissão, DANFE, etc.
-2. **ACBrLib** — biblioteca compartilhada (DLL/`.so`) que expõe os mesmos componentes por trás de uma API estilo C, desenhada explicitamente para uso cross-platform/cross-linguagem. **Escolhida.**
+1. **Componentes ACBr clássicos** (VCL/LCL, ex. `TACBrNFe`) — unidades Object Pascal nativas, compiladas direto no binário, sem DLL/SO. Suporte a Lazarus/FPC existe mas é uma árvore de componentes grande, construída Delphi-first; maturidade específica para Distribuição de DFe em Lazarus não foi testada na prática. Para o nosso caso de uso (só consultar distribuição) essa opção importa uma superfície de dependência bem maior do que o necessário — o componente também faz emissão, DANFE, etc. **Escolhida (2026-09-18, revertendo a decisão original).**
+2. **ACBrLib** — biblioteca compartilhada (DLL/`.so`) que expõe os mesmos componentes por trás de uma API estilo C, desenhada explicitamente para uso cross-platform/cross-linguagem. Escolhida originalmente em 2026-09-17, revertida — ver "Por que a reversão" abaixo.
 
-**Decisão (2026-09-17): usar ACBrLib.** Motivos verificados contra a documentação oficial (não apenas conhecimento de domínio — ver fontes abaixo):
+### Por que a reversão (2026-09-18)
 
-- Confirmada Windows **e Linux**, 32 e 64 bits — é uma característica de design da própria lib, não algo que dependa da maturidade variável dos componentes clássicos no Lazarus.
-- Expõe exatamente as funções de Distribuição de DFe que este projeto precisa, para os três tipos de documento: `NFE_DistribuicaoDFePorUltNSU`, `CTE_DistribuicaoDFe`, `MDFE_DistribuicaoDFePorUltNSU` (e as variantes por NSU específico / por chave, espelhando as tags `distNSU`/`consNSU`/`consChNFe` das NTs).
-- **A resposta vem em formato INI** — uma seção por documento/evento (`[ResDFe001]`, `[ResEve001]`, ...) com o XML (resumo ou completo) já embutido como campo dentro da seção. Isso é parseável com `TIniFile`/`TMemIniFile` (RTL padrão, dual-compiler) em vez de exigir parsing manual de SOAP + gzip + base64 + XML — simplifica bastante a implementação real de `IDFeDistribuicaoClient`.
-- Superfície de integração pequena e ABI-estável: `Inicializar`, `ConfigLerValor`, `DistribuicaoDFePorUltNSU`, `UltimoRetorno`, `Finalizar` — a implementação real de `IDFeDistribuicaoClient` só precisa desse punhado de funções, não do modelo de objetos interno do ACBr.
+A decisão original (usar ACBrLib) não tinha investigado a fundo o modelo de distribuição da própria lib. Verificado agora:
 
-**Trade-off aceito conscientemente**: passa a existir uma dependência de binário compilado (bitness/plataforma certa) ao lado da aplicação, e a chamada exige o "ritual" de API C em Pascal (buffer `PAnsiChar` pré-alocado, marshaling manual) — mitigado por um wrapper fino que a própria ACBrLib já distribui pronto para Delphi/Lazarus.
+- **O código-fonte da ACBrLib é LGPLv3, livre, usável em produção comercial sem pagar nada** — "todos podem baixá-lo e utilizá-lo livremente" ([Questões Importantes - Projeto ACBr](https://www.projetoacbr.com.br/forum/sac/questoes-importantes/)).
+- **Mas o binário pré-compilado oficial (DLL/`.so`) é distribuído só via assinatura paga "ACBr Pro"** ([ACBr Downloads](https://projetoacbr.com.br/pro/downloads/)).
+- **A versão DEMO gratuita da ACBrLib tem limitação funcional real**: emite DFe só em homologação e a lib expira a cada 30 minutos de uso, exigindo reinício — inviável em produção ([ACBrLib DEMO - Download Livre](https://www.projetoacbr.com.br/forum/topic/63052-acbrlib-demo-download-livre/)).
 
-**Não verificado ainda** (avaliar quando a implementação real começar): maturidade prática do build Linux/FPC da ACBrLib especificamente para NFe/CTe/MDFe, e o tamanho real de binário/dependências (ex. OpenSSL) que ela carrega consigo.
+Ou seja: usar a ACBrLib em produção de graça exigiria cada usuário do broker compilar a lib do fonte por conta própria — fricção real de setup para um projeto que quer atrair operador/contribuidor iniciante, além de reintroduzir a maturidade de build Linux/FPC como incógnita (mesma incógnita que a ACBrLib teria evitado, só que agora do lado da lib em vez do lado do app).
 
-Fontes: [Sobre o Projeto ACBr](https://projetoacbr.com.br/sobre/), documentação oficial da ACBrLib em `acbr.sourceforge.io/ACBrLib/` (páginas `NFE_DistribuicaoDFePorUltNSU`, `CTE_DistribuicaoDFe`) e do ACBrMonitor (`ModeloRespostaDistribuicaoDFePor.html`), consultadas em 2026-09-17.
+**Os componentes clássicos são só código-fonte compilado direto no projeto (mesma licença LGPL) — não existe artefato binário de terceiro sendo vendido, então essa fricção inteira desaparece.** Confirmado que a API de distribuição já existe neles: `TACBrNFe.ConsultarDistribuicaoDFe` (por último NSU, NSU específico ou chave de acesso) devolve o XML/INI de retorno, e `DescompactarXMLZip` decodifica o `docZip` (gzip+base64) de cada item — mesmo dado que a ACBrLib devolvia, só muda a fronteira de chamada. `TACBrCTe`/`TACBrMDFe` seguem o mesmo padrão de API por serem parte do mesmo projeto/convenção interna.
+
+**Trade-off aceito (o inverso do que valia para ACBrLib)**: superfície de dependência maior — os componentes clássicos também fazem emissão, DANFE, etc., não só distribuição, então a implementação real de `IDFeDistribuicaoClient` usa só uma fração do que a árvore de componentes traz. Maturidade prática de build em Lazarus/FPC especificamente para Distribuição de DFe **ainda não testada por nós** (mesma ressalva que valia antes, só que agora do lado escolhido em vez do lado evitado) — avaliar quando a implementação real começar.
+
+Fontes: [Sobre o Projeto ACBr](https://projetoacbr.com.br/sobre/), [Questões Importantes - Projeto ACBr](https://www.projetoacbr.com.br/forum/sac/questoes-importantes/), [ACBr Downloads](https://projetoacbr.com.br/pro/downloads/), [ACBrLib DEMO - Download Livre](https://www.projetoacbr.com.br/forum/topic/63052-acbrlib-demo-download-livre/), [Utilizando distribuição DFe NFe - Delphi (TecnoSpeed)](https://tsdn.tecnospeed.com.br/blog-da-consultoria-tecnica-tecnospeed/post/utilizando-distribuicao-dfe-nfe-delphi) — consultadas em 2026-09-18. Decisão original (ACBrLib) tinha fontes de 2026-09-17: documentação oficial da ACBrLib em `acbr.sourceforge.io/ACBrLib/` e do ACBrMonitor.
 
 ## Estrutura de projeto/pacote e framework de teste — decidido
 

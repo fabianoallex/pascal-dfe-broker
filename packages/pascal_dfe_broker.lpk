@@ -13,7 +13,7 @@
         <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
       </SearchPaths>
     </CompilerOptions>
-    <Description Value="Broker de Distribuicao de DFe (NFe/CTe/MDFe) para FPC/Lazarus e Delphi: consulta periodica via ACBrLib, publicacao dos documentos/eventos num broker AMQP embutido (pascal-amqp-faa)."/>
+    <Description Value="Broker de Distribuicao de DFe (NFe/CTe/MDFe) para FPC/Lazarus e Delphi: consulta periodica via componentes ACBr, publicacao dos documentos/eventos num broker AMQP embutido (pascal-amqp-faa)."/>
     <License Value="MIT"/>
     <Version Minor="1"/>
     <Files>

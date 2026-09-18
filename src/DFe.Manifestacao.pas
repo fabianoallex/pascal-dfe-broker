@@ -44,7 +44,7 @@ uses
 const
   { Tipos de evento de manifestacao conhecidos (NFe) -- os dois abaixo
     exigem Justificativa por regra da SEFAZ (conferir texto/tamanho minimo
-    exato quando a implementacao real via ACBrLib existir; o que importa
+    exato quando a implementacao real via componentes ACBr existir; o que importa
     aqui e' nao aceitar o comando sem NENHUMA justificativa). }
   DFE_EVENTO_MANIFESTACAO_DESCONHECIMENTO = 'desconhecimento';
   DFE_EVENTO_MANIFESTACAO_OPERACAO_NAO_REALIZADA = 'operacaonaorealizada';
