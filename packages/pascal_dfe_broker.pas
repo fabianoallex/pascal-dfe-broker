@@ -9,7 +9,7 @@ interface
 
 uses
   DFe.Types, DFe.Errors, DFe.Provider, DFe.Publicador, DFe.RoutingKey, 
-  DFe.CursorStore.Arquivo, DFe.Orquestrador, DFe.Host.Loop;
+  DFe.CursorStore.Arquivo, DFe.Orquestrador, DFe.Host.Loop, DFe.Config;
 
 implementation
 

@@ -53,6 +53,10 @@
         <Filename Value="..\src\DFe.Host.Loop.pas"/>
         <UnitName Value="DFe.Host.Loop"/>
       </Item>
+      <Item>
+        <Filename Value="..\src\DFe.Config.pas"/>
+        <UnitName Value="DFe.Config"/>
+      </Item>
     </Files>
     <RequiredPkgs>
       <Item>

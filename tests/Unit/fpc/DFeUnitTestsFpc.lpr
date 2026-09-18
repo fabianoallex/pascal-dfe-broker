@@ -21,7 +21,8 @@ uses
   DFe.CursorStoreArquivoTests,
   DFe.ProviderRegistryTests,
   DFe.OrquestradorTests,
-  DFe.HostLoopTests;
+  DFe.HostLoopTests,
+  DFe.ConfigTests;
 
 var
   ConsoleApp: TTestRunner;

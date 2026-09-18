@@ -8,7 +8,8 @@ uses
   DFe.Provider,
   DFe.Publicador,
   DFe.Orquestrador,
-  DFe.Host.Loop;
+  DFe.Host.Loop,
+  DFe.Config;
 
 { Helpers de fixture, compartilhados entre os arquivos de teste que
   precisam de um TDFeCertificado/TDFeLoteBruto/TDFeEventoNormalizado
@@ -111,6 +112,18 @@ type
     procedure Tick; override;
     property Ticks: Integer read FTicks;
     property PararAposTicks: Integer read FPararAposTicks write FPararAposTicks;
+  end;
+
+  { Fabrica fake de IDFeDistribuicaoClient (ver DFe.Config.TDFeClientFactory)
+    -- devolve um TDFeDistribuicaoClientFake novo a cada chamada e conta
+    quantas vezes foi chamada, pra teste verificar que MontarUnidades
+    chamou a fabrica uma vez por certificado. }
+  TDFeClientFactoryFake = class
+  private
+    FChamadas: Integer;
+  public
+    function Fabricar(const ACertificado: TDFeConfigCertificado): IDFeDistribuicaoClient;
+    property Chamadas: Integer read FChamadas;
   end;
 
 implementation
@@ -326,6 +339,14 @@ begin
   Inc(FTicks);
   if (FPararAposTicks > 0) and (FTicks >= FPararAposTicks) then
     Parar;
+end;
+
+{ TDFeClientFactoryFake }
+
+function TDFeClientFactoryFake.Fabricar(const ACertificado: TDFeConfigCertificado): IDFeDistribuicaoClient;
+begin
+  Inc(FChamadas);
+  Result := TDFeDistribuicaoClientFake.Create;
 end;
 
 end.
