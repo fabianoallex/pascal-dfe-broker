@@ -7,11 +7,13 @@ interface
 uses
   SysUtils,
   DFe.Types,
+  DFe.Errors,
   DFe.Provider,
   DFe.Publicador,
   DFe.Orquestrador,
   DFe.Host.Loop,
-  DFe.Config;
+  DFe.Config,
+  DFe.Manifestacao;
 
 { Helpers de fixture, compartilhados entre os arquivos de teste que
   precisam de um TDFeCertificado/TDFeLoteBruto/TDFeEventoNormalizado
@@ -38,6 +40,54 @@ type
     function Decodificar(const ALote: TDFeLoteBruto; const ACertificado: TDFeCertificado): TDFeEventoNormalizadoArray;
     property EventosADevolver: TDFeEventoNormalizadoArray read FEventosADevolver write FEventosADevolver;
     property UltimoLoteRecebido: TDFeLoteBruto read FUltimoLoteRecebido;
+  end;
+
+  { Provider fake que TAMBEM implementa IDFeManifestador -- ao contrario de
+    TDFeProviderFake (que representa "provider sem suporte a manifestacao",
+    caso testado via Supports devolvendo False). EnviarEvento devolve
+    EventoADevolver ou levanta ExcecaoAEnviar (classe de excecao de
+    DFe.Errors), igual ao padrao de fila de TDFeDistribuicaoClientFake mas
+    com um unico slot -- nenhum teste ate agora precisou de sequencia. }
+  TDFeProviderManifestadorFake = class(TInterfacedObject, IDFeProvider, IDFeManifestador)
+  private
+    FIdentificador: string;
+    FCodigoConsumoIndevido: Integer;
+    FEventoADevolver: TDFeEventoNormalizado;
+    FExcecaoAEnviar: ExceptClass;
+    FUltimoComandoRecebido: TDFeComandoManifestacao;
+    FChamadasEnviarEvento: Integer;
+  public
+    constructor Create(const AIdentificador: string; const ACodigoConsumoIndevido: Integer = 656);
+    function Identificador: string;
+    function CodigoConsumoIndevido: Integer;
+    function Decodificar(const ALote: TDFeLoteBruto; const ACertificado: TDFeCertificado): TDFeEventoNormalizadoArray;
+    function EnviarEvento(const ACertificado: TDFeCertificado; const AComando: TDFeComandoManifestacao): TDFeEventoNormalizado;
+    property EventoADevolver: TDFeEventoNormalizado read FEventoADevolver write FEventoADevolver;
+    property ExcecaoAEnviar: ExceptClass read FExcecaoAEnviar write FExcecaoAEnviar;
+    property UltimoComandoRecebido: TDFeComandoManifestacao read FUltimoComandoRecebido;
+    property ChamadasEnviarEvento: Integer read FChamadasEnviarEvento;
+  end;
+
+  { Fonte de comando fake: fila FIFO pre-carregada, sem broker nenhum. }
+  TDFeComandoFonteFake = class(TInterfacedObject, IDFeComandoFonte)
+  private
+    FComandos: array of TDFeComandoManifestacao;
+    FIndiceProximo: Integer;
+  public
+    procedure AdicionarComando(const AComando: TDFeComandoManifestacao);
+    function ObterProximoComando(out AComando: TDFeComandoManifestacao): Boolean;
+  end;
+
+  { Subclasse de teste de TDFeManifestacaoProcessador: captura o que
+    RegistrarErro receberia, mesmo padrao de TDFeOrquestradorTestavel. }
+  TDFeManifestacaoProcessadorTestavel = class(TDFeManifestacaoProcessador)
+  private
+    FErros: array of string;
+  protected
+    procedure RegistrarErro(const AComando: TDFeComandoManifestacao; const AMensagem: string); override;
+  public
+    function QuantidadeErros: Integer;
+    function UltimoErro: string;
   end;
 
   { Client fake: uma fila de respostas (lote OU classe de excecao a
@@ -200,6 +250,86 @@ function TDFeProviderFake.Decodificar(const ALote: TDFeLoteBruto; const ACertifi
 begin
   FUltimoLoteRecebido := ALote;
   Result := FEventosADevolver;
+end;
+
+{ TDFeProviderManifestadorFake }
+
+constructor TDFeProviderManifestadorFake.Create(const AIdentificador: string; const ACodigoConsumoIndevido: Integer);
+begin
+  inherited Create;
+  FIdentificador := AIdentificador;
+  FCodigoConsumoIndevido := ACodigoConsumoIndevido;
+end;
+
+function TDFeProviderManifestadorFake.Identificador: string;
+begin
+  Result := FIdentificador;
+end;
+
+function TDFeProviderManifestadorFake.CodigoConsumoIndevido: Integer;
+begin
+  Result := FCodigoConsumoIndevido;
+end;
+
+function TDFeProviderManifestadorFake.Decodificar(const ALote: TDFeLoteBruto; const ACertificado: TDFeCertificado): TDFeEventoNormalizadoArray;
+begin
+  Result := nil;
+end;
+
+function TDFeProviderManifestadorFake.EnviarEvento(const ACertificado: TDFeCertificado; const AComando: TDFeComandoManifestacao): TDFeEventoNormalizado;
+begin
+  Inc(FChamadasEnviarEvento);
+  FUltimoComandoRecebido := AComando;
+  if Assigned(FExcecaoAEnviar) then
+    raise FExcecaoAEnviar.Create('Falha simulada por TDFeProviderManifestadorFake');
+  Result := FEventoADevolver;
+end;
+
+{ TDFeComandoFonteFake }
+
+procedure TDFeComandoFonteFake.AdicionarComando(const AComando: TDFeComandoManifestacao);
+var
+  LIndice: Integer;
+begin
+  LIndice := Length(FComandos);
+  SetLength(FComandos, LIndice + 1);
+  FComandos[LIndice] := AComando;
+end;
+
+function TDFeComandoFonteFake.ObterProximoComando(out AComando: TDFeComandoManifestacao): Boolean;
+begin
+  if FIndiceProximo > High(FComandos) then
+  begin
+    Result := False;
+    Exit;
+  end;
+  AComando := FComandos[FIndiceProximo];
+  Inc(FIndiceProximo);
+  Result := True;
+end;
+
+{ TDFeManifestacaoProcessadorTestavel }
+
+procedure TDFeManifestacaoProcessadorTestavel.RegistrarErro(const AComando: TDFeComandoManifestacao; const AMensagem: string);
+var
+  LIndice: Integer;
+begin
+  LIndice := Length(FErros);
+  SetLength(FErros, LIndice + 1);
+  FErros[LIndice] := AMensagem;
+end;
+
+function TDFeManifestacaoProcessadorTestavel.QuantidadeErros: Integer;
+begin
+  Result := Length(FErros);
+end;
+
+function TDFeManifestacaoProcessadorTestavel.UltimoErro: string;
+begin
+  if Length(FErros) = 0 then
+    Result := ''
+  else
+    Result := FErros[High(FErros)];
 end;
 
 { TDFeDistribuicaoClientFake }

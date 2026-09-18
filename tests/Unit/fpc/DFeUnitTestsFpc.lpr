@@ -22,7 +22,8 @@ uses
   DFe.ProviderRegistryTests,
   DFe.OrquestradorTests,
   DFe.HostLoopTests,
-  DFe.ConfigTests;
+  DFe.ConfigTests,
+  DFe.ManifestacaoTests;
 
 var
   ConsoleApp: TTestRunner;

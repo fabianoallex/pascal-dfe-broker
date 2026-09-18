@@ -49,6 +49,7 @@ type
     FProximaConsultaEm: TDateTime;
     FPausada: Boolean;
     FMotivoPausa: string;
+    FManifestacaoAutomatica: Boolean;
   public
     constructor Create(const AProvider: IDFeProvider;
       const AClient: IDFeDistribuicaoClient;
@@ -67,6 +68,11 @@ type
     property ProximaConsultaEm: TDateTime read FProximaConsultaEm write FProximaConsultaEm;
     property Pausada: Boolean read FPausada write FPausada;
     property MotivoPausa: string read FMotivoPausa write FMotivoPausa;
+    { So' dado carregado pela config (ver DFe.Config) -- o orquestrador nao
+      le nem age sobre isto, so' guarda e repassa via AoPublicarDocumento
+      (ver TDFeOrquestrador). Quem decide o que fazer com isso e'
+      DFe.Manifestacao.TDFeAutoManifestador, nao este unit. }
+    property ManifestacaoAutomatica: Boolean read FManifestacaoAutomatica write FManifestacaoAutomatica;
   end;
 
   TDFeUnidadeTrabalhoArray = array of TDFeUnidadeTrabalho;
@@ -79,12 +85,22 @@ type
     const ACertificado: TDFeCertificado): string;
 
 type
+  { Chamado depois que um evento de CATEGORIA DOCUMENTO (nunca evento fiscal)
+    e' publicado com sucesso -- ver TDFeOrquestrador.AoPublicarDocumento. O
+    orquestrador nao sabe o que e' "manifestacao"; so' avisa "publiquei um
+    documento desta unidade", e quem quiser reagir (ver
+    DFe.Manifestacao.TDFeAutoManifestador) decide o que fazer. 'of object'
+    (metodo ligado), nao 'reference to' -- closures nao existem no FPC 3.2. }
+  TDFeEventoPublicadoNotify = procedure(const AUnidade: TDFeUnidadeTrabalho;
+    const AEvento: TDFeEventoNormalizado) of object;
+
   { Liga uma lista de unidades de trabalho ao publicador. Nao possui thread
     nem timer proprio -- ver comentario de topo do unit. }
   TDFeOrquestrador = class
   private
     FPublicador: IDFePublicador;
     FUnidades: TDFeUnidadeTrabalhoArray;
+    FAoPublicarDocumento: TDFeEventoPublicadoNotify;
   protected
     { Relogio injetavel para tornar o agendamento testavel sem Sleep --
       mesmo padrao do NowTick/NowWall do submodulo server do
@@ -121,6 +137,12 @@ type
       referencias de objeto, nao interface -- nao ha refcount para
       corromper, so a lista em si). }
     function Unidades: TDFeUnidadeTrabalhoArray;
+
+    { Hook opcional (nil por padrao = nenhuma mudanca de comportamento) --
+      ver TDFeEventoPublicadoNotify. Propriedade em vez de metodo virtual
+      de proposito: nao exige subclassificar TDFeOrquestrador so' para
+      ligar manifestacao automatica (ou qualquer outra reacao futura). }
+    property AoPublicarDocumento: TDFeEventoPublicadoNotify read FAoPublicarDocumento write FAoPublicarDocumento;
 
     { Chamado periodicamente por quem hospeda o orquestrador. Cada unidade
       decide sozinha (via ProximaConsultaEm) se e' a vez dela rodar --
@@ -326,7 +348,11 @@ begin
         begin
           LEventos := AUnidade.Provider.Decodificar(LLote, AUnidade.Certificado);
           for I := 0 to High(LEventos) do
+          begin
             FPublicador.Publicar(MontarRoutingKey(LEventos[I]), LEventos[I].XmlPayload);
+            if (LEventos[I].Categoria = dcDocumento) and Assigned(FAoPublicarDocumento) then
+              FAoPublicarDocumento(AUnidade, LEventos[I]);
+          end;
 
           // cursor so avanca depois de publicar tudo com sucesso -- ver
           // docs/architecture.md, "Persistencia do cursor de NSU".

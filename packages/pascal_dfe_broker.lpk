@@ -57,6 +57,10 @@
         <Filename Value="..\src\DFe.Config.pas"/>
         <UnitName Value="DFe.Config"/>
       </Item>
+      <Item>
+        <Filename Value="..\src\DFe.Manifestacao.pas"/>
+        <UnitName Value="DFe.Manifestacao"/>
+      </Item>
     </Files>
     <RequiredPkgs>
       <Item>

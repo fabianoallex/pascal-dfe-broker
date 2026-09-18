@@ -16,6 +16,7 @@ uses
   DFe.Orquestrador in '..\..\src\DFe.Orquestrador.pas',
   DFe.Host.Loop in '..\..\src\DFe.Host.Loop.pas',
   DFe.Config in '..\..\src\DFe.Config.pas',
+  DFe.Manifestacao in '..\..\src\DFe.Manifestacao.pas',
   DFe.TestDoubles in 'DFe.TestDoubles.pas',
   DFe.RoutingKeyTests in 'DFe.RoutingKeyTests.pas',
   DFe.TypesTests in 'DFe.TypesTests.pas',
@@ -23,7 +24,8 @@ uses
   DFe.ProviderRegistryTests in 'DFe.ProviderRegistryTests.pas',
   DFe.OrquestradorTests in 'DFe.OrquestradorTests.pas',
   DFe.HostLoopTests in 'DFe.HostLoopTests.pas',
-  DFe.ConfigTests in 'DFe.ConfigTests.pas';
+  DFe.ConfigTests in 'DFe.ConfigTests.pas',
+  DFe.ManifestacaoTests in 'DFe.ManifestacaoTests.pas';
 
 var
   runner: ITestRunner;

@@ -22,6 +22,7 @@
     CnpjCpf=12345678000199
     UF=RS
     Ativo=true                  ; opcional, default true
+    ManifestacaoAutomatica=false ; opcional, default false -- ver DFe.Manifestacao
 
   Cada secao 'certificado:<alias>' vira uma TDFeUnidadeTrabalho. Campos de
   certificado digital "de verdade" (caminho do .pfx, senha) ficam FORA
@@ -44,7 +45,10 @@
   velho", nunca os dois ligados. Ativacao automatica por vencimento do
   certificado foi cogitada e adiada -- exigiria inspecionar o certificado
   digital de verdade, que so a implementacao real via ACBrLib (ainda nao
-  escrita) podera fazer.
+  escrita) podera fazer. ManifestacaoAutomatica e' por certificado/alias e
+  NAO entra nessa colisao -- dois certificados do mesmo CNPJ podem ter
+  valores diferentes, ja que so' um dos dois estara Ativo por vez de
+  qualquer forma.
 
   RECARREGAR SEM REINICIAR: RecarregarConfig reconcilia uma TDFeConfig com
   um TDFeOrquestrador ja em execucao -- alias novo vira unidade nova; alias
@@ -71,6 +75,7 @@ type
     ProviderIdentificador: string;
     Certificado: TDFeCertificado;
     Ativo: Boolean;              // false = configurado mas dormente (ver comentario de topo, troca de certificado)
+    ManifestacaoAutomatica: Boolean; // false = exige comando externo (ver DFe.Manifestacao); default false, opt-in explicito
   end;
 
   TDFeConfigCertificadoArray = array of TDFeConfigCertificado;
@@ -104,8 +109,9 @@ function CarregarConfig(const ACaminho: string): TDFeConfig;
     - alias novo (nao encontrado por ObterUnidadePorAlias) -- cria a
       unidade via AClientFactory e adiciona ao orquestrador, ja com
       Pausada = not Ativo;
-    - alias existente -- so sincroniza Pausada com o Ativo atual da
-      config (nunca recria, preserva ProximaConsultaEm/estado);
+    - alias existente -- so sincroniza Pausada (com Ativo) e
+      ManifestacaoAutomatica com a config atual (nunca recria, preserva
+      ProximaConsultaEm/estado);
     - alias que existia no orquestrador mas sumiu desta config -- pausado
       (nunca destruido: destruir uma unidade em potencial uso por outra
       thread/callback seria mais arriscado que so pausa-la).
@@ -214,6 +220,7 @@ begin
         Result.Certificados[LIndice].Certificado.CnpjCpf := LIni.ReadString(LNomeSecao, 'CnpjCpf', '');
         Result.Certificados[LIndice].Certificado.UF := LIni.ReadString(LNomeSecao, 'UF', '');
         Result.Certificados[LIndice].Ativo := LerBooleano(LIni.ReadString(LNomeSecao, 'Ativo', ''), True);
+        Result.Certificados[LIndice].ManifestacaoAutomatica := LerBooleano(LIni.ReadString(LNomeSecao, 'ManifestacaoAutomatica', ''), False);
 
         if Result.Certificados[LIndice].ProviderIdentificador = '' then
           raise Exception.CreateFmt('Config: secao "%s" sem "Provider"', [LNomeSecao]);
@@ -280,10 +287,14 @@ begin
       LUnidade := TDFeUnidadeTrabalho.Create(LProvider, LClient,
         AConfig.Certificados[I].Certificado, ACursorStore, AConfig.IntervaloBaseSegundos);
       LUnidade.Pausada := not AConfig.Certificados[I].Ativo;
+      LUnidade.ManifestacaoAutomatica := AConfig.Certificados[I].ManifestacaoAutomatica;
       AOrquestrador.AdicionarUnidade(LUnidade);
     end
     else
+    begin
       LUnidade.Pausada := not AConfig.Certificados[I].Ativo;
+      LUnidade.ManifestacaoAutomatica := AConfig.Certificados[I].ManifestacaoAutomatica;
+    end;
   end;
 
   { Alias que existia no orquestrador mas sumiu desta config: pausar (ver
