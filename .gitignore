@@ -24,6 +24,12 @@ certs/*.key
 config/*.local.ini
 config/*.local.json
 
+# binario ELF (sem extensao) gerado por lazbuild em Linux no proprio diretorio
+tests/Unit/fpc/DFeUnitTestsFpc
+
+# arquivo de teste temporario gerado pela suite (ver DFe.CursorStoreArquivoTests)
+dfe_cursor_teste.cursores*
+
 # cache de package-links do lazbuild (especifico da maquina)
 /packagefiles.xml
 

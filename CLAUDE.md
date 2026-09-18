@@ -2,7 +2,7 @@
 
 Ferramenta open source para consulta e distribuição de Documentos Fiscais Eletrônicos brasileiros (NFe na v1; CTe, MDFe e demais DFe planejados, idealmente via contribuição de terceiros) via serviço de **Distribuição de DFe** da SEFAZ. Usa componentes **ACBr** (LGPLv3) para a comunicação fiscal e o broker AMQP embutido do projeto-irmão `../pascal-amqp-faa` (MIT, mesmo autor) para distribuir os documentos como mensagens em filas configuráveis pelo usuário. MIT.
 
-**Estado em 2026-09-17: todas as decisões de design da fase inicial fechadas; ainda não compila** (sem `.dpr`/`.lpr`/`.lpk`, sem integração ACBr real). Existem interfaces completas (`DFe.Types`, `DFe.Provider`, `DFe.Errors`, `DFe.Publicador`) e duas implementações reais e independentes de qualquer coisa não escrita ainda: `DFe.CursorStore.Arquivo` (persistência do cursor) e `DFe.Orquestrador` + `DFe.Host.Loop` (o laço que liga tudo). O que falta para ter um binário de verdade está em "Próximos marcos" no final deste arquivo.
+**Estado em 2026-09-18: estrutura de projeto e primeira suíte de testes reais existem** (`packages/pascal_dfe_broker.lpk`, `tests/Unit/` dual DUnitX+FPCUnit) — mas **nada foi compilado nesta sessão** (sem Delphi/FPC disponíveis no ambiente onde foi escrito); os arquivos de projeto precisam ser abertos na IDE e compilados antes de confiar neles. Existem interfaces completas (`DFe.Types`, `DFe.Provider`, `DFe.Errors`, `DFe.Publicador`) e implementações reais e testadas (por enquanto só de forma automatizada no papel, não compilada) de tudo que independe de ACBr/broker: `DFe.RoutingKey`, `DFe.CursorStore.Arquivo`, `DFe.Orquestrador` + `DFe.Host.Loop`. O que falta para ter um binário de verdade está em "Próximos marcos" no final deste arquivo.
 
 ## Decisões travadas
 
@@ -16,8 +16,9 @@ Ferramenta open source para consulta e distribuição de Documentos Fiscais Elet
 8. **Cursor de NSU persistido em arquivo próprio** (`src/DFe.CursorStore.Arquivo.pas`, `TDFeCursorStoreArquivo`) — texto plano `namespace=nsu`, sem cache em memória (sempre lê/escreve o arquivo inteiro; volume é irrisório), escrita sempre via arquivo temporário + substituição atômica. SQLite e reuso do WAL do `pascal-amqp-faa` foram avaliados e rejeitados por desproporção — ver `docs/architecture.md`, "Persistência do cursor de NSU", para a justificativa completa. **Não é thread-safe para escritas concorrentes** — assume o orquestrador sequencial atual.
 9. **Formato de entrega: mais de um host fino, mesmo core.** Console (dual-compiler, Windows/Linux — no Linux **é** o host de produção, rodado sob systemd, sem daemonização própria) + Serviço Windows (Delphi/VCL `TService`, Delphi-only de propósito — Serviço Windows é uma noção inerentemente Windows). Ambos usam `TDFeHostLoop` (`src/DFe.Host.Loop.pas`) para a cadência de tick (60s padrão, configurável) sobre `TDFeOrquestrador.ExecutarCiclo`. Consequência: `ExecutarCiclo` agora isola cada unidade de trabalho num `try/except` (uma unidade com bug não derruba as demais nem o processo). Os `.dpr`/`.lpr` dos hosts em si ainda não existem (dependem da integração ACBrLib real). Ver `docs/architecture.md`, "Modelo de execução".
 10. **Auto-registro de provider via `initialization` de unit** (`TDFeProviderRegistry` em `DFe.Provider.pas`) — preferido a registro explícito numa config central porque essa alternativa exigiria o core conhecendo cada tipo de documento de antemão, o oposto do que o projeto quer para contribuição de terceiros. `Registrar` levanta exceção em colisão de `Identificador`. Ver o snippet exato em `CONTRIBUTING.md`.
+11. **Estrutura de projeto: pacote Lazarus (`packages/pascal_dfe_broker.lpk`), sem pacote Delphi** (mesma assimetria do `pascal-amqp-faa`: Delphi resolve via Search Path direto em `src/`, não precisa de um `.dpk` pra isso). **Framework de teste: dual DUnitX + FPCUnit espelhados**, mesmo padrão do `pascal-amqp-faa` — `tests/Unit/*.pas` (DUnitX) e `tests/Unit/fpc/*.pas` (FPCUnit), cobrindo por enquanto só o que é puro/testável sem ACBr nem broker (`DFe.RoutingKey`, `DFe.Types.ClassificarCStat` — com teste de regressão explícito do achado 656≠678 —, `DFe.CursorStore.Arquivo`). Ver `docs/architecture.md`, "Estrutura de projeto/pacote e framework de teste".
 
-Com isso, **todas as três decisões que ficaram em aberto no fim da fase de concepção estão fechadas** (integração ACBr, persistência do cursor, formato de entrega, auto-registro — as quatro que existiam, na verdade um item a mais surgiu no caminho e também foi fechado).
+Com isso, todas as decisões que ficaram em aberto ao longo da concepção e da estruturação inicial estão fechadas.
 
 ## Gotchas dual-compiler já encontrados
 
@@ -26,15 +27,15 @@ Com isso, **todas as três decisões que ficaram em aberto no fim da fase de con
 
 ## Próximos marcos (nenhum decidido ainda, nem discutido em detalhe)
 
+- **Compilar de verdade**: abrir `packages/pascal_dfe_broker.lpk` no Lazarus e `tests/Unit/DFe.UnitTests.dproj` no Delphi pela primeira vez — os arquivos de projeto foram escritos espelhando o formato do `pascal-amqp-faa`, mas nunca compilados (sem IDE disponível na sessão em que foram criados). Provável fonte dos primeiros erros triviais (path, versão de DUnitX/FPCUnit instalada, etc.).
 - **Formato de configuração** (INI/JSON/YAML?) para certificados, UFs e tipos de documento habilitados — é o que vai efetivamente instanciar `TDFeUnidadeTrabalho` e decidir quais providers registrados ficam ativos.
-- **Estrutura de projeto/pacote**: nenhum `.dpr`/`.lpr`/`.lpk` existe — nada compila ainda. Decidir layout (pacote único vs. core/provider/host separados, como o `pascal-amqp-faa` faz).
 - **Implementação real de `IDFeDistribuicaoClient` via ACBrLib** (o adaptador que efetivamente fala com a SEFAZ) e do provider NFe (`IDFeProvider.Decodificar` para `resNFe`/`resEvento`/`procNFe`).
-- **Framework de teste**: decidir se segue o padrão dual do `pascal-amqp-faa` (FPCUnit + DUnitX espelhados).
 - **Manifestação automática do destinatário**: cogitada, nunca decidida se entra na v1 ou fica para depois.
 
 ## Onde procurar mais contexto
 
-- `docs/architecture.md`: fluxo completo, contrato de provider, convenção de routing-key, riscos técnicos do cursor de NSU, decisão de integração com ACBr.
+- `docs/architecture.md`: fluxo completo, contrato de provider, convenção de routing-key, riscos técnicos do cursor de NSU, decisão de integração com ACBr, estrutura de projeto/teste.
+- `tests/Unit/` (DUnitX) e `tests/Unit/fpc/` (FPCUnit): suíte de testes atual, mirrored 1:1 — olhar aqui antes de mudar qualquer unit pura (`DFe.RoutingKey`, `DFe.Types`, `DFe.CursorStore.Arquivo`) pra saber o que já está coberto.
 - `docs/referencias/`: cópias e citações literais das NTs oficiais de Distribuição de DFe — fonte de verdade para qualquer regra de protocolo (cStat, intervalos, formato de lote).
 - `CONTRIBUTING.md`: o que é exigido de um PR que adiciona um novo tipo de documento.
 - `../pascal-amqp-faa/CLAUDE.md`: arquitetura e regras dual-compiler do broker AMQP que serve de base (regras de "o que não usar no FPC" valem aqui igual, uma vez que o código comece a ser escrito).

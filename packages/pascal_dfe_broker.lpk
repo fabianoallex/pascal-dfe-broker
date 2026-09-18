@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <Package Version="5">
+    <PathDelim Value="\"/>
+    <Name Value="pascal_dfe_broker"/>
+    <Author Value="Fabiano Arndt"/>
+    <CompilerOptions>
+      <Version Value="11"/>
+      <PathDelim Value="\"/>
+      <SearchPaths>
+        <IncludeFiles Value="..\src"/>
+        <OtherUnitFiles Value="..\src"/>
+        <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
+      </SearchPaths>
+    </CompilerOptions>
+    <Description Value="Broker de Distribuicao de DFe (NFe/CTe/MDFe) para FPC/Lazarus e Delphi: consulta periodica via ACBrLib, publicacao dos documentos/eventos num broker AMQP embutido (pascal-amqp-faa)."/>
+    <License Value="MIT"/>
+    <Version Minor="1"/>
+    <Files>
+      <Item>
+        <Filename Value="..\src\dfe.inc"/>
+        <Type Value="Include"/>
+      </Item>
+      <Item>
+        <Filename Value="..\src\DFe.Types.pas"/>
+        <UnitName Value="DFe.Types"/>
+      </Item>
+      <Item>
+        <Filename Value="..\src\DFe.Errors.pas"/>
+        <UnitName Value="DFe.Errors"/>
+      </Item>
+      <Item>
+        <Filename Value="..\src\DFe.Provider.pas"/>
+        <UnitName Value="DFe.Provider"/>
+      </Item>
+      <Item>
+        <Filename Value="..\src\DFe.Publicador.pas"/>
+        <UnitName Value="DFe.Publicador"/>
+      </Item>
+      <Item>
+        <Filename Value="..\src\DFe.RoutingKey.pas"/>
+        <UnitName Value="DFe.RoutingKey"/>
+      </Item>
+      <Item>
+        <Filename Value="..\src\DFe.CursorStore.Arquivo.pas"/>
+        <UnitName Value="DFe.CursorStore.Arquivo"/>
+      </Item>
+      <Item>
+        <Filename Value="..\src\DFe.Orquestrador.pas"/>
+        <UnitName Value="DFe.Orquestrador"/>
+      </Item>
+      <Item>
+        <Filename Value="..\src\DFe.Host.Loop.pas"/>
+        <UnitName Value="DFe.Host.Loop"/>
+      </Item>
+    </Files>
+    <RequiredPkgs>
+      <Item>
+        <PackageName Value="FCL"/>
+      </Item>
+    </RequiredPkgs>
+    <UsageOptions>
+      <UnitPath Value="$(PkgOutDir)"/>
+    </UsageOptions>
+    <PublishOptions>
+      <Version Value="2"/>
+      <UseFileFilters Value="True"/>
+    </PublishOptions>
+  </Package>
+</CONFIG>

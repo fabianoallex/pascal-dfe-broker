@@ -136,3 +136,14 @@ Duas opções de fronteira de integração com ACBr foram avaliadas:
 **Não verificado ainda** (avaliar quando a implementação real começar): maturidade prática do build Linux/FPC da ACBrLib especificamente para NFe/CTe/MDFe, e o tamanho real de binário/dependências (ex. OpenSSL) que ela carrega consigo.
 
 Fontes: [Sobre o Projeto ACBr](https://projetoacbr.com.br/sobre/), documentação oficial da ACBrLib em `acbr.sourceforge.io/ACBrLib/` (páginas `NFE_DistribuicaoDFePorUltNSU`, `CTE_DistribuicaoDFe`) e do ACBrMonitor (`ModeloRespostaDistribuicaoDFePor.html`), consultadas em 2026-09-17.
+
+## Estrutura de projeto/pacote e framework de teste — decidido
+
+Mesma convenção do `pascal-amqp-faa`, ponto a ponto:
+
+- **Pacote Lazarus** (`packages/pascal_dfe_broker.lpk`) reunindo as units de `src/`, com `RequiredPkgs` só `FCL` — nenhuma dependência de LCL/GUI no core. **Sem pacote Delphi (`.dpk`)**: o `pascal-amqp-faa` também não tem um, porque no Delphi um pacote runtime é só uma forma a mais de gerenciar o quê já é resolvido com uma entrada de "Search Path" apontando pra `src/` — o `.lpk` existe porque o Lazarus usa o próprio mecanismo de pacote para isso, não porque as duas IDEs precisem do mesmo artefato.
+- **Testes: dual DUnitX (Delphi) + FPCUnit (FPC), mirados 1:1** — mesmo padrão do `pascal-amqp-faa` (ver `CLAUDE.md` de lá, "Regras da codebase dual"). `tests/Unit/*.pas` são os testes DUnitX com um runner (`DFe.UnitTests.dpr`/`.dproj`); `tests/Unit/fpc/*.pas` são a mesma cobertura portada para FPCUnit, com seu próprio runner (`DFeUnitTestsFpc.lpr`/`.lpi`, console-only — o runner gráfico do `pascal-amqp-faa` não se justifica ainda para uma suite pequena).
+- **Primeira suíte real** cobre só o que já é puro/testável sem ACBr nem broker: `DFe.RoutingKeyTests` (convenção de routing-key, incluindo o caso de erro de `TipoEvento` vazio), `DFe.TypesTests` (`ClassificarCStat` — inclui um teste de regressão explícito para o achado real de que 678 não é consumo indevido para um provider configurado com o código do NFe/CT-e) e `DFe.CursorStoreArquivoTests` (round-trip, namespaces isolados, e que a escrita atômica não deixa `.tmp` para trás). Nenhum teste toca ACBr, broker ou rede — todos rodam isolados, sem infraestrutura.
+- **Gotcha de FPCUnit herdado do `pascal-amqp-faa`**: `AssertException` do FPCUnit espera um `TRunMethod` (`procedure of object`), não um método anônimo — por isso os testes de FPCUnit que verificam exceção usam um campo + método privado em vez de uma closure (ver `DFe.RoutingKeyTests.Evento_SemTipoEvento_Levanta` em `tests/Unit/fpc/`).
+
+**Nada disto foi compilado nesta sessão** (sem Delphi/FPC disponíveis no ambiente onde foi escrito) — os arquivos de projeto (`.dproj`, `.lpi`, `.lpk`) foram escritos espelhando minuciosamente o formato real do `pascal-amqp-faa`, mas precisam ser abertos na IDE correspondente e compilados antes de confiar neles.
