@@ -100,7 +100,7 @@ begin
   LClient := NovoClient;
   LLote := LClient.Consultar(CertificadoTeste, 0);
   Assert.AreEqual(138, LLote.CStat);
-  Assert.AreEqual(1, Length(LLote.Itens));
+  Assert.AreEqual(1, Integer(Length(LLote.Itens)));
   Assert.AreEqual(Int64(1), LLote.UltimoNSU);
 end;
 

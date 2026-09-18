@@ -85,7 +85,7 @@ begin
   R := Consultar(0);
   Assert.IsTrue(R.Tipo = trsLote);
   Assert.AreEqual(137, R.Lote.CStat);
-  Assert.AreEqual(0, Length(R.Lote.Itens));
+  Assert.AreEqual(0, Integer(Length(R.Lote.Itens)));
   Assert.AreEqual(Int64(0), R.Lote.UltimoNSU);
   Assert.AreEqual(Int64(0), R.Lote.MaxNSU);
 end;
@@ -98,7 +98,7 @@ begin
 
   R := Consultar(0);
   Assert.AreEqual(138, R.Lote.CStat);
-  Assert.AreEqual(3, Length(R.Lote.Itens));
+  Assert.AreEqual(3, Integer(Length(R.Lote.Itens)));
   Assert.AreEqual(Int64(1), R.Lote.Itens[0].NSU);
   Assert.AreEqual(Int64(3), R.Lote.Itens[2].NSU);
   Assert.AreEqual(Int64(3), R.Lote.UltimoNSU);
@@ -106,7 +106,7 @@ begin
   Assert.AreEqual(DFE_SIM_SCHEMA_RESNFE, R.Lote.Itens[0].Schema);
 
   R := Consultar(1); // cursor em 1: entrega 2 e 3
-  Assert.AreEqual(2, Length(R.Lote.Itens));
+  Assert.AreEqual(2, Integer(Length(R.Lote.Itens)));
   Assert.AreEqual(Int64(2), R.Lote.Itens[0].NSU);
 end;
 
@@ -118,16 +118,16 @@ begin
 
   R := Consultar(0);
   Assert.AreEqual(138, R.Lote.CStat);
-  Assert.AreEqual(50, Length(R.Lote.Itens));
+  Assert.AreEqual(50, Integer(Length(R.Lote.Itens)));
   Assert.AreEqual(Int64(50), R.Lote.UltimoNSU);
   Assert.AreEqual(Int64(120), R.Lote.MaxNSU); // UltimoNSU < MaxNSU => ha mais lotes
 
   R := Consultar(50);
-  Assert.AreEqual(50, Length(R.Lote.Itens));
+  Assert.AreEqual(50, Integer(Length(R.Lote.Itens)));
   Assert.AreEqual(Int64(100), R.Lote.UltimoNSU);
 
   R := Consultar(100);
-  Assert.AreEqual(20, Length(R.Lote.Itens));
+  Assert.AreEqual(20, Integer(Length(R.Lote.Itens)));
   Assert.AreEqual(Int64(120), R.Lote.UltimoNSU);
 
   R := Consultar(120);
@@ -143,7 +143,7 @@ begin
   R := Consultar(0);
   Assert.IsTrue(R.Tipo = trsLote);
   Assert.AreEqual(656, R.Lote.CStat);
-  Assert.AreEqual(0, Length(R.Lote.Itens));
+  Assert.AreEqual(0, Integer(Length(R.Lote.Itens)));
 end;
 
 procedure TDFeSimuladorTests.Bloqueio_LiberaExatamenteApos1Hora;
@@ -214,7 +214,7 @@ begin
   FSim.PublicarDocumento(CNPJ_A, UF_RS, DFE_SIM_SCHEMA_RESNFE, XmlResNFe(ChaveNFeSintetica(DFE_SIM_CNPJ_EMITENTE, 2)));
 
   R := Consultar(0);
-  Assert.AreEqual(2, Length(R.Lote.Itens));
+  Assert.AreEqual(2, Integer(Length(R.Lote.Itens)));
   Assert.AreEqual(Int64(1), R.Lote.Itens[0].NSU);
   Assert.AreEqual(Int64(5), R.Lote.Itens[1].NSU);
   Assert.AreEqual(Int64(5), R.Lote.UltimoNSU);
@@ -248,7 +248,7 @@ begin
   R := Consultar(0);
   Assert.IsTrue(R.Tipo = trsLote);
   Assert.AreEqual(108, R.Lote.CStat);
-  Assert.AreEqual(0, Length(R.Lote.Itens));
+  Assert.AreEqual(0, Integer(Length(R.Lote.Itens)));
 
   FSim.EnfileirarFalha(fsIndisponivelSemPrevisao);
   Assert.AreEqual(109, Consultar(0).Lote.CStat);
@@ -294,7 +294,7 @@ begin
 
   R := Consultar(0);
   Assert.AreEqual(138, R.Lote.CStat);
-  Assert.AreEqual(2, Length(R.Lote.Itens));
+  Assert.AreEqual(2, Integer(Length(R.Lote.Itens)));
   Assert.IsTrue(R.DocZipCorrompido);
 
   R := Consultar(0);

@@ -52,7 +52,7 @@ var
   I: Integer;
 begin
   LChave := ChaveNFeSintetica(DFE_SIM_CNPJ_EMITENTE, 123);
-  Assert.AreEqual(44, Length(LChave));
+  Assert.AreEqual(44, Integer(Length(LChave)));
   for I := 1 to Length(LChave) do
     Assert.IsTrue((LChave[I] >= '0') and (LChave[I] <= '9'), 'so digitos');
 end;
@@ -90,7 +90,7 @@ var
 begin
   LChave := ChaveNFeSintetica(DFE_SIM_CNPJ_EMITENTE, 1);
   LEv := Decodificar(DFE_SIM_SCHEMA_RESNFE, XmlResNFe(LChave));
-  Assert.AreEqual(1, Length(LEv));
+  Assert.AreEqual(1, Integer(Length(LEv)));
   Assert.IsTrue(LEv[0].Categoria = dcDocumento);
   Assert.AreEqual(LChave, LEv[0].ChaveAcesso);
   Assert.IsTrue(LEv[0].DataEmissao > 0);
@@ -103,7 +103,7 @@ var
 begin
   LChave := ChaveNFeSintetica(DFE_SIM_CNPJ_EMITENTE, 2);
   LEv := Decodificar(DFE_SIM_SCHEMA_PROCNFE, XmlProcNFe(LChave));
-  Assert.AreEqual(1, Length(LEv));
+  Assert.AreEqual(1, Integer(Length(LEv)));
   Assert.IsTrue(LEv[0].Categoria = dcDocumento);
   Assert.AreEqual(LChave, LEv[0].ChaveAcesso);
   Assert.IsTrue(LEv[0].DataEmissao > 0);
@@ -116,7 +116,7 @@ var
 begin
   LChave := ChaveNFeSintetica(DFE_SIM_CNPJ_EMITENTE, 3);
   LEv := Decodificar(DFE_SIM_SCHEMA_RESEVENTO, XmlResEvento(LChave, '110111'));
-  Assert.AreEqual(1, Length(LEv));
+  Assert.AreEqual(1, Integer(Length(LEv)));
   Assert.IsTrue(LEv[0].Categoria = dcEvento);
   Assert.AreEqual('cancelamento', LEv[0].TipoEvento);
   Assert.AreEqual(LChave, LEv[0].ChaveAcesso);
@@ -129,7 +129,7 @@ var
 begin
   LChave := ChaveNFeSintetica(DFE_SIM_CNPJ_EMITENTE, 4);
   LEv := Decodificar(DFE_SIM_SCHEMA_PROCEVENTONFE, XmlProcEventoNFe(LChave, '210210'));
-  Assert.AreEqual(1, Length(LEv));
+  Assert.AreEqual(1, Integer(Length(LEv)));
   Assert.IsTrue(LEv[0].Categoria = dcEvento);
   Assert.AreEqual('ciencia', LEv[0].TipoEvento);
   Assert.AreEqual(LChave, LEv[0].ChaveAcesso);

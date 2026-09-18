@@ -176,7 +176,7 @@ var
 begin
   LLote := NovoClient.Consultar(Certificado, 0);
   Assert.AreEqual(137, LLote.CStat);
-  Assert.AreEqual(0, Length(LLote.Itens));
+  Assert.AreEqual(0, Integer(Length(LLote.Itens)));
   Assert.AreEqual(1, FTransmissor.Requisicoes);
   AssertSemViolacoes;
 end;
@@ -195,7 +195,7 @@ begin
   LLote := NovoClient.Consultar(Certificado, 0);
 
   Assert.AreEqual(138, LLote.CStat);
-  Assert.AreEqual(4, Length(LLote.Itens));
+  Assert.AreEqual(4, Integer(Length(LLote.Itens)));
   Assert.AreEqual(Int64(4), LLote.UltimoNSU);
   Assert.AreEqual(Int64(4), LLote.MaxNSU);
   Assert.AreEqual('resNFe', LLote.Itens[0].Schema);
@@ -230,7 +230,7 @@ begin
   LXNome := XNomeAcentuado;
   PublicarNFe(1, LXNome);
   LLote := NovoClient.Consultar(Certificado, 0);
-  Assert.AreEqual(1, Length(LLote.Itens));
+  Assert.AreEqual(1, Integer(Length(LLote.Itens)));
   Assert.IsTrue(Pos('<xNome>' + LXNome + '</xNome>', LLote.Itens[0].XmlDecodificado) > 0, MsgAcento(LXNome, LLote.Itens[0].XmlDecodificado, '<xNome>'));
 end;
 
@@ -243,7 +243,7 @@ begin
   Assert.AreEqual(137, LClient.Consultar(Certificado, 0).CStat);
   LLote := LClient.Consultar(Certificado, 0);
   Assert.AreEqual(656, LLote.CStat);
-  Assert.AreEqual(0, Length(LLote.Itens));
+  Assert.AreEqual(0, Integer(Length(LLote.Itens)));
   Assert.IsTrue(ClassificarCStat(LLote.CStat, 656) = dccConsumoIndevido);
 end;
 

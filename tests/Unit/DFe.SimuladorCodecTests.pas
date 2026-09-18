@@ -111,7 +111,7 @@ begin
   Assert.AreEqual(Integer($8B), Integer(LGz[1]));
   Assert.AreEqual(Integer(8), Integer(LGz[2]));
   // 10 (cabecalho) + 5 (bloco) + 3 (dados) + 8 (trailer)
-  Assert.AreEqual(26, Length(LGz));
+  Assert.AreEqual(26, Integer(Length(LGz)));
   // ISIZE = 3, little-endian, nos 4 ultimos bytes
   Assert.AreEqual(Integer(3), Integer(LGz[22]));
   Assert.AreEqual(Integer(0), Integer(LGz[23]));
@@ -133,7 +133,7 @@ var
   LBlocos: Integer;
 begin
   Assert.IsTrue(DecodificarGzipArmazenado(GzipArmazenado(Bytes('')), LDados, LBlocos));
-  Assert.AreEqual(0, Length(LDados));
+  Assert.AreEqual(0, Integer(Length(LDados)));
   Assert.AreEqual(1, LBlocos);
 end;
 
@@ -150,7 +150,7 @@ begin
   LGz := GzipArmazenado(LOriginal);
   Assert.IsTrue(DecodificarGzipArmazenado(LGz, LDados, LBlocos));
   Assert.AreEqual(2, LBlocos);
-  Assert.AreEqual(70000, Length(LDados));
+  Assert.AreEqual(70000, Integer(Length(LDados)));
   Assert.IsTrue(CompareMem(@LOriginal[0], @LDados[0], 70000));
 end;
 
@@ -169,7 +169,7 @@ var
   LB: TBytes;
 begin
   LB := StringParaBytesUtf8('abc');
-  Assert.AreEqual(3, Length(LB));
+  Assert.AreEqual(3, Integer(Length(LB)));
   Assert.AreEqual(Integer(Ord('a')), Integer(LB[0]));
   Assert.AreEqual(Integer(Ord('c')), Integer(LB[2]));
 end;

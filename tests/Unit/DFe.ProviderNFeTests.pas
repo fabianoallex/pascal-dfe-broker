@@ -162,7 +162,7 @@ var
   LEventos: TDFeEventoNormalizadoArray;
 begin
   LEventos := Decodificar([]);
-  Assert.AreEqual(0, Length(LEventos));
+  Assert.AreEqual(0, Integer(Length(LEventos)));
 end;
 
 procedure TDFeProviderNFeTests.ResNFe_ViraDocumentoComChaveEDataDeEmissao;
@@ -171,7 +171,7 @@ var
 begin
   LEventos := Decodificar([Item(10, 'resNFe', XmlResNFe(CHAVE_1))]);
 
-  Assert.AreEqual(1, Length(LEventos));
+  Assert.AreEqual(1, Integer(Length(LEventos)));
   Assert.AreEqual('nfe', LEventos[0].TipoDocumento);
   Assert.AreEqual(Ord(dcDocumento), Ord(LEventos[0].Categoria));
   Assert.AreEqual('', LEventos[0].TipoEvento);
@@ -201,7 +201,7 @@ var
 begin
   LEventos := Decodificar([Item(11, 'procNFe', XmlProcNFe(CHAVE_2, '<dhEmi>2026-09-09T08:00:00-03:00</dhEmi>'))]);
 
-  Assert.AreEqual(1, Length(LEventos));
+  Assert.AreEqual(1, Integer(Length(LEventos)));
   Assert.AreEqual(Ord(dcDocumento), Ord(LEventos[0].Categoria));
   Assert.AreEqual(CHAVE_2, LEventos[0].ChaveAcesso);
   Assert.AreEqual(EncodeDate(2026, 9, 9) + EncodeTime(8, 0, 0, 0), LEventos[0].DataEmissao, 1 / 86400 / 2);
@@ -222,7 +222,7 @@ var
 begin
   LEventos := Decodificar([Item(20, 'resEvento', XmlResEvento(CHAVE_1, '210210'))]);
 
-  Assert.AreEqual(1, Length(LEventos));
+  Assert.AreEqual(1, Integer(Length(LEventos)));
   Assert.AreEqual(Ord(dcEvento), Ord(LEventos[0].Categoria));
   Assert.AreEqual('ciencia', LEventos[0].TipoEvento);
   Assert.AreEqual(CHAVE_1, LEventos[0].ChaveAcesso);
@@ -244,7 +244,7 @@ var
 begin
   LEventos := Decodificar([Item(22, 'procEventoNFe', XmlProcEventoNFe(CHAVE_3, '110111'))]);
 
-  Assert.AreEqual(1, Length(LEventos));
+  Assert.AreEqual(1, Integer(Length(LEventos)));
   Assert.AreEqual(Ord(dcEvento), Ord(LEventos[0].Categoria));
   Assert.AreEqual('cancelamento', LEventos[0].TipoEvento);
   Assert.AreEqual(CHAVE_3, LEventos[0].ChaveAcesso);
@@ -266,7 +266,7 @@ var
 begin
   LEventos := Decodificar([Item(10, 'resNFe_v1.01.xsd', XmlResNFe(CHAVE_1))]);
 
-  Assert.AreEqual(1, Length(LEventos));
+  Assert.AreEqual(1, Integer(Length(LEventos)));
   Assert.AreEqual(CHAVE_1, LEventos[0].ChaveAcesso);
 end;
 
@@ -279,7 +279,7 @@ begin
     Item(11, 'schemaFuturoDaSefaz', '<qualquer/>'),
     Item(12, 'resNFe', XmlResNFe(CHAVE_2))]);
 
-  Assert.AreEqual(2, Length(LEventos));
+  Assert.AreEqual(2, Integer(Length(LEventos)));
   Assert.AreEqual(CHAVE_1, LEventos[0].ChaveAcesso);
   Assert.AreEqual(CHAVE_2, LEventos[1].ChaveAcesso);
 end;
@@ -293,7 +293,7 @@ begin
     Item(2, 'resEvento', XmlResEvento(CHAVE_1, '210210')),
     Item(3, 'procNFe', XmlProcNFe(CHAVE_2, '<dhEmi>2026-09-09T08:00:00-03:00</dhEmi>'))]);
 
-  Assert.AreEqual(3, Length(LEventos));
+  Assert.AreEqual(3, Integer(Length(LEventos)));
   Assert.AreEqual(Int64(1), LEventos[0].NSU);
   Assert.AreEqual(Int64(2), LEventos[1].NSU);
   Assert.AreEqual(Int64(3), LEventos[2].NSU);

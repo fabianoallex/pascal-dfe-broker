@@ -122,7 +122,7 @@ begin
 
   LConfig := CarregarConfig(FCaminho);
 
-  Assert.AreEqual(2, Length(LConfig.Certificados));
+  Assert.AreEqual(2, Integer(Length(LConfig.Certificados)));
   Assert.AreEqual('matriz', LConfig.Certificados[0].Alias);
   Assert.AreEqual('nfe', LConfig.Certificados[0].ProviderIdentificador);
   Assert.AreEqual('12345678000199', LConfig.Certificados[0].Certificado.CnpjCpf);
@@ -217,7 +217,7 @@ begin
 
   LConfig := CarregarConfig(FCaminho);
 
-  Assert.AreEqual(2, Length(LConfig.Certificados));
+  Assert.AreEqual(2, Integer(Length(LConfig.Certificados)));
 end;
 
 procedure TDFeConfigTests.RecarregarConfig_CriaUnidadeParaCadaCertificadoAtivo;
@@ -242,7 +242,7 @@ begin
   try
     RecarregarConfig(LConfig, LOrquestrador, LCursorStore, LFactory.Fabricar);
 
-    Assert.AreEqual(2, Length(LOrquestrador.Unidades));
+    Assert.AreEqual(2, Integer(Length(LOrquestrador.Unidades)));
     Assert.AreEqual(2, LFactory.Chamadas);
     LUnidade := LOrquestrador.ObterUnidadePorAlias('matriz');
     Assert.IsTrue(Assigned(LUnidade));
