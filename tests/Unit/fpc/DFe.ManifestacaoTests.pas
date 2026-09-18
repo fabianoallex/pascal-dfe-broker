@@ -25,6 +25,9 @@ type
   protected
     procedure SetUp; override;
     procedure TearDown; override;
+  private
+    FPayload: string;
+    procedure DoInterpretarPayload;
   published
     procedure InterpretarComando_ComandoValido_PreencheCampos;
     procedure InterpretarComando_SemAlias_Levanta;
@@ -33,9 +36,13 @@ type
     procedure InterpretarComando_DesconhecimentoSemJustificativa_Levanta;
     procedure InterpretarComando_OperacaoNaoRealizadaSemJustificativa_Levanta;
     procedure InterpretarComando_ConfirmacaoSemJustificativa_NaoLevanta;
+    procedure InterpretarComando_TipoEventoDesconhecido_Levanta;
+    procedure InterpretarComando_ChaveAcessoFora44Digitos_Levanta;
+    procedure InterpretarComando_JustificativaCurta_Levanta;
+    procedure InterpretarComando_JustificativaValida_NaoLevanta;
 
     procedure ProcessarComando_AliasDesconhecido_RegistraErroNaoPublica;
-    procedure ProcessarComando_ProviderSemManifestador_RegistraErroNaoPublica;
+    procedure ProcessarComando_ClientSemManifestador_RegistraErroNaoPublica;
     procedure ProcessarComando_Sucesso_PublicaEventoDevolvido;
     procedure ProcessarComando_CertificadoInvalido_RegistraErroNaoPropaga;
     procedure ProcessarComando_ComunicacaoFalhou_RegistraErroNaoPropaga;
@@ -47,6 +54,9 @@ type
   end;
 
 implementation
+
+const
+  CHAVE_TESTE = '35260112345678000199550010000000011000000010';
 
 // CertificadoTeste/EventoTeste vem de DFe.TestDoubles.
 
@@ -67,6 +77,11 @@ begin
 end;
 
 { TDFeManifestacaoTests }
+
+procedure TDFeManifestacaoTests.DoInterpretarPayload;
+begin
+  InterpretarComando(FPayload);
+end;
 
 function TDFeManifestacaoTests.MontarPayload(const ALinhas: array of string): string;
 var
@@ -101,16 +116,16 @@ procedure TDFeManifestacaoTests.InterpretarComando_ComandoValido_PreencheCampos;
 var
   LComando: TDFeComandoManifestacao;
 begin
-  LComando := InterpretarComando(MontarPayload(['Alias=matriz', 'ChaveAcesso=123', 'TipoEvento=Ciencia']));
+  LComando := InterpretarComando(MontarPayload(['Alias=matriz', 'ChaveAcesso=' + CHAVE_TESTE, 'TipoEvento=Ciencia']));
 
   AssertEquals('matriz', LComando.Alias);
-  AssertEquals('123', LComando.ChaveAcesso);
+  AssertEquals(CHAVE_TESTE, LComando.ChaveAcesso);
   AssertEquals('ciencia', LComando.TipoEvento);
 end;
 
 procedure TDFeManifestacaoTests.InterpretarComando_SemAlias_Levanta;
 begin
-  FPayloadParaInterpretar := MontarPayload(['ChaveAcesso=123', 'TipoEvento=ciencia']);
+  FPayloadParaInterpretar := MontarPayload(['ChaveAcesso=' + CHAVE_TESTE, 'TipoEvento=ciencia']);
   AssertException(Exception, DoInterpretarComando);
 end;
 
@@ -122,19 +137,19 @@ end;
 
 procedure TDFeManifestacaoTests.InterpretarComando_SemTipoEvento_Levanta;
 begin
-  FPayloadParaInterpretar := MontarPayload(['Alias=matriz', 'ChaveAcesso=123']);
+  FPayloadParaInterpretar := MontarPayload(['Alias=matriz', 'ChaveAcesso=' + CHAVE_TESTE]);
   AssertException(Exception, DoInterpretarComando);
 end;
 
 procedure TDFeManifestacaoTests.InterpretarComando_DesconhecimentoSemJustificativa_Levanta;
 begin
-  FPayloadParaInterpretar := MontarPayload(['Alias=matriz', 'ChaveAcesso=123', 'TipoEvento=desconhecimento']);
+  FPayloadParaInterpretar := MontarPayload(['Alias=matriz', 'ChaveAcesso=' + CHAVE_TESTE, 'TipoEvento=desconhecimento']);
   AssertException(Exception, DoInterpretarComando);
 end;
 
 procedure TDFeManifestacaoTests.InterpretarComando_OperacaoNaoRealizadaSemJustificativa_Levanta;
 begin
-  FPayloadParaInterpretar := MontarPayload(['Alias=matriz', 'ChaveAcesso=123', 'TipoEvento=operacaonaorealizada']);
+  FPayloadParaInterpretar := MontarPayload(['Alias=matriz', 'ChaveAcesso=' + CHAVE_TESTE, 'TipoEvento=operacaonaorealizada']);
   AssertException(Exception, DoInterpretarComando);
 end;
 
@@ -142,9 +157,35 @@ procedure TDFeManifestacaoTests.InterpretarComando_ConfirmacaoSemJustificativa_N
 var
   LComando: TDFeComandoManifestacao;
 begin
-  LComando := InterpretarComando(MontarPayload(['Alias=matriz', 'ChaveAcesso=123', 'TipoEvento=confirmacao']));
+  LComando := InterpretarComando(MontarPayload(['Alias=matriz', 'ChaveAcesso=' + CHAVE_TESTE, 'TipoEvento=confirmacao']));
 
   AssertEquals('confirmacao', LComando.TipoEvento);
+end;
+
+procedure TDFeManifestacaoTests.InterpretarComando_TipoEventoDesconhecido_Levanta;
+begin
+  FPayload := MontarPayload(['Alias=matriz', 'ChaveAcesso=' + CHAVE_TESTE, 'TipoEvento=foo']);
+  AssertException(Exception, DoInterpretarPayload);
+end;
+
+procedure TDFeManifestacaoTests.InterpretarComando_ChaveAcessoFora44Digitos_Levanta;
+begin
+  FPayload := MontarPayload(['Alias=matriz', 'ChaveAcesso=123', 'TipoEvento=ciencia']);
+  AssertException(Exception, DoInterpretarPayload);
+end;
+
+procedure TDFeManifestacaoTests.InterpretarComando_JustificativaCurta_Levanta;
+begin
+  FPayload := MontarPayload(['Alias=matriz', 'ChaveAcesso=' + CHAVE_TESTE, 'TipoEvento=desconhecimento', 'Justificativa=curta demais']);
+  AssertException(Exception, DoInterpretarPayload);
+end;
+
+procedure TDFeManifestacaoTests.InterpretarComando_JustificativaValida_NaoLevanta;
+var
+  LComando: TDFeComandoManifestacao;
+begin
+  LComando := InterpretarComando(MontarPayload(['Alias=matriz', 'ChaveAcesso=' + CHAVE_TESTE, 'TipoEvento=operacaonaorealizada', 'Justificativa=Fornecedor nao reconhecido pela empresa']));
+  AssertEquals('operacaonaorealizada', LComando.TipoEvento);
 end;
 
 procedure TDFeManifestacaoTests.ProcessarComando_AliasDesconhecido_RegistraErroNaoPublica;
@@ -162,12 +203,12 @@ begin
   end;
 end;
 
-procedure TDFeManifestacaoTests.ProcessarComando_ProviderSemManifestador_RegistraErroNaoPublica;
+procedure TDFeManifestacaoTests.ProcessarComando_ClientSemManifestador_RegistraErroNaoPublica;
 var
   LProcessador: TDFeManifestacaoProcessadorTestavel;
   LUnidade: TDFeUnidadeTrabalho;
 begin
-  LUnidade := TDFeUnidadeTrabalho.Create(TDFeProviderFake.Create('nfe'), nil, CertificadoTeste, TDFeCursorStoreFake.Create);
+  LUnidade := TDFeUnidadeTrabalho.Create(TDFeProviderFake.Create('nfe'), TDFeDistribuicaoClientFake.Create, CertificadoTeste, TDFeCursorStoreFake.Create);
   FOrquestrador.AdicionarUnidade(LUnidade);
 
   LProcessador := TDFeManifestacaoProcessadorTestavel.Create(FOrquestrador, FPublicador);
@@ -184,12 +225,12 @@ end;
 procedure TDFeManifestacaoTests.ProcessarComando_Sucesso_PublicaEventoDevolvido;
 var
   LProcessador: TDFeManifestacaoProcessadorTestavel;
-  LProvider: TDFeProviderManifestadorFake;
+  LClient: TDFeClientManifestadorFake;
   LUnidade: TDFeUnidadeTrabalho;
 begin
-  LProvider := TDFeProviderManifestadorFake.Create('nfe');
-  LProvider.EventoADevolver := EventoManifestacaoTeste;
-  LUnidade := TDFeUnidadeTrabalho.Create(LProvider, nil, CertificadoTeste, TDFeCursorStoreFake.Create);
+  LClient := TDFeClientManifestadorFake.Create;
+  LClient.EventoADevolver := EventoManifestacaoTeste;
+  LUnidade := TDFeUnidadeTrabalho.Create(TDFeProviderFake.Create('nfe'), LClient, CertificadoTeste, TDFeCursorStoreFake.Create);
   FOrquestrador.AdicionarUnidade(LUnidade);
 
   LProcessador := TDFeManifestacaoProcessadorTestavel.Create(FOrquestrador, FPublicador);
@@ -198,8 +239,8 @@ begin
 
     AssertEquals(0, LProcessador.QuantidadeErros);
     AssertEquals(1, FPublicador.Quantidade);
-    AssertEquals(1, LProvider.ChamadasEnviarEvento);
-    AssertEquals('teste', LProvider.UltimoComandoRecebido.Alias);
+    AssertEquals(1, LClient.ChamadasEnviarEvento);
+    AssertEquals('teste', LClient.UltimoComandoRecebido.Alias);
   finally
     LProcessador.Free;
   end;
@@ -208,12 +249,12 @@ end;
 procedure TDFeManifestacaoTests.ProcessarComando_CertificadoInvalido_RegistraErroNaoPropaga;
 var
   LProcessador: TDFeManifestacaoProcessadorTestavel;
-  LProvider: TDFeProviderManifestadorFake;
+  LClient: TDFeClientManifestadorFake;
   LUnidade: TDFeUnidadeTrabalho;
 begin
-  LProvider := TDFeProviderManifestadorFake.Create('nfe');
-  LProvider.ExcecaoAEnviar := EDFeCertificadoInvalido;
-  LUnidade := TDFeUnidadeTrabalho.Create(LProvider, nil, CertificadoTeste, TDFeCursorStoreFake.Create);
+  LClient := TDFeClientManifestadorFake.Create;
+  LClient.ExcecaoAEnviar := EDFeCertificadoInvalido;
+  LUnidade := TDFeUnidadeTrabalho.Create(TDFeProviderFake.Create('nfe'), LClient, CertificadoTeste, TDFeCursorStoreFake.Create);
   FOrquestrador.AdicionarUnidade(LUnidade);
 
   LProcessador := TDFeManifestacaoProcessadorTestavel.Create(FOrquestrador, FPublicador);
@@ -230,12 +271,12 @@ end;
 procedure TDFeManifestacaoTests.ProcessarComando_ComunicacaoFalhou_RegistraErroNaoPropaga;
 var
   LProcessador: TDFeManifestacaoProcessadorTestavel;
-  LProvider: TDFeProviderManifestadorFake;
+  LClient: TDFeClientManifestadorFake;
   LUnidade: TDFeUnidadeTrabalho;
 begin
-  LProvider := TDFeProviderManifestadorFake.Create('nfe');
-  LProvider.ExcecaoAEnviar := EDFeComunicacaoFalhou;
-  LUnidade := TDFeUnidadeTrabalho.Create(LProvider, nil, CertificadoTeste, TDFeCursorStoreFake.Create);
+  LClient := TDFeClientManifestadorFake.Create;
+  LClient.ExcecaoAEnviar := EDFeComunicacaoFalhou;
+  LUnidade := TDFeUnidadeTrabalho.Create(TDFeProviderFake.Create('nfe'), LClient, CertificadoTeste, TDFeCursorStoreFake.Create);
   FOrquestrador.AdicionarUnidade(LUnidade);
 
   LProcessador := TDFeManifestacaoProcessadorTestavel.Create(FOrquestrador, FPublicador);
@@ -252,12 +293,12 @@ end;
 procedure TDFeManifestacaoTests.ProcessarComando_RespostaInvalida_RegistraErroNaoPropaga;
 var
   LProcessador: TDFeManifestacaoProcessadorTestavel;
-  LProvider: TDFeProviderManifestadorFake;
+  LClient: TDFeClientManifestadorFake;
   LUnidade: TDFeUnidadeTrabalho;
 begin
-  LProvider := TDFeProviderManifestadorFake.Create('nfe');
-  LProvider.ExcecaoAEnviar := EDFeRespostaInvalida;
-  LUnidade := TDFeUnidadeTrabalho.Create(LProvider, nil, CertificadoTeste, TDFeCursorStoreFake.Create);
+  LClient := TDFeClientManifestadorFake.Create;
+  LClient.ExcecaoAEnviar := EDFeRespostaInvalida;
+  LUnidade := TDFeUnidadeTrabalho.Create(TDFeProviderFake.Create('nfe'), LClient, CertificadoTeste, TDFeCursorStoreFake.Create);
   FOrquestrador.AdicionarUnidade(LUnidade);
 
   LProcessador := TDFeManifestacaoProcessadorTestavel.Create(FOrquestrador, FPublicador);
@@ -274,14 +315,14 @@ end;
 procedure TDFeManifestacaoTests.ProcessarTodos_DrenaFonteAteVazia;
 var
   LProcessador: TDFeManifestacaoProcessadorTestavel;
-  LProvider: TDFeProviderManifestadorFake;
+  LClient: TDFeClientManifestadorFake;
   LUnidade: TDFeUnidadeTrabalho;
   LFonteFake: TDFeComandoFonteFake;
   LFonte: IDFeComandoFonte;
 begin
-  LProvider := TDFeProviderManifestadorFake.Create('nfe');
-  LProvider.EventoADevolver := EventoManifestacaoTeste;
-  LUnidade := TDFeUnidadeTrabalho.Create(LProvider, nil, CertificadoTeste, TDFeCursorStoreFake.Create);
+  LClient := TDFeClientManifestadorFake.Create;
+  LClient.EventoADevolver := EventoManifestacaoTeste;
+  LUnidade := TDFeUnidadeTrabalho.Create(TDFeProviderFake.Create('nfe'), LClient, CertificadoTeste, TDFeCursorStoreFake.Create);
   FOrquestrador.AdicionarUnidade(LUnidade);
 
   LFonteFake := TDFeComandoFonteFake.Create;
@@ -293,7 +334,7 @@ begin
   try
     LProcessador.ProcessarTodos(LFonte);
 
-    AssertEquals(2, LProvider.ChamadasEnviarEvento);
+    AssertEquals(2, LClient.ChamadasEnviarEvento);
     AssertEquals(2, FPublicador.Quantidade);
   finally
     LProcessador.Free;
@@ -304,12 +345,12 @@ procedure TDFeManifestacaoTests.AutoManifestador_UnidadeAutomatica_ProcessaComan
 var
   LProcessador: TDFeManifestacaoProcessador;
   LAutoManifestador: TDFeAutoManifestador;
-  LProvider: TDFeProviderManifestadorFake;
+  LClient: TDFeClientManifestadorFake;
   LUnidade: TDFeUnidadeTrabalho;
 begin
-  LProvider := TDFeProviderManifestadorFake.Create('nfe');
-  LProvider.EventoADevolver := EventoManifestacaoTeste;
-  LUnidade := TDFeUnidadeTrabalho.Create(LProvider, nil, CertificadoTeste, TDFeCursorStoreFake.Create);
+  LClient := TDFeClientManifestadorFake.Create;
+  LClient.EventoADevolver := EventoManifestacaoTeste;
+  LUnidade := TDFeUnidadeTrabalho.Create(TDFeProviderFake.Create('nfe'), LClient, CertificadoTeste, TDFeCursorStoreFake.Create);
   LUnidade.ManifestacaoAutomatica := True;
   FOrquestrador.AdicionarUnidade(LUnidade);
 
@@ -319,8 +360,8 @@ begin
     try
       LAutoManifestador.AoPublicarDocumento(LUnidade, EventoTeste);
 
-      AssertEquals(1, LProvider.ChamadasEnviarEvento);
-      AssertEquals('ciencia', LProvider.UltimoComandoRecebido.TipoEvento);
+      AssertEquals(1, LClient.ChamadasEnviarEvento);
+      AssertEquals('ciencia', LClient.UltimoComandoRecebido.TipoEvento);
       AssertEquals(1, FPublicador.Quantidade);
     finally
       LAutoManifestador.Free;
@@ -334,11 +375,11 @@ procedure TDFeManifestacaoTests.AutoManifestador_UnidadeNaoAutomatica_NaoProcess
 var
   LProcessador: TDFeManifestacaoProcessador;
   LAutoManifestador: TDFeAutoManifestador;
-  LProvider: TDFeProviderManifestadorFake;
+  LClient: TDFeClientManifestadorFake;
   LUnidade: TDFeUnidadeTrabalho;
 begin
-  LProvider := TDFeProviderManifestadorFake.Create('nfe');
-  LUnidade := TDFeUnidadeTrabalho.Create(LProvider, nil, CertificadoTeste, TDFeCursorStoreFake.Create);
+  LClient := TDFeClientManifestadorFake.Create;
+  LUnidade := TDFeUnidadeTrabalho.Create(TDFeProviderFake.Create('nfe'), LClient, CertificadoTeste, TDFeCursorStoreFake.Create);
   // ManifestacaoAutomatica nao setado -- default False
   FOrquestrador.AdicionarUnidade(LUnidade);
 
@@ -348,7 +389,7 @@ begin
     try
       LAutoManifestador.AoPublicarDocumento(LUnidade, EventoTeste);
 
-      AssertEquals(0, LProvider.ChamadasEnviarEvento);
+      AssertEquals(0, LClient.ChamadasEnviarEvento);
       AssertEquals(0, FPublicador.Quantidade);
     finally
       LAutoManifestador.Free;

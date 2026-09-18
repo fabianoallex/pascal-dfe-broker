@@ -25,10 +25,16 @@
     manual chegam ao MESMO TDFeManifestacaoProcessador, so' o gatilho
     difere.
 
-  IDFeManifestador e' uma capacidade OPCIONAL de provider (nem todo tipo
-  de documento tem "manifestacao do destinatario") -- verificada em tempo
-  de execucao via Supports(provider, IDFeManifestador, ...), nao faz parte
-  de IDFeProvider (ver DFe.Provider). }
+  IDFeManifestador e' uma capacidade OPCIONAL do CLIENT da unidade (nem
+  todo tipo de documento tem "manifestacao do destinatario") -- verificada
+  em tempo de execucao via Supports(unidade.Client, IDFeManifestador, ...),
+  nao faz parte de IDFeDistribuicaoClient nem de IDFeProvider. Fica no
+  client, e nao no provider, porque enviar o evento exige o certificado
+  digital REAL (.pfx/senha) da unidade -- que so' o client tem; o provider
+  e' um singleton do registry (ver DFe.Provider), sem credencial nenhuma.
+  Corrigido em 2026-09-18 ao implementar a versao real
+  (DFe.Client.ACBrNFe): a decisao original, "capacidade de provider", nao
+  tinha como chegar ao certificado. }
 
 interface
 
@@ -42,12 +48,18 @@ uses
   DFe.Orquestrador;
 
 const
-  { Tipos de evento de manifestacao conhecidos (NFe) -- os dois abaixo
-    exigem Justificativa por regra da SEFAZ (conferir texto/tamanho minimo
-    exato quando a implementacao real via componentes ACBr existir; o que importa
-    aqui e' nao aceitar o comando sem NENHUMA justificativa). }
+  { Tipos de evento de manifestacao conhecidos (NFe) -- mesmo vocabulario
+    de DFe.Provider.NFe.NomeTipoEventoNFe, para o resultado de uma
+    manifestacao sair na mesma routing-key do evento equivalente vindo da
+    distribuicao. Desconhecimento e Operacao nao Realizada exigem
+    Justificativa (xJust, 15 a 255 caracteres -- ver ACBrNFe.EnvEvento). }
+  DFE_EVENTO_MANIFESTACAO_CONFIRMACAO = 'confirmacao';
+  DFE_EVENTO_MANIFESTACAO_CIENCIA = 'ciencia';
   DFE_EVENTO_MANIFESTACAO_DESCONHECIMENTO = 'desconhecimento';
   DFE_EVENTO_MANIFESTACAO_OPERACAO_NAO_REALIZADA = 'operacaonaorealizada';
+
+  DFE_MANIFESTACAO_JUSTIFICATIVA_MIN = 15;
+  DFE_MANIFESTACAO_JUSTIFICATIVA_MAX = 255;
 
 type
   { Um comando de manifestacao, ja interpretado (ver InterpretarComando) --
@@ -62,9 +74,12 @@ type
 
 { Interpreta o corpo de uma mensagem de comando (formato chave=valor, uma
   por linha -- mesmo estilo do arquivo de config). Levanta excecao se
-  faltar Alias, ChaveAcesso ou TipoEvento, ou se TipoEvento exigir
-  Justificativa e ela vier vazia -- falha alto e cedo, antes de tentar
-  falar com qualquer provider. }
+  faltar Alias, ChaveAcesso ou TipoEvento; se TipoEvento nao for um dos
+  quatro conhecidos; se ChaveAcesso nao tiver 44 digitos; ou se o TipoEvento
+  exigir Justificativa e ela vier vazia ou fora de 15..255 caracteres --
+  falha alto e cedo, antes de tentar falar com a SEFAZ (que rejeitaria o
+  evento, ou o ACBr levantaria uma excecao generica de validacao de
+  schema, dificil de distinguir de falha de comunicacao). }
 function InterpretarComando(const APayload: string): TDFeComandoManifestacao;
 
 type
@@ -91,7 +106,7 @@ type
   end;
 
   { Processa comandos de manifestacao: resolve o alias na unidade do
-    orquestrador, verifica se o provider dela suporta IDFeManifestador,
+    orquestrador, verifica se o client dela suporta IDFeManifestador,
     envia o evento e publica o resultado como evento normal na mesma
     exchange (MontarRoutingKey). Nao sabe de onde o comando veio -- serve
     tanto o caminho manual (IDFeComandoFonte) quanto o automatico
@@ -103,14 +118,14 @@ type
   protected
     { Hook de observabilidade -- no-op por padrao, mesmo espirito de
       TDFeOrquestrador.RegistrarErro. Usado quando o comando nao pode ser
-      processado (alias desconhecido, provider sem suporte) ou quando
+      processado (alias desconhecido, client sem suporte) ou quando
       EnviarEvento levanta uma das excecoes modeladas em DFe.Errors. }
     procedure RegistrarErro(const AComando: TDFeComandoManifestacao; const AMensagem: string); virtual;
   public
     constructor Create(const AOrquestrador: TDFeOrquestrador; const APublicador: IDFePublicador);
 
     { Processa um unico comando ja interpretado. Nunca levanta -- qualquer
-      falha (alias desconhecido, provider sem IDFeManifestador, excecao de
+      falha (alias desconhecido, client sem IDFeManifestador, excecao de
       DFe.Errors) e' reportada via RegistrarErro, nao propagada, pelo
       mesmo motivo de isolamento de TDFeOrquestrador.ExecutarCiclo: uma
       falha aqui nao pode travar quem estiver drenando varios comandos. }
@@ -142,6 +157,7 @@ implementation
 function InterpretarComando(const APayload: string): TDFeComandoManifestacao;
 var
   LLinhas: TStringList;
+  I: Integer;
 begin
   LLinhas := TStringList.Create;
   try
@@ -163,10 +179,28 @@ begin
   if Result.TipoEvento = '' then
     raise Exception.Create('Comando de manifestacao sem "TipoEvento"');
 
-  if ((Result.TipoEvento = DFE_EVENTO_MANIFESTACAO_DESCONHECIMENTO)
-    or (Result.TipoEvento = DFE_EVENTO_MANIFESTACAO_OPERACAO_NAO_REALIZADA))
-    and (Result.Justificativa = '') then
-    raise Exception.CreateFmt('Comando de manifestacao "%s" exige "Justificativa"', [Result.TipoEvento]);
+  if (Result.TipoEvento <> DFE_EVENTO_MANIFESTACAO_CONFIRMACAO)
+    and (Result.TipoEvento <> DFE_EVENTO_MANIFESTACAO_CIENCIA)
+    and (Result.TipoEvento <> DFE_EVENTO_MANIFESTACAO_DESCONHECIMENTO)
+    and (Result.TipoEvento <> DFE_EVENTO_MANIFESTACAO_OPERACAO_NAO_REALIZADA) then
+    raise Exception.CreateFmt('Comando de manifestacao com "TipoEvento" desconhecido: "%s"', [Result.TipoEvento]);
+
+  if Length(Result.ChaveAcesso) <> 44 then
+    raise Exception.Create('Comando de manifestacao com "ChaveAcesso" fora do formato de 44 digitos');
+  for I := 1 to 44 do
+    if not CharInSet(Result.ChaveAcesso[I], ['0'..'9']) then
+      raise Exception.Create('Comando de manifestacao com "ChaveAcesso" fora do formato de 44 digitos');
+
+  if (Result.TipoEvento = DFE_EVENTO_MANIFESTACAO_DESCONHECIMENTO)
+    or (Result.TipoEvento = DFE_EVENTO_MANIFESTACAO_OPERACAO_NAO_REALIZADA) then
+  begin
+    if Result.Justificativa = '' then
+      raise Exception.CreateFmt('Comando de manifestacao "%s" exige "Justificativa"', [Result.TipoEvento]);
+    if (Length(Result.Justificativa) < DFE_MANIFESTACAO_JUSTIFICATIVA_MIN)
+      or (Length(Result.Justificativa) > DFE_MANIFESTACAO_JUSTIFICATIVA_MAX) then
+      raise Exception.CreateFmt('"Justificativa" de "%s" deve ter de %d a %d caracteres',
+        [Result.TipoEvento, DFE_MANIFESTACAO_JUSTIFICATIVA_MIN, DFE_MANIFESTACAO_JUSTIFICATIVA_MAX]);
+  end;
 end;
 
 { TDFeManifestacaoProcessador }
@@ -196,9 +230,9 @@ begin
     Exit;
   end;
 
-  if not Supports(LUnidade.Provider, IDFeManifestador, LManifestador) then
+  if not Supports(LUnidade.Client, IDFeManifestador, LManifestador) then
   begin
-    RegistrarErro(AComando, Format('Provider "%s" (alias "%s") nao suporta manifestacao', [LUnidade.Provider.Identificador, AComando.Alias]));
+    RegistrarErro(AComando, Format('Client do alias "%s" (provider "%s") nao suporta manifestacao', [AComando.Alias, LUnidade.Provider.Identificador]));
     Exit;
   end;
 
@@ -253,7 +287,7 @@ begin
 
   LComando.Alias := AUnidade.Certificado.Identificador;
   LComando.ChaveAcesso := AEvento.ChaveAcesso;
-  LComando.TipoEvento := 'ciencia';
+  LComando.TipoEvento := DFE_EVENTO_MANIFESTACAO_CIENCIA;
   LComando.Justificativa := '';
   FProcessador.ProcessarComando(LComando);
 end;

@@ -49,10 +49,14 @@ uses
   ACBrDFeException,
   ACBrDFeComum.RetDistDFeInt,
   ACBrDFe.Conversao,
+  ACBrNFe.EnvEvento,
+  ACBrNFe.EventoClass,
   ACBrUtil.Base,
   DFe.Types,
   DFe.Errors,
-  DFe.Provider;
+  DFe.Provider,
+  DFe.Provider.NFe,
+  DFe.Manifestacao;
 
 type
   { Credenciais reais do certificado digital -- deliberadamente FORA de
@@ -64,7 +68,26 @@ type
     Senha: string;
   end;
 
-  TDFeDistribuicaoClientACBrNFe = class(TInterfacedObject, IDFeDistribuicaoClient)
+  { Implementa TAMBEM IDFeManifestador (ver DFe.Manifestacao para o porque
+    de ficar no client e nao no provider): e' este objeto quem tem o
+    certificado real carregado no TACBrNFe.
+
+    EnviarEvento -- NAO TESTADO contra a SEFAZ, mesma limitacao de
+    Consultar. Verificado lendo o fonte do ACBr (ACBrNFe.pas,
+    ACBrNFeWebServices.pas, ACBrNFe.EnvEvento.pas):
+    - Manifestacao vai para o Ambiente Nacional (cOrgao = 91), nao para a
+      SEFAZ da UF; o ACBr ja' escolhe a URL 'AN' para tpEvento fora de
+      CCe/cancelamento (TNFeEnvEvento.DefinirURL), mas cOrgao precisa ser
+      definido aqui -- o default do ACBr seria a UF da chave, que o AN
+      rejeita.
+    - infEvento.CNPJ e' o do DESTINATARIO (o certificado desta unidade),
+      nao o do emitente: se ficasse vazio o ACBr usaria o CNPJ da chave,
+      ou seja, o emitente -- por isso e' sempre preenchido.
+    - Como em Consultar, chama FACBrNFe.EnviarEvento (que devolve Boolean
+      sem levantar por cStat) em vez de Cancelamento()/wrappers que
+      levantam GerarException; rejeicao de protocolo vem no evento
+      devolvido, nunca como excecao (ver DFe.Errors). }
+  TDFeDistribuicaoClientACBrNFe = class(TInterfacedObject, IDFeDistribuicaoClient, IDFeManifestador)
   private
     FACBrNFe: TACBrNFe;
     { Garante certificado carregado, nao vencido e compativel com o CNPJ
@@ -74,6 +97,16 @@ type
       Chamado ANTES da consulta de verdade, de proposito -- isola o que
       pode dar errado no certificado do que pode dar errado na rede. }
     procedure GarantirCertificadoValido(const ACnpjCpf: string);
+    { Traduz uma excecao levantada DURANTE a chamada de rede para o modelo
+      de DFe.Errors, sem depender de texto de mensagem (nao e' contrato
+      estavel entre versoes do ACBr). Timeout sempre vira
+      EDFeComunicacaoFalhou. Se a SEFAZ ja' respondeu com um cStat
+      interpretavel (ACStatRecebido <> 0), a excecao e' so' o criterio
+      estreito do ACBr reclamando de um cStat que nao e' "sucesso" --
+      ENGOLIDA de proposito (o chamador le o cStat do que sobrou). Sem
+      cStat: HTTP 200 = respondeu mas ilegivel (EDFeRespostaInvalida); o
+      resto = EDFeComunicacaoFalhou. }
+    procedure TratarFalhaDeChamada(const E: Exception; const ACStatRecebido: Integer);
   public
     { AAmbiente default taProducao de proposito -- homologacao e'
       escolha explicita de quem monta o client (host/config), nunca
@@ -84,9 +117,34 @@ type
 
     function Consultar(const ACertificado: TDFeCertificado;
       const AUltimoNSU: Int64): TDFeLoteBruto;
+
+    function EnviarEvento(const ACertificado: TDFeCertificado;
+      const AComando: TDFeComandoManifestacao): TDFeEventoNormalizado;
   end;
 
 implementation
+
+const
+  { Codigo de "orgao" do Ambiente Nacional (Receita Federal), destino da
+    manifestacao do destinatario -- ver comentario da classe. }
+  ORGAO_AMBIENTE_NACIONAL = 91;
+
+function TipoEventoACBr(const ATipoEvento: string): TACBrTipoEvento;
+begin
+  if ATipoEvento = DFE_EVENTO_MANIFESTACAO_CONFIRMACAO then
+    Result := teManifDestConfirmacao
+  else if ATipoEvento = DFE_EVENTO_MANIFESTACAO_CIENCIA then
+    Result := teManifDestCiencia
+  else if ATipoEvento = DFE_EVENTO_MANIFESTACAO_DESCONHECIMENTO then
+    Result := teManifDestDesconhecimento
+  else if ATipoEvento = DFE_EVENTO_MANIFESTACAO_OPERACAO_NAO_REALIZADA then
+    Result := teManifDestOperNaoRealizada
+  else
+    { InterpretarComando (DFe.Manifestacao) ja' recusa isto -- so' chega
+      aqui por comando montado na mao com tipo invalido: bug de quem
+      chamou, nao um caso modelado. }
+    raise Exception.CreateFmt('Tipo de evento de manifestacao desconhecido: "%s"', [ATipoEvento]);
+end;
 
 function MontarLoteBruto(const ARet: TRetDistDFeInt): TDFeLoteBruto;
 var
@@ -191,32 +249,92 @@ begin
       importa e' se retDistDFeInt ficou populado. }
     LDistribuicao.Executar;
   except
-    on E: EACBrDFeExceptionTimeOut do
-      raise EDFeComunicacaoFalhou.Create(E.Message);
     on E: Exception do
-    begin
-      if LDistribuicao.retDistDFeInt.cStat <> 0 then
-      begin
-        { A SEFAZ respondeu com um cStat interpretavel (ver acima) --
-          TratarResposta so' levantou por causa do criterio estreito de
-          TACBrNFe.Distribuicao (nao usado aqui, ver topo do unit), nao
-          porque a chamada falhou de verdade. Engolir e' proposital:
-          MontarLoteBruto abaixo usa esse cStat, e ClassificarCStat (ver
-          DFe.Types) decide o resto. }
-      end
-      else if FACBrNFe.SSL.HTTPResultCode = 200 then
-        { Respondeu (HTTP 200) mas nao deu pra' interpretar como retorno
-          de Distribuicao de DFe -- corpo corrompido/fora do schema
-          esperado (ver EDFeRespostaInvalida em DFe.Errors). }
-        raise EDFeRespostaInvalida.Create(E.Message)
-      else
-        { Sem resposta interpretavel nenhuma antes da falha (conexao
-          recusada, DNS, HTTP != 200 sem corpo util) -- transitorio. }
-        raise EDFeComunicacaoFalhou.Create(E.Message);
-    end;
+      TratarFalhaDeChamada(E, LDistribuicao.retDistDFeInt.cStat);
   end;
 
   Result := MontarLoteBruto(LDistribuicao.retDistDFeInt);
+end;
+
+procedure TDFeDistribuicaoClientACBrNFe.TratarFalhaDeChamada(const E: Exception;
+  const ACStatRecebido: Integer);
+begin
+  if E is EACBrDFeExceptionTimeOut then
+    raise EDFeComunicacaoFalhou.Create(E.Message);
+
+  if ACStatRecebido <> 0 then
+    Exit; // ver comentario da declaracao: engolida de proposito
+
+  if FACBrNFe.SSL.HTTPResultCode = 200 then
+    raise EDFeRespostaInvalida.Create(E.Message)
+  else
+    raise EDFeComunicacaoFalhou.Create(E.Message);
+end;
+
+function TDFeDistribuicaoClientACBrNFe.EnviarEvento(const ACertificado: TDFeCertificado;
+  const AComando: TDFeComandoManifestacao): TDFeEventoNormalizado;
+var
+  LEnvio: TNFeEnvEvento;
+  LRetorno: TRetInfEvento;
+begin
+  GarantirCertificadoValido(ACertificado.CnpjCpf);
+
+  FACBrNFe.Configuracoes.WebServices.UF := ACertificado.UF;
+
+  FACBrNFe.EventoNFe.Evento.Clear;
+  with FACBrNFe.EventoNFe.Evento.New do
+  begin
+    infEvento.cOrgao := ORGAO_AMBIENTE_NACIONAL;
+    infEvento.CNPJ := ACertificado.CnpjCpf;
+    infEvento.chNFe := AComando.ChaveAcesso;
+    infEvento.dhEvento := Now;
+    infEvento.tpEvento := TipoEventoACBr(AComando.TipoEvento);
+    infEvento.nSeqEvento := 1;
+    if AComando.Justificativa <> '' then
+      infEvento.detEvento.xJust := AComando.Justificativa;
+  end;
+
+  LEnvio := FACBrNFe.WebServices.EnvEvento;
+  try
+    { Boolean ignorado de proposito, mesmo motivo de Consultar: TratarResposta
+      so' considera cStat 128 (lote processado) sucesso; o resultado de
+      CADA evento (135/136 aceito, demais rejeicao) esta em
+      EventoRetorno.retEvento. idLote = 1: lote de um evento so'. }
+    FACBrNFe.EnviarEvento(1);
+  except
+    on E: Exception do
+      TratarFalhaDeChamada(E, LEnvio.cStat);
+  end;
+
+  if LEnvio.cStat = 0 then
+    raise EDFeRespostaInvalida.Create('Resposta ao evento de manifestacao sem cStat interpretavel');
+
+  Result.TipoDocumento := DFE_TIPO_DOCUMENTO_NFE;
+  Result.Categoria := dcEvento;
+  Result.TipoEvento := AComando.TipoEvento;
+  Result.ChaveAcesso := AComando.ChaveAcesso;
+  Result.CnpjCpfConsultante := ACertificado.CnpjCpf;
+  Result.UF := ACertificado.UF;
+  Result.NSU := 0; // nao veio da distribuicao -- nao ha NSU
+  Result.DataEmissao := Now;
+
+  { Payload padrao = retorno bruto da SEFAZ (retEnvEvento) -- cobre rejeicao
+    do lote inteiro e rejeicao do evento. So' quando o evento foi
+    registrado (135/136/155) o ACBr monta o procEventoNFe completo em
+    RetInfEvento.XML, e esse passa a ser o payload -- consumidores
+    distinguem aceito de rejeitado pela raiz do XML (procEventoNFe vs
+    retEnvEvento), ja' que a routing-key e' a mesma. }
+  Result.XmlPayload := LEnvio.RetWS;
+  if LEnvio.EventoRetorno.retEvento.Count > 0 then
+  begin
+    LRetorno := LEnvio.EventoRetorno.retEvento.Items[0].RetInfEvento;
+    if LRetorno.XML <> '' then
+    begin
+      Result.XmlPayload := string(LRetorno.XML);
+      if LRetorno.dhRegEvento <> 0 then
+        Result.DataEmissao := LRetorno.dhRegEvento;
+    end;
+  end;
 end;
 
 end.

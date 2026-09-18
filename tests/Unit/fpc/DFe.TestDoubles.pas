@@ -45,25 +45,21 @@ type
     property UltimoLoteRecebido: TDFeLoteBruto read FUltimoLoteRecebido;
   end;
 
-  { Provider fake que TAMBEM implementa IDFeManifestador -- ao contrario de
-    TDFeProviderFake (que representa "provider sem suporte a manifestacao",
-    caso testado via Supports devolvendo False). EnviarEvento devolve
-    EventoADevolver ou levanta ExcecaoAEnviar (classe de excecao de
-    DFe.Errors), igual ao padrao de fila de TDFeDistribuicaoClientFake mas
-    com um unico slot -- nenhum teste ate agora precisou de sequencia. }
-  TDFeProviderManifestadorFake = class(TInterfacedObject, IDFeProvider, IDFeManifestador)
+  { Client fake que TAMBEM implementa IDFeManifestador -- ao contrario de
+    TDFeDistribuicaoClientFake (que representa "client sem suporte a
+    manifestacao", caso testado via Supports devolvendo False).
+    EnviarEvento devolve EventoADevolver ou levanta ExcecaoAEnviar (classe
+    de excecao de DFe.Errors), com um unico slot -- nenhum teste ate agora
+    precisou de sequencia. Consultar nao e' usado pelos testes de
+    manifestacao. }
+  TDFeClientManifestadorFake = class(TInterfacedObject, IDFeDistribuicaoClient, IDFeManifestador)
   private
-    FIdentificador: string;
-    FCodigoConsumoIndevido: Integer;
     FEventoADevolver: TDFeEventoNormalizado;
     FExcecaoAEnviar: ExceptClass;
     FUltimoComandoRecebido: TDFeComandoManifestacao;
     FChamadasEnviarEvento: Integer;
   public
-    constructor Create(const AIdentificador: string; const ACodigoConsumoIndevido: Integer = 656);
-    function Identificador: string;
-    function CodigoConsumoIndevido: Integer;
-    function Decodificar(const ALote: TDFeLoteBruto; const ACertificado: TDFeCertificado): TDFeEventoNormalizadoArray;
+    function Consultar(const ACertificado: TDFeCertificado; const AUltimoNSU: Int64): TDFeLoteBruto;
     function EnviarEvento(const ACertificado: TDFeCertificado; const AComando: TDFeComandoManifestacao): TDFeEventoNormalizado;
     property EventoADevolver: TDFeEventoNormalizado read FEventoADevolver write FEventoADevolver;
     property ExcecaoAEnviar: ExceptClass read FExcecaoAEnviar write FExcecaoAEnviar;
@@ -257,36 +253,19 @@ begin
   Result := FEventosADevolver;
 end;
 
-{ TDFeProviderManifestadorFake }
+{ TDFeClientManifestadorFake }
 
-constructor TDFeProviderManifestadorFake.Create(const AIdentificador: string; const ACodigoConsumoIndevido: Integer);
+function TDFeClientManifestadorFake.Consultar(const ACertificado: TDFeCertificado; const AUltimoNSU: Int64): TDFeLoteBruto;
 begin
-  inherited Create;
-  FIdentificador := AIdentificador;
-  FCodigoConsumoIndevido := ACodigoConsumoIndevido;
+  Result := LoteTeste(137, AUltimoNSU, AUltimoNSU);
 end;
 
-function TDFeProviderManifestadorFake.Identificador: string;
-begin
-  Result := FIdentificador;
-end;
-
-function TDFeProviderManifestadorFake.CodigoConsumoIndevido: Integer;
-begin
-  Result := FCodigoConsumoIndevido;
-end;
-
-function TDFeProviderManifestadorFake.Decodificar(const ALote: TDFeLoteBruto; const ACertificado: TDFeCertificado): TDFeEventoNormalizadoArray;
-begin
-  Result := nil;
-end;
-
-function TDFeProviderManifestadorFake.EnviarEvento(const ACertificado: TDFeCertificado; const AComando: TDFeComandoManifestacao): TDFeEventoNormalizado;
+function TDFeClientManifestadorFake.EnviarEvento(const ACertificado: TDFeCertificado; const AComando: TDFeComandoManifestacao): TDFeEventoNormalizado;
 begin
   Inc(FChamadasEnviarEvento);
   FUltimoComandoRecebido := AComando;
   if Assigned(FExcecaoAEnviar) then
-    raise FExcecaoAEnviar.Create('Falha simulada por TDFeProviderManifestadorFake');
+    raise FExcecaoAEnviar.Create('Falha simulada por TDFeClientManifestadorFake');
   Result := FEventoADevolver;
 end;
 
