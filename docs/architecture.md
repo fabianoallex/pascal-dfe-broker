@@ -35,7 +35,19 @@ Cada tipo de DFe (NFe, CTe, MDFe, ...) é implementado como um **provider** isol
 5. **Cursor de NSU isolado**: cada provider persiste seu próprio cursor, namespaced por `(tipo de documento, certificado, UF)` — nunca compartilha estado de cursor com outro provider.
 6. **Testes com fixtures**: testes de um provider rodam contra respostas gravadas (fixtures) da SEFAZ, nunca contra o ambiente de produção da SEFAZ. Isso é obrigatório para CI de contribuição externa.
 
-O registro de um provider é feito por auto-registro (o core não precisa conhecer `CTe`/`MDFe` em tempo de compilação para que eles existam) — mecanismo exato de registro (unit initialization vs. registro explícito na config) é uma decisão de implementação em aberto, mas o *contrato* acima é fixo desde já.
+**Decidido: auto-registro via `initialization` de unit** (`TDFeProviderRegistry` em `DFe.Provider.pas`) — o core não precisa conhecer `CTe`/`MDFe` em tempo de compilação para que eles existam:
+
+```pascal
+initialization
+  TDFeProviderRegistry.Registrar(TDFeProviderNfe.Create);
+end.
+```
+
+Basta a unit do provider estar no `uses` (direto ou indireto) do programa final para o provider ficar disponível — nenhum arquivo central precisa ser editado para adicionar um novo tipo de documento. Isso foi preferido a um registro explícito numa config central porque a alternativa exigiria o core (ou pelo menos um arquivo compartilhado) conhecendo cada tipo de documento de antemão — exatamente o oposto do que o projeto quer para contribuição de terceiros (ver `CONTRIBUTING.md`).
+
+`Registrar` levanta exceção se o `Identificador` já estiver registrado — colisão de nome entre dois providers falha alto e cedo (na inicialização do programa), em vez de um simplesmente sombrear o outro em silêncio. `Todos` devolve uma cópia independente do array interno, para quem chama não conseguir corromper o estado do registry.
+
+**Nota de correção sobre concorrência**: `initialization` de unit roda inteiramente antes do código da aplicação começar, em thread única — não há cenário real de leitura/escrita concorrente no registro, e a implementação não tenta lock nenhum por isso.
 
 ### Evento interno padronizado
 

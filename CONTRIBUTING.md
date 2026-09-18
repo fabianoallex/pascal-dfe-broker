@@ -14,7 +14,16 @@ Este é o tipo de contribuição mais valioso e o mais sensível a ficar fora de
 2. **Produz o evento interno padronizado** — mesmo formato usado pelo provider de NFe, não um formato próprio "porque CTe é diferente". Se CTe/MDFe realmente exigirem um campo que NFe não tem, a extensão do formato é discutida antes, no core, não decidida dentro do provider.
 3. **Usa a mesma convenção de routing-key** (`<tipo>.<categoria>.<uf>.<cnpj>`), só trocando `<tipo>`.
 4. **Vem com testes contra fixtures gravadas** da resposta da SEFAZ — nunca contra o serviço de produção da SEFAZ (rate limit real, e além disso exigiria certificado de teste válido no CI, o que não é seguro de distribuir).
-5. **Documenta qualquer limitação de compilador** — se algum componente ACBr necessário para aquele tipo de documento não funcionar (ou funcionar parcialmente) em Lazarus/FPC, isso vai documentado no README do provider, não silenciado.
+5. **Documenta qualquer limitação de compilador** — se a ACBrLib para aquele tipo de documento não tiver build Linux/FPC maduro, isso vai documentado no README do provider, não silenciado.
+6. **Se auto-registra via `initialization` de unit**, sem editar nenhum arquivo central do core:
+
+   ```pascal
+   initialization
+     TDFeProviderRegistry.Registrar(TDFeProviderCte.Create);
+   end.
+   ```
+
+   Basta a unit do provider estar no `uses` do programa final para ele ficar disponível. Escolha um `Identificador` (`'cte'`, `'mdfe'`, ...) que ainda não exista — `Registrar` levanta exceção em caso de colisão, então um identificador repetido é pego na hora, não em produção.
 
 Se você não tem certeza se seu approach atende esses pontos, abra uma issue descrevendo o plano antes de implementar — é mais barato ajustar o plano do que o PR pronto.
 

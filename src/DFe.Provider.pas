@@ -88,21 +88,42 @@ type
   TDFeProviderArray = array of IDFeProvider;
 
   { Registro de providers disponiveis, para o core nao precisar conhecer
-    'nfe'/'cte'/'mdfe' em tempo de compilacao. Rascunho de mecanismo de
-    auto-registro (marcado como "decisao de implementacao em aberto" em
-    docs/architecture.md) -- forma mais simples possivel para destravar o
-    resto do desenho; pode ser substituida sem afetar IDFeProvider nem
-    IDFeDistribuicaoClient, que sao o contrato de verdade. }
+    'nfe'/'cte'/'mdfe' em tempo de compilacao. Decidido (2026-09-17):
+    auto-registro via 'initialization' de unit -- ver comentario de
+    Registrar abaixo e a secao "Contrato de provider" em
+    docs/architecture.md para o porque (essencialmente: registro explicito
+    numa config central exigiria o core, ou um arquivo compartilhado,
+    conhecendo cada tipo de documento de antemao -- o oposto do que o
+    projeto quer para contribuicao de terceiros).
+
+    So chamar Registrar/Todos/ObterPorIdentificador depois que todas as
+    units de provider desejadas ja foram linkadas ao programa (ou seja, na
+    pratica, depois que o programa comecou a rodar) -- 'initialization' de
+    unit roda inteiramente antes disso, em ordem determinada pelo linker,
+    sempre em thread unica. Nao ha cenario real de leitura/escrita
+    concorrente no registro. }
   TDFeProviderRegistry = class
   private
     class var FProviders: TDFeProviderArray;
   public
-    { Cada provider chama isto na inicializacao da propria unit
-      (section 'initialization'), ex.: DFe.Provider.Nfe.pas registra
-      TDFeProviderNfe.Create no proprio 'initialization'. }
+    { Cada provider chama isto na inicializacao da propria unit (secao
+      'initialization'), ex.:
+
+        initialization
+          TDFeProviderRegistry.Registrar(TDFeProviderNfe.Create);
+        end.
+
+      Basta a unit do provider estar no 'uses' (direto ou indireto) do
+      programa final para o provider ficar disponivel -- nenhum arquivo
+      central precisa ser editado. Levanta excecao se Identificador ja
+      estiver registrado (colisao de nome entre dois providers, tipicamente
+      um bug ou um identificador mal escolhido por um novo provider). }
     class procedure Registrar(const AProvider: IDFeProvider);
 
     class function ObterPorIdentificador(const AIdentificador: string): IDFeProvider;
+
+    { Devolve uma copia independente -- quem chama nao pode corromper o
+      estado interno do registry escrevendo num indice do array devolvido. }
     class function Todos: TDFeProviderArray;
   end;
 
@@ -112,6 +133,11 @@ class procedure TDFeProviderRegistry.Registrar(const AProvider: IDFeProvider);
 var
   LIndiceNovo: Integer;
 begin
+  if ObterPorIdentificador(AProvider.Identificador) <> nil then
+    raise Exception.CreateFmt(
+      'Provider "%s" ja registrado -- Identificador precisa ser unico entre todos os providers (ver IDFeProvider.Identificador)',
+      [AProvider.Identificador]);
+
   LIndiceNovo := Length(FProviders);
   SetLength(FProviders, LIndiceNovo + 1);
   FProviders[LIndiceNovo] := AProvider;
@@ -131,8 +157,17 @@ begin
 end;
 
 class function TDFeProviderRegistry.Todos: TDFeProviderArray;
+var
+  I: Integer;
 begin
-  Result := FProviders;
+  { Copia elemento a elemento -- FProviders e' array de interface (tipo
+    gerenciado); Move/CopyMemory sobre ele corromperia o refcount das duas
+    copias. SetLength sozinho nao basta: so copia sob demanda quando o
+    array compartilhado e' redimensionado, nao protege contra escrita
+    direta num indice do array devolvido. }
+  SetLength(Result, Length(FProviders));
+  for I := 0 to High(FProviders) do
+    Result[I] := FProviders[I];
 end;
 
 end.
