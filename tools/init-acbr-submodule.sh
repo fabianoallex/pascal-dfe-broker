@@ -40,6 +40,10 @@ SPARSE_PATHS=(
   "Fontes/ACBrTCP"
   "Fontes/PCNComum"
   "Fontes/Terceiros"
+  # XSDs oficiais de NFe (~2 MB): o ACBr exige uma pasta de schemas em EXECUCAO
+  # e EnviarEvento (manifestacao) valida o XML contra eles (Fase 4 do
+  # simulador, docs/simulador-sefaz.md). So' NFe; CTe/MDFe entram com o provider.
+  "Exemplos/ACBrDFe/Schemas/NFe"
 )
 
 git submodule update --init --filter=blob:none --depth 1 "$SUBMODULE_PATH"

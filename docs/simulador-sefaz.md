@@ -120,9 +120,28 @@ Implementada em `src/` (todas puras, dual-compiler, no pacote Lazarus): `DFe.Sim
 - Testes num projeto **separado** da suíte pura (`DFeUnitTestsFpc`), porque linkam ACBr+LCL — mesmo motivo de `tools/smoke/`. Sugestão: `tests/Integration/AcbrSim/` (FPC Win64 primeiro).
 - Casos mínimos: 137, 138 com 1 e N itens, 656 → `dccConsumoIndevido`, 108, timeout → `EDFeComunicacaoFalhou`, HTTP 500 → `EDFeComunicacaoFalhou`, corpo ilegível com HTTP 200 → `EDFeRespostaInvalida`, certificado vencido/CNPJ divergente → `EDFeCertificadoInvalido`, e um teste de ponta a ponta com o orquestrador + provider NFe + publicador fake.
 
-### Fase 4 — eventos de manifestação (depende de `libxmlsec1`)
+### Fase 4 — eventos de manifestação (depende de libxml2 e dos XSDs reais)
 
-Eventos são **assinados**. Desde a Fase 0 o client usa `xsLibXml2` (o `xsXmlSec` levanta exceção com o `ACBr.inc` padrão), então o que falta é **libxml2** (não `libxmlsec1`): não há `libxml2*.dll` no PATH desta máquina Windows. A distribuição não assina, então as Fases 0–3 não dependem disso. Para o `EnviarEvento`: usar container Debian com `libxml2` (parte do trabalho de Linux/Docker adiado — ver `CLAUDE.md`, "FPC/Linux via Docker"), ou instalar a DLL no Windows. `EnviarEvento` também valida o XML contra XSD, então exige os schemas reais (ver achado 3 da Fase 0). Simular `RecepcaoEvento` AN: resposta com `retEnvEvento` (cStat 128 do lote + `retEvento` com 135/136 ou rejeição), exercitando `CStatEventoRegistrado` e o `TipoEvento` `manifestacaorejeitada`.
+#### Sonda da Fase 4 (2026-09-18, FPC Win64) — `tools/spike-sim/SpikeEvento.lpr`
+
+Chama `EnviarEvento` do client real com um transmissor que imprime o envelope e devolve um `retEnvEvento` (cStat 128 + `retEvento` 135). **Rodou de ponta a ponta nesta máquina**: o ACBr montou o `envEvento`, **assinou** (XMLDSig RSA-SHA1, `SignatureValue` e `X509Certificate` presentes), **validou contra o XSD real**, "transmitiu" e o client devolveu `TipoEvento=ciencia` com `procEventoNFe` no payload. O que isso exigiu, por camada:
+
+1. **libxml2 nativa em execução** (só para assinar/validar; a distribuição não usa). O ACBr carrega **um único nome**, fixo em compilação (`ACBrLibXml2Ext.LIBXML2_SO`): Windows `libxml2.dll` (ou `libxml2-2.dll` se compilar com `USE_MINGW`), Linux **`libxml2.so`**. Nesta máquina funcionou a `libxml2.dll` **x64** do **PostgreSQL 18** (`C:\Program Files\PostgreSQL8in`, já no PATH, com `libiconv-2`/`zlib1`/`icu*` ao lado). É acidental — não é dependência declarada do projeto. Existe `ACBrLibXml2Ext.LibXml2Path` (variável) para apontar a pasta da DLL.
+2. **XSDs oficiais de NFe** em `Configuracoes.Arquivos.PathSchemas` (achado 3 da Fase 0; agora `TDFeCredencialCertificado.PathSchemas`). Trazidos para o sparse-checkout: `Exemplos/ACBrDFe/Schemas/NFe` (~2 MB, 201 arquivos; `tools/init-acbr-submodule.sh` já inclui).
+3. OpenSSL 3 (já era requisito).
+
+**Riscos que a sonda deixou de fora / abriu:**
+- **Delphi Win32**: precisa de libxml2 **32 bits** (a do Postgres é x64) além das DLLs OpenSSL de 32 bits — os testes de integração continuam só FPC Win64.
+- **Linux**: `libxml2.so` sem versão é o symlink de `-dev`; a lib de runtime do Debian é só `libxml2.so.2`. Sem o pacote `-dev` (ou um symlink) o ACBr não a encontra — a checar no console de produção.
+- `dhEvento` saiu com fuso `-04:00` (fuso desta máquina). O ACBr usa o fuso do sistema; num servidor em UTC o offset seria `+00:00`. A SEFAZ valida o horário do evento — a conferir antes de produção.
+- O host real deve **verificar libxml2/OpenSSL/XSDs na inicialização** e falhar alto; hoje só se descobre na primeira manifestação (o erro sai como `EDFeCertificadoInvalido`/`EDFeComunicacaoFalhou`, enganoso).
+
+O que falta da Fase 4 propriamente dita: suportar `envEvento` no `TDFeSimuladorTransmissor` (hoje é violação "não suportado"), o estado de manifestação no núcleo (registrar/rejeitar/duplicidade) e os testes de integração de `EnviarEvento` (registrado → `TipoEvento` do comando; rejeitado → `manifestacaorejeitada`; timeout; XML de evento que o simulador afirma estar assinado e íntegro).
+
+Texto do plano original:
+
+
+Eventos são **assinados**. Desde a Fase 0 o client usa `xsLibXml2` (o `xsXmlSec` levanta exceção com o `ACBr.inc` padrão), então o que se exige é **libxml2** (não `libxmlsec1`) — a sonda acima mostrou que funciona nesta máquina com a DLL x64 do PostgreSQL no PATH. A distribuição não assina, então as Fases 0–3 não dependem disso. Para o `EnviarEvento`: usar container Debian com `libxml2` (parte do trabalho de Linux/Docker adiado — ver `CLAUDE.md`, "FPC/Linux via Docker"), ou instalar a DLL no Windows. `EnviarEvento` também valida o XML contra XSD, então exige os schemas reais (ver achado 3 da Fase 0). Simular `RecepcaoEvento` AN: resposta com `retEnvEvento` (cStat 128 do lote + `retEvento` com 135/136 ou rejeição), exercitando `CStatEventoRegistrado` e o `TipoEvento` `manifestacaorejeitada`.
 
 ### Fase 5 (opcional) — HTTP/TLS mútuo
 
