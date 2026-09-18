@@ -1,0 +1,3 @@
+[submodule "vendor/ACBr"]
+	path = vendor/ACBr
+	url = https://github.com/MirrorProjetoACBr/ACBr.git
