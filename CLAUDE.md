@@ -2,7 +2,14 @@
 
 Ferramenta open source para consulta e distribuição de Documentos Fiscais Eletrônicos brasileiros (NFe na v1; CTe, MDFe e demais DFe planejados, idealmente via contribuição de terceiros) via serviço de **Distribuição de DFe** da SEFAZ. Usa componentes **ACBr** (LGPLv3) para a comunicação fiscal e o broker AMQP embutido do projeto-irmão `../pascal-amqp-faa` (MIT, mesmo autor) para distribuir os documentos como mensagens em filas configuráveis pelo usuário. MIT.
 
-**Estado em 2026-09-18: estrutura de projeto e primeira suíte de testes reais existem** (`packages/pascal_dfe_broker.lpk`, `tests/Unit/` dual DUnitX+FPCUnit) — mas **nada foi compilado nesta sessão** (sem Delphi/FPC disponíveis no ambiente onde foi escrito); os arquivos de projeto precisam ser abertos na IDE e compilados antes de confiar neles. Existem interfaces completas (`DFe.Types`, `DFe.Provider`, `DFe.Errors`, `DFe.Publicador`) e implementações reais e testadas (por enquanto só de forma automatizada no papel, não compilada) de tudo que independe de ACBr/broker: `DFe.RoutingKey`, `DFe.CursorStore.Arquivo`, `DFe.Orquestrador` + `DFe.Host.Loop`. O que falta para ter um binário de verdade está em "Próximos marcos" no final deste arquivo.
+**Estado em 2026-09-18: lado FPC compila e os testes passam de verdade.** `packages/pascal_dfe_broker.lpk` e `tests/Unit/fpc/DFeUnitTestsFpc.lpi` foram compilados nesta máquina via `lazbuild` (FPC 3.2.2, `C:\lazarus4.0`) — **17/17 testes passando, 0 erros, 0 falhas, 0 vazamento de memória (heaptrc)**. Isso já pegou dois defeitos reais que só um compilador acha (ver "Gotchas dual-compiler"). O lado Delphi (`tests/Unit/DFe.UnitTests.dproj`, DUnitX) **continua não verificado** — Delphi está instalado nesta máquina, mas não compila por linha de comando aqui (confirmado pelo usuário); precisa ser aberto na IDE. Existem interfaces completas (`DFe.Types`, `DFe.Provider`, `DFe.Errors`, `DFe.Publicador`) e implementações reais e agora testadas de verdade de tudo que independe de ACBr/broker: `DFe.RoutingKey`, `DFe.CursorStore.Arquivo`; `DFe.Orquestrador` + `DFe.Host.Loop` compilam mas ainda não têm teste próprio. O que falta para ter um binário de verdade está em "Próximos marcos" no final deste arquivo.
+
+**Como recompilar/rodar os testes FPC** (máquina com Lazarus 4.0 + FPC 3.2.2 em `C:\lazarus4.0`):
+```
+"C:\lazarus4.0\lazbuild.exe" --add-package-link packages\pascal_dfe_broker.lpk   # so' na 1a vez
+"C:\lazarus4.0\lazbuild.exe" tests\Unit\fpc\DFeUnitTestsFpc.lpi
+tests\Unit\fpc\DFeUnitTestsFpc.exe --all --format=plain
+```
 
 ## Decisões travadas
 
@@ -23,11 +30,15 @@ Com isso, todas as decisões que ficaram em aberto ao longo da concepção e da 
 ## Gotchas dual-compiler já encontrados
 
 - **`SysUtils.RenameFile` NÃO se comporta igual nos dois compiladores/plataformas.** No Windows (Delphi e FPC), falha em vez de sobrescrever um destino já existente — diferente do `rename()` POSIX. Para substituição atômica de arquivo no Windows, usar `MoveFileEx` com `MOVEFILE_REPLACE_EXISTING` (unit `Windows`, sob `{$IFDEF DFE_WINDOWS}`) — `RenameFile` sozinho não serve para o padrão "grava em .tmp, substitui atômico" que `TDFeCursorStoreArquivo` depende. No Unix, `RenameFile` é o `rename()` POSIX de verdade e já substitui atomicamente.
+- **`MOVEFILE_WRITE_THROUGH` não existe na unit `Windows` do FPC 3.2.2** (erro de compilação real, achado em 2026-09-18) — só `MOVEFILE_REPLACE_EXISTING` está declarada. Não era essencial pra garantia que importa (substituição atômica de conteúdo, não fsync de hardware), então foi removida em vez de contornada.
 - **Nunca usar `Move`/`CopyMemory` sobre um array de interfaces (ou qualquer tipo gerenciado)** — copia os bytes sem incrementar refcount, deixando as duas cópias com contagem errada (destruição prematura). Copiar elemento a elemento (ver `TDFeProviderRegistry.Todos`).
+- **`lazbuild` exige o `.lpk` registrado antes do primeiro build** (`Error: Broken dependency`) — rodar `lazbuild --add-package-link packages\pascal_dfe_broker.lpk` uma vez resolve; depois disso builds normais funcionam.
+- **`packages/pascal_dfe_broker.pas` é gerado pelo Lazarus na primeira compilação do `.lpk`** (container que só lista as units do pacote) — é versionado no git, igual ao `pascal_amqp_faa.pas` do projeto-base, porque o `.lpk` depende dele existir pra compilar sem reabrir a IDE.
 
 ## Próximos marcos (nenhum decidido ainda, nem discutido em detalhe)
 
-- **Compilar de verdade**: abrir `packages/pascal_dfe_broker.lpk` no Lazarus e `tests/Unit/DFe.UnitTests.dproj` no Delphi pela primeira vez — os arquivos de projeto foram escritos espelhando o formato do `pascal-amqp-faa`, mas nunca compilados (sem IDE disponível na sessão em que foram criados). Provável fonte dos primeiros erros triviais (path, versão de DUnitX/FPCUnit instalada, etc.).
+- **Compilar o lado Delphi (DUnitX)** abrindo `tests/Unit/DFe.UnitTests.dproj` na IDE — não verificado ainda (linha de comando do Delphi não funciona nesta máquina).
+- **Testes para `DFe.Orquestrador` e `DFe.Host.Loop`** — compilam, mas ainda não têm suíte própria (precisam de um `IDFeDistribuicaoClient`/`IDFePublicador`/`IDFeCursorStore`/`IDFeProvider` fake para testar isolado).
 - **Formato de configuração** (INI/JSON/YAML?) para certificados, UFs e tipos de documento habilitados — é o que vai efetivamente instanciar `TDFeUnidadeTrabalho` e decidir quais providers registrados ficam ativos.
 - **Implementação real de `IDFeDistribuicaoClient` via ACBrLib** (o adaptador que efetivamente fala com a SEFAZ) e do provider NFe (`IDFeProvider.Decodificar` para `resNFe`/`resEvento`/`procNFe`).
 - **Manifestação automática do destinatário**: cogitada, nunca decidida se entra na v1 ou fica para depois.

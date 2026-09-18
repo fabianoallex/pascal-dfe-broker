@@ -67,9 +67,16 @@ begin
   { RenameFile da RTL NAO sobrescreve um destino existente (falha em vez de
     substituir) -- diferente do rename() POSIX. MoveFileEx com
     MOVEFILE_REPLACE_EXISTING e' o jeito correto de fazer substituicao
-    atomica no Windows. }
-  if not MoveFileEx(PChar(LCaminhoTemp), PChar(FCaminho),
-    MOVEFILE_REPLACE_EXISTING or MOVEFILE_WRITE_THROUGH) then
+    atomica no Windows.
+
+    MOVEFILE_WRITE_THROUGH (forcaria o SO a nao retornar antes do dado
+    estar fisicamente em disco) foi cogitado e descartado: a unit Windows
+    do FPC 3.2.2 nao declara essa constante (erro de compilacao real,
+    verificado nesta maquina), e ela nao era essencial para a garantia que
+    importa aqui -- substituicao atomica do CONTEUDO do arquivo, nao
+    fsync no nivel de hardware (que nem "matar o processo" testaria, so'
+    queda de energia/OS). }
+  if not MoveFileEx(PChar(LCaminhoTemp), PChar(FCaminho), MOVEFILE_REPLACE_EXISTING) then
     RaiseLastOSError;
   {$ELSE}
   { No Unix, RenameFile e' o rename() POSIX -- ja substitui o destino de

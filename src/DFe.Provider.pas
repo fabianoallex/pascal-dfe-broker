@@ -165,6 +165,7 @@ begin
     copias. SetLength sozinho nao basta: so copia sob demanda quando o
     array compartilhado e' redimensionado, nao protege contra escrita
     direta num indice do array devolvido. }
+  Result := nil;
   SetLength(Result, Length(FProviders));
   for I := 0 to High(FProviders) do
     Result[I] := FProviders[I];
