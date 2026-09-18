@@ -169,9 +169,13 @@
         <DCCReference Include="..\..\src\DFe.Provider.pas"/>
         <DCCReference Include="..\..\src\DFe.RoutingKey.pas"/>
         <DCCReference Include="..\..\src\DFe.CursorStore.Arquivo.pas"/>
+        <DCCReference Include="..\..\src\DFe.Orquestrador.pas"/>
+        <DCCReference Include="DFe.TestDoubles.pas"/>
         <DCCReference Include="DFe.RoutingKeyTests.pas"/>
         <DCCReference Include="DFe.TypesTests.pas"/>
         <DCCReference Include="DFe.CursorStoreArquivoTests.pas"/>
+        <DCCReference Include="DFe.ProviderRegistryTests.pas"/>
+        <DCCReference Include="DFe.OrquestradorTests.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

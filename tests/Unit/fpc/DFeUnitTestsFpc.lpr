@@ -15,9 +15,12 @@ uses
   cthreads,
   {$ENDIF}
   Classes, consoletestrunner, testregistry,
+  DFe.TestDoubles,
   DFe.RoutingKeyTests,
   DFe.TypesTests,
-  DFe.CursorStoreArquivoTests;
+  DFe.CursorStoreArquivoTests,
+  DFe.ProviderRegistryTests,
+  DFe.OrquestradorTests;
 
 var
   ConsoleApp: TTestRunner;

@@ -13,9 +13,13 @@ uses
   DFe.Provider in '..\..\src\DFe.Provider.pas',
   DFe.RoutingKey in '..\..\src\DFe.RoutingKey.pas',
   DFe.CursorStore.Arquivo in '..\..\src\DFe.CursorStore.Arquivo.pas',
+  DFe.Orquestrador in '..\..\src\DFe.Orquestrador.pas',
+  DFe.TestDoubles in 'DFe.TestDoubles.pas',
   DFe.RoutingKeyTests in 'DFe.RoutingKeyTests.pas',
   DFe.TypesTests in 'DFe.TypesTests.pas',
-  DFe.CursorStoreArquivoTests in 'DFe.CursorStoreArquivoTests.pas';
+  DFe.CursorStoreArquivoTests in 'DFe.CursorStoreArquivoTests.pas',
+  DFe.ProviderRegistryTests in 'DFe.ProviderRegistryTests.pas',
+  DFe.OrquestradorTests in 'DFe.OrquestradorTests.pas';
 
 var
   runner: ITestRunner;
