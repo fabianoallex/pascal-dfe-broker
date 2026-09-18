@@ -173,6 +173,7 @@
         <DCCReference Include="..\..\src\DFe.Host.Loop.pas"/>
         <DCCReference Include="..\..\src\DFe.Config.pas"/>
         <DCCReference Include="..\..\src\DFe.Manifestacao.pas"/>
+        <DCCReference Include="..\..\src\DFe.Provider.NFe.pas"/>
         <DCCReference Include="DFe.TestDoubles.pas"/>
         <DCCReference Include="DFe.RoutingKeyTests.pas"/>
         <DCCReference Include="DFe.TypesTests.pas"/>
@@ -182,6 +183,7 @@
         <DCCReference Include="DFe.HostLoopTests.pas"/>
         <DCCReference Include="DFe.ConfigTests.pas"/>
         <DCCReference Include="DFe.ManifestacaoTests.pas"/>
+        <DCCReference Include="DFe.ProviderNFeTests.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

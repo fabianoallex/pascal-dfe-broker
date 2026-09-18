@@ -184,6 +184,25 @@ Duas decisões de design nasceram de uma incompatibilidade real entre o modelo d
 
 **Não decidido ainda**: `SSLCryptLib`/`SSLHttpLib`/`SSLXmlSignLib` fixados em `cryOpenSSL`/`httpOpenSSL`/`xsXmlSec` no construtor (única combinação sem dependência de COM/Windows — necessária pra funcionar em Linux/FPC, ver decisão 2) — depende de OpenSSL e libxmlsec1 disponíveis em tempo de execução, dependência de sistema não verificada nesta máquina.
 
+### Provider NFe: `DFe.Provider.NFe`
+
+`src/DFe.Provider.NFe.pas` (`TDFeProviderNFe`, identificador `'nfe'`, consumo indevido `656`) implementa `IDFeProvider` e se auto-registra no `initialization`. **Pura**: não usa ACBr nem I/O — consome o `TDFeLoteBruto` que `DFe.Client.ACBrNFe` já entrega (docZip descompactado, schema por item), então é testável com fixtures sintéticas (`tests/Unit/DFe.ProviderNFeTests.pas` e espelho FPC, 20 testes) sem certificado.
+
+| Schema (`TDFeItemBruto.Schema`) | Categoria | `TipoEvento` | Chave de acesso vem de |
+|---|---|---|---|
+| `resNFe` | `dcDocumento` | — | `<chNFe>` |
+| `procNFe` | `dcDocumento` | — | atributo `Id` de `<infNFe>` (fallback: `<chNFe>` do protocolo) |
+| `resEvento` | `dcEvento` | por `tpEvento` | `<chNFe>` |
+| `procEventoNFe` | `dcEvento` | por `tpEvento` | `<chNFe>` do `infEvento` |
+
+`XmlPayload` é o XML do item exatamente como veio; resumo e completo do mesmo documento saem na mesma routing-key, distinguíveis pela raiz do XML. `UF`/`CnpjCpfConsultante` vêm do certificado da consulta, não do XML. O schema aceita tanto o nome que `DFe.Client.ACBrNFe` produz (`resNFe`) quanto o nome de arquivo oficial (`resNFe_v1.01.xsd`).
+
+- **Sem parser XML**: os campos lidos são folhas de schemas fiscais fixos, sem prefixo de namespace; busca por nome de tag mantém a unit idêntica nos dois compiladores (MSXML/`Xml.XMLDoc` é só Delphi, DOM é só FPC). Se a SEFAZ passar a prefixar o namespace, a chave não é encontrada e o item falha alto (`EDFeRespostaInvalida`), não em silêncio.
+- **Item malformado de schema conhecido levanta `EDFeRespostaInvalida`** (chave fora de 44 dígitos, evento sem `tpEvento`); **schema desconhecido é ignorado** para um schema novo da SEFAZ não travar o cursor dos demais documentos.
+- **`TipoEvento` integra a routing-key** (`nfe.evento.<TipoEvento>.<uf>.<cnpj>`) — interface pública. Nomes: 110110 `cartacorrecao`, 110111 `cancelamento`, 110112 `cancelamentosubstituicao`, 110140 `epec`, e os quatro de manifestação com o vocabulário de `DFe.Manifestacao`. Código não mapeado sai numérico; **mapeá-lo depois muda a routing-key dele**.
+- **Não implementa `IDFeManifestador`** — enviar evento à SEFAZ exige certificado e fica para uma peça própria.
+- **Efeito colateral a resolver no orquestrador**: uma exceção de `Decodificar` hoje propaga sem reagendar a unidade, repetindo a consulta a cada tick (ver "Próximos marcos" em `CLAUDE.md`).
+
 ## Estrutura de projeto/pacote e framework de teste — decidido
 
 Mesma convenção do `pascal-amqp-faa`, ponto a ponto:

@@ -61,6 +61,10 @@
         <Filename Value="..\src\DFe.Manifestacao.pas"/>
         <UnitName Value="DFe.Manifestacao"/>
       </Item>
+      <Item>
+        <Filename Value="..\src\DFe.Provider.NFe.pas"/>
+        <UnitName Value="DFe.Provider.NFe"/>
+      </Item>
     </Files>
     <RequiredPkgs>
       <Item>

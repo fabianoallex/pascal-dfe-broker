@@ -23,7 +23,8 @@ uses
   DFe.OrquestradorTests,
   DFe.HostLoopTests,
   DFe.ConfigTests,
-  DFe.ManifestacaoTests;
+  DFe.ManifestacaoTests,
+  DFe.ProviderNFeTests;
 
 var
   ConsoleApp: TTestRunner;
