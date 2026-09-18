@@ -180,6 +180,8 @@ Cenário motivador: um certificado prestes a vencer, com um novo já configurado
 
 Daí o campo **`Ativo`** (default `true`) por seção `[certificado:*]`, e uma validação nova em `CarregarConfig`: **recusa a config se dois certificados ativos compartilharem `(Provider, CnpjCpf, UF)`**. A troca de certificado é sempre "ativa o novo e desativa o velho" via config, nunca os dois ligados ao mesmo tempo.
 
+**Correção real (2026-09-18, achada pelo usuário rodando o Delphi):** `Ativo` é interpretado por uma função própria (`DFe.Config.LerBooleano`), não por `TCustomIniFile.ReadBool` — no Delphi, `ReadBool` delega para `ReadInteger`/`StrToIntDef`, que não entende o texto `"false"`, e `Ativo=false` virava silenciosamente `True` (o default passado). O FPC interpreta o texto direto e não tem esse problema — os testes passaram de primeira no FPC e esconderam o bug até rodar no Delphi de verdade. Ver `CLAUDE.md`, "Gotchas dual-compiler", para os detalhes.
+
 **Ativação manual via config, não detecção automática de vencimento** — cogitado e adiado: inspecionar a validade real de um certificado X.509 exige a implementação real via ACBrLib, que ainda não existe (ACBrLib não está instalada nesta máquina de desenvolvimento). Revisitar quando essa peça existir.
 
 ### Recarregar sem reiniciar — decidido: polling no tick do host

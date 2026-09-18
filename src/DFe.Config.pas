@@ -165,6 +165,23 @@ const
   SECAO_GLOBAL = 'dfe';
   PREFIXO_CERTIFICADO = 'certificado:';
 
+{ Le e interpreta um booleano na mao, em vez de usar TCustomIniFile.ReadBool
+  -- medido (2026-09-18, achado pelo usuario rodando o Delphi real): no
+  Delphi, ReadBool delega para ReadInteger/StrToIntDef, que nao entende o
+  texto "false"/"true" (so' numero) -- "Ativo=false" virava o DEFAULT
+  passado a ReadBool (True) em vez de False, silenciosamente. O FPC
+  interpreta o texto direto e nao tem esse problema, o que escondeu o bug
+  ate' rodar no Delphi de verdade. Interpretar a string aqui mesmo garante
+  o mesmo resultado nos dois compiladores, sem depender de qual RTL
+  entende o que. }
+function LerBooleano(const AValor: string; const ADefault: Boolean): Boolean;
+begin
+  if AValor = '' then
+    Result := ADefault
+  else
+    Result := SameText(AValor, 'true') or (AValor = '1');
+end;
+
 function CarregarConfig(const ACaminho: string): TDFeConfig;
 var
   LIni: TMemIniFile;
@@ -196,7 +213,7 @@ begin
         Result.Certificados[LIndice].Certificado.Identificador := Result.Certificados[LIndice].Alias;
         Result.Certificados[LIndice].Certificado.CnpjCpf := LIni.ReadString(LNomeSecao, 'CnpjCpf', '');
         Result.Certificados[LIndice].Certificado.UF := LIni.ReadString(LNomeSecao, 'UF', '');
-        Result.Certificados[LIndice].Ativo := LIni.ReadBool(LNomeSecao, 'Ativo', True);
+        Result.Certificados[LIndice].Ativo := LerBooleano(LIni.ReadString(LNomeSecao, 'Ativo', ''), True);
 
         if Result.Certificados[LIndice].ProviderIdentificador = '' then
           raise Exception.CreateFmt('Config: secao "%s" sem "Provider"', [LNomeSecao]);
