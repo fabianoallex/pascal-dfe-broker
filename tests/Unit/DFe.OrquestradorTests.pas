@@ -39,34 +39,8 @@ type
 
 implementation
 
-function CertificadoTeste: TDFeCertificado;
-begin
-  Result.Identificador := 'teste';
-  Result.CnpjCpf := '12345678000199';
-  Result.UF := 'RS';
-end;
-
-function LoteTeste(const ACStat: Integer; const AUltimoNSU, AMaxNSU: Int64): TDFeLoteBruto;
-begin
-  Result.CStat := ACStat;
-  Result.XMotivo := '';
-  Result.UltimoNSU := AUltimoNSU;
-  Result.MaxNSU := AMaxNSU;
-  Result.Itens := nil;
-end;
-
-function EventoTeste: TDFeEventoNormalizado;
-begin
-  Result.TipoDocumento := 'nfe';
-  Result.Categoria := dcDocumento;
-  Result.TipoEvento := '';
-  Result.ChaveAcesso := '';
-  Result.CnpjCpfConsultante := '12345678000199';
-  Result.UF := 'RS';
-  Result.NSU := 0;
-  Result.XmlPayload := '<xml/>';
-  Result.DataEmissao := 0;
-end;
+// CertificadoTeste/LoteTeste/EventoTeste vem de DFe.TestDoubles (helpers
+// de fixture compartilhados com DFe.HostLoopTests).
 
 { TDFeOrquestradorTests }
 

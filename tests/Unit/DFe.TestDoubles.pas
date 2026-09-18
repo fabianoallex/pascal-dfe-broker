@@ -7,7 +7,16 @@ uses
   DFe.Types,
   DFe.Provider,
   DFe.Publicador,
-  DFe.Orquestrador;
+  DFe.Orquestrador,
+  DFe.Host.Loop;
+
+{ Helpers de fixture, compartilhados entre os arquivos de teste que
+  precisam de um TDFeCertificado/TDFeLoteBruto/TDFeEventoNormalizado
+  minimo e valido -- centralizados aqui para nao duplicar entre
+  DFe.OrquestradorTests e DFe.HostLoopTests. }
+function CertificadoTeste: TDFeCertificado;
+function LoteTeste(const ACStat: Integer; const AUltimoNSU, AMaxNSU: Int64): TDFeLoteBruto;
+function EventoTeste: TDFeEventoNormalizado;
 
 type
   { Provider fake: Identificador e CodigoConsumoIndevido fixos no
@@ -88,7 +97,52 @@ type
     function UltimoErro: string;
   end;
 
+  { Subclasse de teste de TDFeHostLoop: Esperar vira no-op (Executar nao
+    depende de tempo real nenhum) e Tick conta quantas vezes rodou,
+    podendo se auto-parar apos N chamadas -- pra testar o loop e a parada
+    de forma deterministica. }
+  TDFeHostLoopTestavel = class(TDFeHostLoop)
+  private
+    FTicks: Integer;
+    FPararAposTicks: Integer;
+  protected
+    procedure Esperar(const AMilissegundos: Integer); override;
+  public
+    procedure Tick; override;
+    property Ticks: Integer read FTicks;
+    property PararAposTicks: Integer read FPararAposTicks write FPararAposTicks;
+  end;
+
 implementation
+
+function CertificadoTeste: TDFeCertificado;
+begin
+  Result.Identificador := 'teste';
+  Result.CnpjCpf := '12345678000199';
+  Result.UF := 'RS';
+end;
+
+function LoteTeste(const ACStat: Integer; const AUltimoNSU, AMaxNSU: Int64): TDFeLoteBruto;
+begin
+  Result.CStat := ACStat;
+  Result.XMotivo := '';
+  Result.UltimoNSU := AUltimoNSU;
+  Result.MaxNSU := AMaxNSU;
+  Result.Itens := nil;
+end;
+
+function EventoTeste: TDFeEventoNormalizado;
+begin
+  Result.TipoDocumento := 'nfe';
+  Result.Categoria := dcDocumento;
+  Result.TipoEvento := '';
+  Result.ChaveAcesso := '';
+  Result.CnpjCpfConsultante := '12345678000199';
+  Result.UF := 'RS';
+  Result.NSU := 0;
+  Result.XmlPayload := '<xml/>';
+  Result.DataEmissao := 0;
+end;
 
 { TDFeProviderFake }
 
@@ -257,6 +311,21 @@ begin
     Result := ''
   else
     Result := FErros[High(FErros)];
+end;
+
+{ TDFeHostLoopTestavel }
+
+procedure TDFeHostLoopTestavel.Esperar(const AMilissegundos: Integer);
+begin
+  // no-op de proposito -- ver comentario da declaracao
+end;
+
+procedure TDFeHostLoopTestavel.Tick;
+begin
+  inherited Tick;
+  Inc(FTicks);
+  if (FPararAposTicks > 0) and (FTicks >= FPararAposTicks) then
+    Parar;
 end;
 
 end.

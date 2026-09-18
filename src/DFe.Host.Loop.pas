@@ -34,8 +34,9 @@ type
       const ATickSegundos: Integer = DFE_HOST_TICK_SEGUNDOS_PADRAO);
 
     { Um passo do loop -- chamar isto de um timer de servico Windows, por
-      exemplo, em vez de usar Executar. }
-    procedure Tick;
+      exemplo, em vez de usar Executar. Virtual para permitir teste sem
+      orquestrador real (ver DFe.TestDoubles.TDFeHostLoopTestavel). }
+    procedure Tick; virtual;
 
     { Loop bloqueante: chama Tick a cada TickSegundos ate Parar ser chamado
       (tipicamente de um handler de sinal do host, ver comentario de topo).
@@ -47,6 +48,11 @@ type
       caso e' Executar levar ate 1s a mais para perceber, o que e'
       aceitavel para um processo de cadencia horaria. }
     procedure Parar;
+  protected
+    { Espera entre verificacoes de tick, sempre 1000ms -- injetavel para
+      teste (mesmo padrao do Agora de TDFeOrquestrador: torna Executar
+      testavel sem depender de tempo real nenhum). }
+    procedure Esperar(const AMilissegundos: Integer); virtual;
   end;
 
 implementation
@@ -65,6 +71,11 @@ begin
   FOrquestrador.ExecutarCiclo;
 end;
 
+procedure TDFeHostLoop.Esperar(const AMilissegundos: Integer);
+begin
+  Sleep(AMilissegundos);
+end;
+
 procedure TDFeHostLoop.Executar;
 var
   LSegundosDesdeUltimoTick: Integer;
@@ -77,7 +88,7 @@ begin
       Tick;
       LSegundosDesdeUltimoTick := 0;
     end;
-    Sleep(1000);
+    Esperar(1000);
     Inc(LSegundosDesdeUltimoTick);
   end;
 end;

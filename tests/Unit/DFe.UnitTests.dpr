@@ -14,12 +14,14 @@ uses
   DFe.RoutingKey in '..\..\src\DFe.RoutingKey.pas',
   DFe.CursorStore.Arquivo in '..\..\src\DFe.CursorStore.Arquivo.pas',
   DFe.Orquestrador in '..\..\src\DFe.Orquestrador.pas',
+  DFe.Host.Loop in '..\..\src\DFe.Host.Loop.pas',
   DFe.TestDoubles in 'DFe.TestDoubles.pas',
   DFe.RoutingKeyTests in 'DFe.RoutingKeyTests.pas',
   DFe.TypesTests in 'DFe.TypesTests.pas',
   DFe.CursorStoreArquivoTests in 'DFe.CursorStoreArquivoTests.pas',
   DFe.ProviderRegistryTests in 'DFe.ProviderRegistryTests.pas',
-  DFe.OrquestradorTests in 'DFe.OrquestradorTests.pas';
+  DFe.OrquestradorTests in 'DFe.OrquestradorTests.pas',
+  DFe.HostLoopTests in 'DFe.HostLoopTests.pas';
 
 var
   runner: ITestRunner;

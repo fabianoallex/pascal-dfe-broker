@@ -20,7 +20,8 @@ uses
   DFe.TypesTests,
   DFe.CursorStoreArquivoTests,
   DFe.ProviderRegistryTests,
-  DFe.OrquestradorTests;
+  DFe.OrquestradorTests,
+  DFe.HostLoopTests;
 
 var
   ConsoleApp: TTestRunner;
