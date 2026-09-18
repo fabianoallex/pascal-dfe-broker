@@ -195,6 +195,7 @@
         <DCCReference Include="DFe.SimuladorTests.pas"/>
         <DCCReference Include="DFe.SimuladorClientTests.pas"/>
         <DCCReference Include="DFe.SimuladorSoapTests.pas"/>
+        <DCCReference Include="DFe.SimuladorEventoTests.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

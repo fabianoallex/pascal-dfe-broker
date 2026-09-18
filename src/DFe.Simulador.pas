@@ -55,7 +55,13 @@ type
     fsTimeout,                  // sem resposta: o transporte traduz (ACBr: InternalErrorCode 10060)
     fsErroHttp,                 // HTTP 500 / erro de transporte
     fsCorpoIlegivel,            // HTTP 200 com corpo que nao e' o envelope esperado
-    fsDocZipCorrompido          // processa normal, mas o gzip do 1o docZip sai invalido
+    fsDocZipCorrompido,         // processa normal, mas o gzip do 1o docZip sai invalido
+    { Falhas SO' de RecepcaoEvento (ReceberEvento) -- levantam excecao se
+      forem consumidas por Consultar, e vice-versa para as de distribuicao
+      que nao se aplicam a evento (fsConsumoIndevido, fsDocZipCorrompido):
+      um teste que enfileira a falha errada tem que saber na hora. }
+    fsEventoRejeitado,          // lote 128, mas o evento sai rejeitado (cStat 999, generico)
+    fsLoteEventoRejeitado       // o proprio lote e' rejeitado (cStat 999), sem retEvento
   );
 
   TDFeTipoRespostaSimulada = (trsLote, trsTimeout, trsErroHttp, trsCorpoIlegivel);
@@ -69,6 +75,20 @@ type
     { So' faz sentido com Itens: o transporte deve corromper o gzip do
       primeiro docZip. }
     DocZipCorrompido: Boolean;
+  end;
+
+  { Resposta a UM evento de manifestacao (RecepcaoEvento com lote de um
+    evento -- e' assim que o client real envia). Tipo <> trsLote = falha de
+    transporte, sem resposta interpretavel. }
+  TDFeRespostaEventoSimulada = record
+    Tipo: TDFeTipoRespostaSimulada;
+    CStatLote: Integer;       // 128 = lote processado
+    XMotivoLote: string;
+    TemEvento: Boolean;       // False quando o proprio lote foi rejeitado/indisponivel
+    CStat: Integer;           // do evento: 135 registrado; demais = rejeicao
+    XMotivo: string;
+    NProt: string;            // so' quando registrado
+    DhRegEvento: TDateTime;
   end;
 
   TDFeSimDocumento = record
@@ -95,6 +115,9 @@ type
     FFalhas: array of TDFeFalhaSimulada;
     FTotalConsultas: Integer;
     FUltimoNSURecebido: Int64;
+    FTotalEventos: Integer;
+    FEventosRegistrados: array of string; // 'chave|tpEvento|nSeq'
+    function ChaveConhecida(const ACnpjCpf, AChave: string): Boolean;
     function ObterConta(const ACnpjCpf, AUF: string): TDFeSimConta;
     function AgoraAtual: TDateTime;
     function ProximaFalha(out AFalha: TDFeFalhaSimulada): Boolean;
@@ -118,6 +141,17 @@ type
 
     function Consultar(const ACnpjCpf, AUF: string; const AUltimoNSU: Int64): TDFeRespostaSimulada;
 
+    { Manifestacao do destinatario (RecepcaoEvento do Ambiente Nacional).
+      Regras, na ordem: falha enfileirada; chave que este CNPJ nao ve nos
+      documentos publicados -> rejeicao 494; mesmo (chave, tpEvento,
+      nSeqEvento) ja registrado -> rejeicao 573; senao registra (135) e
+      atribui um protocolo. Os cStat 494 e 573 vem do Manual de Orientacao
+      do Contribuinte, que NAO tem copia em docs/referencias -- conferir
+      antes de tratar como definitivos. A assinatura/forma do XML NAO e'
+      julgada aqui (e' assunto do transporte: DFe.Simulador.Soap). }
+    function ReceberEvento(const ACnpjDest, AChave, ATpEvento: string;
+      const ANSeq: Integer): TDFeRespostaEventoSimulada;
+
     { Maior NSU atribuido ao CNPJ/UF (0 se nunca houve). }
     function NsuAtual(const ACnpjCpf, AUF: string): Int64;
 
@@ -128,6 +162,10 @@ type
       ou consumo indevido). }
     property TotalConsultas: Integer read FTotalConsultas;
     property UltimoNSURecebido: Int64 read FUltimoNSURecebido;
+    { Quantas vezes ReceberEvento foi chamado / quantos eventos foram
+      registrados (135). }
+    property TotalEventos: Integer read FTotalEventos;
+    function EventosRegistrados: Integer;
   end;
 
 implementation
@@ -284,6 +322,8 @@ begin
             'Rejeicao: Consumo Indevido (simulado)', 0, 0);
           Exit;
         end;
+      fsEventoRejeitado, fsLoteEventoRejeitado:
+        raise Exception.Create('Falha simulada so'' vale para ReceberEvento, nao para Consultar');
     end;
 
   { Bloqueio de 1h aberto por um 137 anterior. Meio segundo de tolerancia
@@ -323,6 +363,125 @@ begin
     end;
 
   Result.DocZipCorrompido := LTemFalha and (LFalha = fsDocZipCorrompido);
+end;
+
+
+function TDFeSimuladorSefaz.EventosRegistrados: Integer;
+begin
+  Result := Length(FEventosRegistrados);
+end;
+
+function TDFeSimuladorSefaz.ChaveConhecida(const ACnpjCpf, AChave: string): Boolean;
+var
+  I, J: Integer;
+  LPrefixo: string;
+begin
+  Result := False;
+  LPrefixo := ACnpjCpf + '/';
+  for I := 0 to High(FContas) do
+    if Copy(FContas[I].Chave, 1, Length(LPrefixo)) = LPrefixo then
+      for J := 0 to High(FContas[I].Documentos) do
+        if Pos(AChave, FContas[I].Documentos[J].Xml) > 0 then
+        begin
+          Result := True;
+          Exit;
+        end;
+end;
+
+function TDFeSimuladorSefaz.ReceberEvento(const ACnpjDest, AChave, ATpEvento: string;
+  const ANSeq: Integer): TDFeRespostaEventoSimulada;
+var
+  LFalha: TDFeFalhaSimulada;
+  LId: string;
+  I: Integer;
+
+  procedure Rejeitar(const ACStat: Integer; const AMotivo: string);
+  begin
+    Result.CStat := ACStat;
+    Result.XMotivo := AMotivo;
+  end;
+
+begin
+  Inc(FTotalEventos);
+  Result.Tipo := trsLote;
+  Result.CStatLote := 128;
+  Result.XMotivoLote := 'Lote de Evento Processado';
+  Result.TemEvento := True;
+  Result.CStat := 0;
+  Result.XMotivo := '';
+  Result.NProt := '';
+  Result.DhRegEvento := 0;
+
+  LFalha := fsTimeout; // so' para silenciar "nao inicializada"; o retorno decide
+  if ProximaFalha(LFalha) then
+    case LFalha of
+      fsTimeout:
+        begin
+          Result.Tipo := trsTimeout;
+          Exit;
+        end;
+      fsErroHttp:
+        begin
+          Result.Tipo := trsErroHttp;
+          Exit;
+        end;
+      fsCorpoIlegivel:
+        begin
+          Result.Tipo := trsCorpoIlegivel;
+          Exit;
+        end;
+      fsIndisponivelCurtoPrazo:
+        begin
+          Result.CStatLote := 108;
+          Result.XMotivoLote := 'Servico Paralisado Momentaneamente (curto prazo)';
+          Result.TemEvento := False;
+          Exit;
+        end;
+      fsIndisponivelSemPrevisao:
+        begin
+          Result.CStatLote := 109;
+          Result.XMotivoLote := 'Servico Paralisado sem Previsao';
+          Result.TemEvento := False;
+          Exit;
+        end;
+      fsLoteEventoRejeitado:
+        begin
+          Result.CStatLote := 999;
+          Result.XMotivoLote := 'Rejeicao: lote de evento rejeitado (simulado)';
+          Result.TemEvento := False;
+          Exit;
+        end;
+      fsEventoRejeitado:
+        begin
+          Rejeitar(999, 'Rejeicao: evento rejeitado (simulado)');
+          Exit;
+        end;
+    else
+      raise Exception.Create('Falha simulada so'' vale para Consultar, nao para ReceberEvento');
+    end;
+
+  Result.DhRegEvento := AgoraAtual;
+
+  if not ChaveConhecida(ACnpjDest, AChave) then
+  begin
+    Rejeitar(494, 'Rejeicao: Chave de Acesso inexistente');
+    Result.DhRegEvento := 0;
+    Exit;
+  end;
+
+  LId := AChave + '|' + ATpEvento + '|' + IntToStr(ANSeq);
+  for I := 0 to High(FEventosRegistrados) do
+    if FEventosRegistrados[I] = LId then
+    begin
+      Rejeitar(573, 'Rejeicao: Duplicidade de evento');
+      Result.DhRegEvento := 0;
+      Exit;
+    end;
+
+  SetLength(FEventosRegistrados, Length(FEventosRegistrados) + 1);
+  FEventosRegistrados[High(FEventosRegistrados)] := LId;
+  Rejeitar(135, 'Evento registrado e vinculado a NF-e');
+  Result.NProt := '891' + Format('%.12d', [Length(FEventosRegistrados)]);
 end;
 
 end.

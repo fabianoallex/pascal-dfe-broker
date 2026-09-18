@@ -18,7 +18,8 @@ program AcbrSimTests;
 uses
   Interfaces, // widgetset LCL: TACBrNFe arrasta LCL transitivamente
   Classes, consoletestrunner, testregistry,
-  DFe.AcbrSimTests;
+  DFe.AcbrSimTests,
+  DFe.AcbrSimEventoTests;
 
 var
   ConsoleApp: TTestRunner;

@@ -38,7 +38,8 @@ uses
   DFe.SimuladorFixturesTests in 'DFe.SimuladorFixturesTests.pas',
   DFe.SimuladorTests in 'DFe.SimuladorTests.pas',
   DFe.SimuladorClientTests in 'DFe.SimuladorClientTests.pas',
-  DFe.SimuladorSoapTests in 'DFe.SimuladorSoapTests.pas';
+  DFe.SimuladorSoapTests in 'DFe.SimuladorSoapTests.pas',
+  DFe.SimuladorEventoTests in 'DFe.SimuladorEventoTests.pas';
 
 var
   runner: ITestRunner;

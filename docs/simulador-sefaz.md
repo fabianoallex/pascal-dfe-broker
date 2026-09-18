@@ -49,7 +49,7 @@ Objetivo: transformar as hipóteses abaixo em fatos antes de construir nada. Um 
 Hipóteses a confirmar:
 
 1. **Certificado autoassinado é aceito.** Gerar um `.pfx` com CN no padrão ICP-Brasil (`RAZAO SOCIAL:12345678000199`) e/ou `otherName` OID `2.16.76.1.3.3` (CNPJ). Confirmar que `SSL.CarregarCertificadoSeNecessario` carrega e que `ValidarCNPJCertificado` extrai o CNPJ. Gerar com o OpenSSL do Git (`C:\Program Files\Git\mingw64\bin\openssl.exe`) ou com a imagem `alpine/openssl` do Docker.
-2. **O ACBr carrega o OpenSSL 3 instalado.** Existe `libcrypto-3-x64.dll`/`libssl-3-x64.dll` no PATH desta máquina (vêm do Git) — serve para FPC **Win64**. O smoke do Delphi é **Win32** e precisaria das DLLs de 32 bits (**[hipótese]**: pode ser um bloqueio para o lado Delphi).
+2. **O ACBr carrega o OpenSSL 3 instalado.** Existe `libcrypto-3-x64.dll`/`libssl-3-x64.dll` no PATH desta máquina (**corrigido na Fase 4: vêm do PostgreSQL 18/Tesseract, não do Git**) — serve para FPC **Win64**. O smoke do Delphi é **Win32** e precisaria das DLLs de 32 bits (**[hipótese]**: pode ser um bloqueio para o lado Delphi).
 3. **`Executar` completa só com `OnTransmit`**, sem exigir rede nem resolver URL de forma que falhe antes. Conferir o que `InicializarServico`/`DefinirURL` precisam (ex.: localização de `ACBrNFeServicos.ini`).
 4. **Formato exato da resposta que o ACBr espera**: `TDistribuicaoDFe.TratarResposta` usa `SeparaDadosArray([...])` sobre nomes de tag do envelope SOAP — ler `ACBrNFeWebServices.pas` para saber quais, e montar o envelope de resposta idêntico.
 
@@ -120,7 +120,19 @@ Implementada em `src/` (todas puras, dual-compiler, no pacote Lazarus): `DFe.Sim
 - Testes num projeto **separado** da suíte pura (`DFeUnitTestsFpc`), porque linkam ACBr+LCL — mesmo motivo de `tools/smoke/`. Sugestão: `tests/Integration/AcbrSim/` (FPC Win64 primeiro).
 - Casos mínimos: 137, 138 com 1 e N itens, 656 → `dccConsumoIndevido`, 108, timeout → `EDFeComunicacaoFalhou`, HTTP 500 → `EDFeComunicacaoFalhou`, corpo ilegível com HTTP 200 → `EDFeRespostaInvalida`, certificado vencido/CNPJ divergente → `EDFeCertificadoInvalido`, e um teste de ponta a ponta com o orquestrador + provider NFe + publicador fake.
 
-### Fase 4 — eventos de manifestação (depende de libxml2 e dos XSDs reais)
+### Fase 4 — eventos de manifestação — **FEITA (2026-09-18)**
+
+Núcleo (`DFe.Simulador.ReceberEvento`, 14 testes puros): manifestação do destinatário como lote de **um** evento. Regras: falha enfileirada → chave que o CNPJ não vê nos documentos publicados → **494** → `(chave, tpEvento, nSeqEvento)` já registrado → **573** (duplicidade) → senão **135** com protocolo `891` + 12 dígitos sequenciais. Falhas novas só de evento: `fsEventoRejeitado` (lote 128, evento 999) e `fsLoteEventoRejeitado` (lote 999, sem `retEvento`); 108/109, timeout, HTTP 500 e corpo ilegível valem para os dois lados, e a falha do lado errado **levanta exceção** (teste que enfileira a errada descobre na hora). **Os cStat 494 e 573 vêm de memória do Manual de Orientação do Contribuinte — não há cópia dele em `docs/referencias/` — e 999 é genérico: conferir antes de tratar como definitivos.** Adaptador (`DFe.Simulador.Soap`, +14 testes puros): responde `retEnvEvento` no envelope `nfeResultMsg` e **afirma sobre o request**: URL/SoapAction, `envEvento` de 1 evento, `cOrgao=91`, CNPJ/chave/`tpEvento` (só os 4 de manifestação)/`nSeqEvento`, `verEvento`, formato do `dhEvento`, `descEvento` coerente, `xJust` obrigatório em 210240, `infEvento/@Id = "ID"+tpEvento+chave+nSeq(2)`, e assinatura presente e bem formada (Signature depois de `infEvento`, `Reference/@URI = #Id`, Digest/SignatureValue/X509Certificate, `rsa-sha1`).
+
+Integração (`tests/Integration/AcbrSim/DFe.AcbrSimEventoTests.pas`, 14 testes, FPC Win64) com o client ACBr **real**: registrado → `TipoEvento` do comando + `procEventoNFe` com o protocolo; os 4 tipos sem violação; duplicidade 573, chave inexistente 494, evento rejeitado, lote rejeitado (payload = `retEnvEvento`) e 108 → `manifestacaorejeitada`; timeout/HTTP 500 → `EDFeComunicacaoFalhou`; corpo ilegível → `EDFeRespostaInvalida`; certificado vencido → `EDFeCertificadoInvalido` sem tocar o transporte; e **ponta a ponta**: unidade com `ManifestacaoAutomatica` + `TDFeAutoManifestador` → a distribuição publica o documento e a manifestação publica `nfe.evento.ciencia.rs.<cnpj>` com o `procEventoNFe`.
+
+**Achados:**
+1. **A assinatura é criptograficamente válida** — verificada com o próprio ACBr (`SSL.VerificarAssinatura`, libxml2 + OpenSSL) sobre o envelope que o client produziu, com **controle negativo** (adulterar `nSeqEvento` invalida). Isto vai além do que o simulador consegue afirmar sozinho.
+2. **O ACBr remove os acentos do `xJust` em silêncio** (`Geral.RetirarAcentos`, padrão `True`): "não" sai como "nao". Sem erro nem aviso. O XSD da SEFAZ aceita Latin-1 nesse campo, mas o ACBr não arrisca encoding. Comportamento **fixado em teste** (`JustificativaAcentuada_AcbrRemoveOsAcentosSilenciosamente`); preservar acentos é uma **decisão em aberto** (exigiria `RetirarAcentos := False` + validar contra a SEFAZ real — não dá para testar aqui).
+3. **Testes de evento são IGNORADOS (e contados) sem libxml2/XSDs** — sem PostgreSQL no PATH: `I:14`. Não passam em silêncio.
+4. **Correção de uma afirmação errada da Fase 0**: o OpenSSL 3 que o ACBr carrega aqui **não vem do Git** (`Git\mingw64\bin` nem está no PATH); vem do **PostgreSQL 18** (`libcrypto-3-x64.dll` 3.5.4) ou do Tesseract-OCR (3.4.0) no PATH. Tirar o PostgreSQL do PATH quebra também os testes de distribuição. Ou seja, **OpenSSL e libxml2 desta máquina são acidentais** — o host real precisa declará-los e verificá-los.
+
+Texto do plano original (mantido como registro):
 
 #### Sonda da Fase 4 (2026-09-18, FPC Win64) — `tools/spike-sim/SpikeEvento.lpr`
 
@@ -146,6 +158,20 @@ Eventos são **assinados**. Desde a Fase 0 o client usa `xsLibXml2` (o `xsXmlSec
 ### Fase 5 (opcional) — HTTP/TLS mútuo
 
 Só se surgir necessidade de validar a configuração OpenSSL/TLS. Servidor `fphttpserver` (FCL) com cadeia gerada por OpenSSL. Baixo retorno frente ao custo.
+
+## Pendências do simulador (2026-09-18, após a Fase 4)
+
+Fases 0–4 feitas; o que sobra, do que mais importa para o menos:
+
+1. **Dependências de runtime acidentais** — OpenSSL 3 e libxml2 desta máquina vêm do PostgreSQL 18 no PATH. Falta: declarar (README/docs de instalação), decidir como o usuário as obtém, e o host real **verificar OpenSSL/libxml2/XSDs na inicialização e falhar alto** (hoje a falta sai como `EDFeCertificadoInvalido`/`EDFeComunicacaoFalhou`, enganoso).
+2. **Delphi**: rodar os 28 testes de `DFe.SimuladorEventoTests` na IDE. O projeto de integração (`tests/Integration/AcbrSim`) é só FPC Win64; Delphi Win32 precisaria de OpenSSL **e** libxml2 de 32 bits.
+3. **Linux**: a libxml2 é carregada por `libxml2.so` (symlink de `-dev`; o runtime Debian só tem `libxml2.so.2`). Validar suíte pura e integração no Docker (`fpc322-bookworm` não tem libxml2/OpenSSL dev instalados).
+4. **Códigos de status de evento** (494, 573, 999): vêm de memória, sem cópia do Manual de Orientação do Contribuinte em `docs/referencias/`. Baixar o Manual/NT de manifestação, citar, e corrigir o simulador e o `CStatEventoRegistrado` se divergirem.
+5. **Política de acentos no `xJust`** (o ACBr os remove em silêncio): decidir se está bom ou se vale `RetirarAcentos := False` (exige teste contra a SEFAZ real).
+6. **Fuso do `dhEvento`**: o ACBr usa o fuso do sistema (aqui `-04:00`; servidor UTC daria `+00:00`). Conferir a regra da SEFAZ e considerar fixar o fuso em `Configuracoes.WebServices.TimeZoneConf`.
+7. **Risco de espelho residual**: a rejeição por consumo indevido **não reinicia** o bloqueio de 1h no simulador (a NT não diz); consulta por NSU/chave e CT-e/MDF-e não simulados; o simulador nunca pega erro de leitura das NTs. "Modo gravação" (capturar respostas reais anonimizadas de quem tem certificado) continua sendo a mitigação planejada.
+8. **Fase 5 (opcional)**: HTTP/TLS mútuo real — só se surgir necessidade de validar a configuração OpenSSL/TLS.
+9. Fora do simulador, mas no mesmo caminho: resolver o gotcha do LCL no host real, `IDFeComandoFonte` (consumidor AMQP) e os `.dpr`/`.lpr` dos hosts (`CLAUDE.md`, "Próximos marcos").
 
 ## Dois riscos já identificados que o simulador pode fechar
 

@@ -29,7 +29,8 @@ uses
   DFe.SimuladorFixturesTests,
   DFe.SimuladorTests,
   DFe.SimuladorClientTests,
-  DFe.SimuladorSoapTests;
+  DFe.SimuladorSoapTests,
+  DFe.SimuladorEventoTests;
 
 var
   ConsoleApp: TTestRunner;
