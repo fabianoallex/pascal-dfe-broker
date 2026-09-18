@@ -178,6 +178,8 @@
         <DCCReference Include="..\..\src\DFe.Simulador.Fixtures.pas"/>
         <DCCReference Include="..\..\src\DFe.Simulador.pas"/>
         <DCCReference Include="..\..\src\DFe.Simulador.Client.pas"/>
+        <DCCReference Include="..\..\src\DFe.Transmissor.pas"/>
+        <DCCReference Include="..\..\src\DFe.Simulador.Soap.pas"/>
         <DCCReference Include="DFe.TestDoubles.pas"/>
         <DCCReference Include="DFe.RoutingKeyTests.pas"/>
         <DCCReference Include="DFe.TypesTests.pas"/>
@@ -192,6 +194,7 @@
         <DCCReference Include="DFe.SimuladorFixturesTests.pas"/>
         <DCCReference Include="DFe.SimuladorTests.pas"/>
         <DCCReference Include="DFe.SimuladorClientTests.pas"/>
+        <DCCReference Include="DFe.SimuladorSoapTests.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

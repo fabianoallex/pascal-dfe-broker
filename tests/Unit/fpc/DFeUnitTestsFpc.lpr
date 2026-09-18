@@ -28,7 +28,8 @@ uses
   DFe.SimuladorCodecTests,
   DFe.SimuladorFixturesTests,
   DFe.SimuladorTests,
-  DFe.SimuladorClientTests;
+  DFe.SimuladorClientTests,
+  DFe.SimuladorSoapTests;
 
 var
   ConsoleApp: TTestRunner;

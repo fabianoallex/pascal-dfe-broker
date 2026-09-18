@@ -10,11 +10,11 @@ unit DFe.Simulador.Client;
 
   NAO exercita o client real (DFe.Client.ACBrNFe): a traducao de falhas
   abaixo e' a que o client real FAZ (timeout/HTTP -> EDFeComunicacaoFalhou,
-  resposta ilegivel -> EDFeRespostaInvalida), mas aqui e' reimplementada
-  para o simulador -- ver a Fase 3 para o ACBr real. Um caso e'
-  APROXIMACAO, nao fato: docZip corrompido vira EDFeRespostaInvalida aqui,
-  mas o comportamento real do ACBr (o UnZip falha dentro de LerXml, que
-  engole a excecao) so' sera' conhecido na Fase 3. }
+  resposta ilegivel e docZip corrompido -> EDFeRespostaInvalida), mas aqui
+  e' reimplementada para o simulador. Que o client real de fato se comporta
+  assim e' o que tests/Integration/AcbrSim confirma (Fase 3) -- inclusive
+  o docZip corrompido, que ANTES de uma conferencia no client passava como
+  lote valido com item vazio. }
 
 interface
 

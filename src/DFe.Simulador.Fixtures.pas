@@ -11,8 +11,9 @@ unit DFe.Simulador.Fixtures;
   campos que o provider (DFe.Provider.NFe) e a distribuicao usam -- NAO sao
   documentos completos/validos contra o XSD (por isso nao servem para
   testar validacao de schema, so' o caminho de distribuicao). Os testes
-  passam estas fixtures pelo TDFeProviderNFe REAL para garantir que o
-  simulador nao gera nada que o provider nao entenda. }
+  passam estas fixtures pelo TDFeProviderNFe REAL (suite pura) E pelo parser
+  REAL do ACBr (tests/Integration/AcbrSim) -- este ultimo ja' pegou um campo
+  faltando (<tpNF> em procNFe) que o parser do provider tolerava. }
 
 interface
 
@@ -102,8 +103,10 @@ begin
     '<nfeProc xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">' +
     '<NFe><infNFe versao="4.00" Id="NFe' + AChave + '">' +
     '<ide><cUF>35</cUF><natOp>VENDA</natOp><mod>55</mod>' +
-    '<dhEmi>' + ADhEmi + '</dhEmi></ide>' +
-    '<emit><CNPJ>' + ACnpjEmitente + '</CNPJ><xNome>' + DFE_SIM_XNOME_EMITENTE + '</xNome></emit>' +
+    '<dhEmi>' + ADhEmi + '</dhEmi><tpNF>1</tpNF></ide>' +
+    '<emit><CNPJ>' + ACnpjEmitente + '</CNPJ><xNome>' + DFE_SIM_XNOME_EMITENTE + '</xNome>' +
+    '<IE>1234567890</IE></emit>' +
+    '<total><ICMSTot><vNF>150.00</vNF></ICMSTot></total>' +
     '</infNFe></NFe>' +
     '<protNFe versao="4.00"><infProt><tpAmb>2</tpAmb><chNFe>' + AChave + '</chNFe>' +
     '<cStat>100</cStat></infProt></protNFe>' +

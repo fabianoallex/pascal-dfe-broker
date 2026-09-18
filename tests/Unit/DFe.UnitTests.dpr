@@ -22,6 +22,8 @@ uses
   DFe.Simulador.Fixtures in '..\..\src\DFe.Simulador.Fixtures.pas',
   DFe.Simulador in '..\..\src\DFe.Simulador.pas',
   DFe.Simulador.Client in '..\..\src\DFe.Simulador.Client.pas',
+  DFe.Transmissor in '..\..\src\DFe.Transmissor.pas',
+  DFe.Simulador.Soap in '..\..\src\DFe.Simulador.Soap.pas',
   DFe.TestDoubles in 'DFe.TestDoubles.pas',
   DFe.RoutingKeyTests in 'DFe.RoutingKeyTests.pas',
   DFe.TypesTests in 'DFe.TypesTests.pas',
@@ -35,7 +37,8 @@ uses
   DFe.SimuladorCodecTests in 'DFe.SimuladorCodecTests.pas',
   DFe.SimuladorFixturesTests in 'DFe.SimuladorFixturesTests.pas',
   DFe.SimuladorTests in 'DFe.SimuladorTests.pas',
-  DFe.SimuladorClientTests in 'DFe.SimuladorClientTests.pas';
+  DFe.SimuladorClientTests in 'DFe.SimuladorClientTests.pas',
+  DFe.SimuladorSoapTests in 'DFe.SimuladorSoapTests.pas';
 
 var
   runner: ITestRunner;

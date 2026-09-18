@@ -52,6 +52,7 @@ uses
   ACBrNFe.EnvEvento,
   ACBrNFe.EventoClass,
   ACBrUtil.Base,
+  StrUtils,
   DFe.Types,
   DFe.Errors,
   DFe.Transmissor,
@@ -67,6 +68,12 @@ type
   TDFeCredencialCertificado = record
     ArquivoPFX: string;
     Senha: string;
+    { Pasta com os XSD oficiais (Configuracoes.Arquivos.PathSchemas do
+      ACBr). Vazio = padrao do ACBr, 'Schemas' ao lado do executavel. O ACBr
+      exige ao menos um *.xsd la em EXECUCAO, ate' para distribuicao (ver
+      docs/simulador-sefaz.md, Fase 0, achado 3); EnviarEvento precisa dos
+      XSD reais, pois valida o XML. }
+    PathSchemas: string;
   end;
 
   { Implementa TAMBEM IDFeManifestador (ver DFe.Manifestacao para o porque
@@ -94,6 +101,12 @@ type
     { nil em producao (o ACBr faz o HTTP). Guardado como interface para
       manter o objeto vivo enquanto o ACBr o usa via AoTransmitir. }
     FTransmissor: IDFeTransmissor;
+    { HTTPResultCode devolvido pelo transmissor na ultima chamada. Com
+      transmissor injetado o ACBr NAO popula SSL.HTTPResultCode (so' o
+      caminho HTTP proprio dele faz isso), entao TratarFalhaDeChamada usa
+      este valor para distinguir resposta ilegivel de falha de comunicacao. }
+    FHttpDoTransmissor: Integer;
+    function CodigoHttpDaUltimaChamada: Integer;
     procedure AoTransmitir(const Dados, URL, SoapAction, MimeType: string;
       var Resposta: string; var HTTPResultCode: Integer;
       var InternalErrorCode: Integer);
@@ -157,6 +170,51 @@ begin
     raise Exception.CreateFmt('Tipo de evento de manifestacao desconhecido: "%s"', [ATipoEvento]);
 end;
 
+function ContarOcorrencias(const ASub, Atexto: string): Integer;
+var
+  P: Integer;
+begin
+  Result := 0;
+  P := Pos(ASub, Atexto);
+  while P > 0 do
+  begin
+    Inc(Result);
+    P := PosEx(ASub, Atexto, P + Length(ASub));
+  end;
+end;
+
+{ O ACBr NAO avisa quando falha ao interpretar um docZip: TRetDistDFeInt.
+  LerXml engole a excecao e devolve False, que TDistribuicaoDFe.
+  TratarResposta ignora -- o lote sai TRUNCADO (ou com item de XML vazio) mas
+  com o ultNSU/maxNSU do CABECALHO da resposta. Sem esta conferencia o
+  cursor avancaria ate' o ultNSU e os documentos perdidos nunca voltariam:
+  PERDA SILENCIOSA. Achado pelo teste de integracao com o simulador
+  (tests/Integration/AcbrSim): um procNFe sem <tpNF> derrubou o 3o item de 4.
+  Levantar aqui faz o orquestrador reagendar SEM avancar o cursor, entao a
+  proxima tentativa busca o mesmo lote.
+
+  Conta os '<docZip' da resposta BRUTA e compara com o que o ACBr
+  interpretou. So' aplica quando ha algum (0 = nao reconheceu o formato,
+  ex.: elemento com prefixo de namespace; nesse caso nao ha como conferir,
+  e nunca falso-positivo). }
+procedure ConferirLoteCompleto(const ARet: TRetDistDFeInt; const ARespostaBruta: string);
+var
+  LEsperados, I: Integer;
+begin
+  LEsperados := ContarOcorrencias('<docZip ', ARespostaBruta) +
+    ContarOcorrencias('<docZip>', ARespostaBruta);
+  if (LEsperados > 0) and (ARet.docZip.Count <> LEsperados) then
+    raise EDFeRespostaInvalida.CreateFmt(
+      'Lote truncado: a resposta traz %d docZip mas so'' %d foram interpretados ' +
+      '(ultNSU=%s); cursor nao deve avancar', [LEsperados, ARet.docZip.Count, ARet.ultNSU]);
+
+  for I := 0 to ARet.docZip.Count - 1 do
+    if ARet.docZip[I].XML = '' then
+      raise EDFeRespostaInvalida.CreateFmt(
+        'docZip do NSU %s nao pode ser lido (gzip ou XML corrompido?); cursor nao deve avancar',
+        [ARet.docZip[I].NSU]);
+end;
+
 function MontarLoteBruto(const ARet: TRetDistDFeInt): TDFeLoteBruto;
 var
   I: Integer;
@@ -193,6 +251,8 @@ begin
   inherited Create;
   FACBrNFe := TACBrNFe.Create(nil);
   FTransmissor := ATransmissor;
+  if ACredencial.PathSchemas <> '' then
+    FACBrNFe.Configuracoes.Arquivos.PathSchemas := ACredencial.PathSchemas;
   if Assigned(FTransmissor) then
     FACBrNFe.OnTransmit := AoTransmitir;
 
@@ -239,8 +299,17 @@ var
 begin
   LResposta := FTransmissor.Transmitir(Dados, URL, SoapAction, MimeType);
   Resposta := LResposta.Texto;
+  FHttpDoTransmissor := LResposta.HTTPResultCode;
   HTTPResultCode := LResposta.HTTPResultCode;
   InternalErrorCode := LResposta.InternalErrorCode;
+end;
+
+function TDFeDistribuicaoClientACBrNFe.CodigoHttpDaUltimaChamada: Integer;
+begin
+  if Assigned(FTransmissor) then
+    Result := FHttpDoTransmissor
+  else
+    Result := FACBrNFe.SSL.HTTPResultCode;
 end;
 
 procedure TDFeDistribuicaoClientACBrNFe.GarantirCertificadoValido(const ACnpjCpf: string);
@@ -271,6 +340,7 @@ var
   LDistribuicao: TDistribuicaoDFe;
 begin
   GarantirCertificadoValido(ACertificado.CnpjCpf);
+  FHttpDoTransmissor := 0;
 
   FACBrNFe.Configuracoes.WebServices.UF := ACertificado.UF;
 
@@ -293,6 +363,7 @@ begin
       TratarFalhaDeChamada(E, LDistribuicao.retDistDFeInt.cStat);
   end;
 
+  ConferirLoteCompleto(LDistribuicao.retDistDFeInt, LDistribuicao.RetWS);
   Result := MontarLoteBruto(LDistribuicao.retDistDFeInt);
 end;
 
@@ -305,7 +376,7 @@ begin
   if ACStatRecebido <> 0 then
     Exit; // ver comentario da declaracao: engolida de proposito
 
-  if FACBrNFe.SSL.HTTPResultCode = 200 then
+  if CodigoHttpDaUltimaChamada = 200 then
     raise EDFeRespostaInvalida.Create(E.Message)
   else
     raise EDFeComunicacaoFalhou.Create(E.Message);
@@ -318,6 +389,7 @@ var
   LRetorno: TRetInfEvento;
 begin
   GarantirCertificadoValido(ACertificado.CnpjCpf);
+  FHttpDoTransmissor := 0;
 
   FACBrNFe.Configuracoes.WebServices.UF := ACertificado.UF;
 

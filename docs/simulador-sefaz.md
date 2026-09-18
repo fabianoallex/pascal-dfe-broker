@@ -101,7 +101,20 @@ Implementada em `src/` (todas puras, dual-compiler, no pacote Lazarus): `DFe.Sim
 - Gerador de fixtures sintéticas: `resNFe`, `procNFe`, `resEvento`, `procEventoNFe`, com CNPJ/chave fictícios (regra de `CONTRIBUTING.md`); reaproveita os XMLs já usados em `tests/Unit/DFe.ProviderNFeTests.pas`.
 - Construtor de `docZip`: gzip + base64. Para gzip, o ACBr já traz `GZIPUtils`/`ZLibExGZ` em `Fontes/Terceiros` (o sparse-checkout já os inclui) — mas **isso é código LGPL do ACBr**; reusar em código de teste está ok (não é incorporado ao repositório), só cuidar para não copiar fonte do ACBr para dentro de `src/`. Alternativa sem ACBr: `zstream` do FCL (deflate) com cabeçalho gzip manual.
 
-### Fase 3 — adaptador SOAP + testes de integração
+### Fase 3 — adaptador SOAP + testes de integração — **FEITA (2026-09-18)**
+
+`src/DFe.Simulador.Soap.pas` (`TDFeSimuladorTransmissor`, puro, 14 testes na suíte normal): monta o envelope de resposta e **afirma sobre o request** do ACBr (URL, SoapAction, `distDFeInt`, `tpAmb`, `cUFAutor`→UF, CNPJ, `ultNSU` de 15 dígitos; consulta por NSU/chave e `envEvento` viram violação "não suportado"). Violações são registradas, não lançadas, porque exceção dentro de `OnTransmit` seria mascarada pela tradução de erros do client. Integração em `tests/Integration/AcbrSim/` (**FPC Win64**, 17 testes, projeto separado porque linka ACBr+LCL): roda o `TDFeDistribuicaoClientACBrNFe` **real** com certificados sintéticos versionados em `cert-teste/` (`gerar-certificados.sh`; senha `teste123`; um válido por 100 anos e um vencido). Rodar: `lazbuild tests\Integration\AcbrSim\AcbrSimTests.lpi` e `tests\Integration\AcbrSim\AcbrSimTests.exe --all --format=plain` (precisa de OpenSSL 3 no PATH).
+
+**Achados (o valor da fase):**
+1. **PERDA SILENCIOSA DE DOCUMENTOS — corrigida.** Quando o ACBr falha ao interpretar um `docZip`, `TRetDistDFeInt.LerXml` engole a exceção e devolve `False`, que `TDistribuicaoDFe.TratarResposta` ignora: o lote sai **truncado** (ou com item de XML vazio) mas com `ultNSU`/`maxNSU` do cabeçalho. Sem defesa, o cursor avançaria até o `ultNSU` e os documentos perdidos nunca voltariam. Reproduzido: `[resNFe, procNFe sem <tpNF>, resEvento]` chegava como 2 itens com `ultNSU=3`. O client agora confere (`ConferirLoteCompleto`) o número de `<docZip` da resposta bruta contra o que o ACBr interpretou e recusa item sem XML → `EDFeRespostaInvalida`; o orquestrador reagenda **sem avançar o cursor**. Testado no client e ponta a ponta; mutação (remover a conferência) faz 3 testes falharem.
+2. **`docZip` corrompido, comportamento real**: o ACBr devolve cStat 138 com o item presente e `XML = ''` (não levanta). Agora vira `EDFeRespostaInvalida` (achado 1). Fecha a aproximação da Fase 2.
+3. **HTTP 200 com corpo ilegível → `EDFeRespostaInvalida`** agora é testável: com transmissor injetado o ACBr não popula `SSL.HTTPResultCode`, então o client guarda o `HTTPResultCode` devolvido pelo transmissor (`CodigoHttpDaUltimaChamada`). Fecha o limite apontado na Fase 0. HTTP 500 e timeout → `EDFeComunicacaoFalhou`, confirmados.
+4. **Os fixtures precisam satisfazer o parser real**: o `procNFe` sintético não tinha `<tpNF>` (o `TDFeProviderNFe` tolerava, o ACBr não: "Valor string inválido para TTipoNFe"). Corrigido em `DFe.Simulador.Fixtures`. Os 4 schemas (`resNFe`, `procNFe`, `resEvento`, `procEventoNFe`) chegam ao lote com os nomes `resNFe`/`procNFe`/`resEvento`/`procEventoNFe`.
+5. **Certificado vencido e CNPJ divergente → `EDFeCertificadoInvalido`, sem chamar a transmissão** (fecha essas pendências da Fase 0).
+6. **Encoding ponta a ponta**: `xNome` com acentos em UTF-8 chega intacto ao `XmlDecodificado` e ao payload publicado pelo orquestrador (via `TDFeProviderNFe`).
+7. Novo campo `TDFeCredencialCertificado.PathSchemas` (o ACBr exige XSDs em execução; ver Fase 0, achado 3).
+
+**Ainda em aberto:** Delphi Win32 (DLLs OpenSSL de 32 bits — o projeto de integração é só FPC Win64); `EnviarEvento` (Fase 4, precisa libxml2 e XSDs reais); TLS/HTTP reais (Fase 5, opcional). Texto do plano original abaixo:
 
 - Adaptador para `OnTransmit`: lê `ultNSU`/CNPJ/`cUFAutor` do envelope recebido (e **afirma** sobre o formato — isso pega erro de formato do que o ACBr envia) e devolve o envelope de resposta.
 - Testes num projeto **separado** da suíte pura (`DFeUnitTestsFpc`), porque linkam ACBr+LCL — mesmo motivo de `tools/smoke/`. Sugestão: `tests/Integration/AcbrSim/` (FPC Win64 primeiro).
@@ -125,4 +138,4 @@ Só se surgir necessidade de validar a configuração OpenSSL/TLS. Servidor `fph
 1. Ler este arquivo, `CLAUDE.md` (decisões 14, 16, 17, 18) e a seção "Implementação real de `IDFeDistribuicaoClient`" de `docs/architecture.md`.
 2. Rodar as suítes para confirmar o ponto de partida: FPC `lazbuild -B -r tests/Unit/fpc/DFeUnitTestsFpc.lpi` (95/95 esperado); Delphi pela IDE.
 3. A **Fase 0 está feita** (ver "Resultado da Fase 0"; rodar de novo: `lazbuild tools/spike-sim/SpikeSim.lpi` e `tools/spike-sim/SpikeSim.exe <pfx> <senha>` — o `.pfx` se regenera com o `openssl` do Git, receita no resultado). Começar pela **Fase 1** (costura de injeção).
-4. Pendências da Fase 0: certificado **vencido**; **Delphi Win32** (DLLs OpenSSL de 32 bits); carregamento de `libxml2` para assinar.
+4. Pendências: **Delphi Win32** (DLLs OpenSSL de 32 bits); carregamento de `libxml2` para assinar; Fase 4 (`EnviarEvento`).

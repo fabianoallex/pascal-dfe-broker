@@ -11,7 +11,8 @@ uses
   DFe.Types, DFe.Errors, DFe.Provider, DFe.Publicador, DFe.RoutingKey, 
   DFe.CursorStore.Arquivo, DFe.Orquestrador, DFe.Host.Loop, DFe.Config, 
   DFe.Manifestacao, DFe.Provider.NFe, DFe.Simulador.Codec, 
-  DFe.Simulador.Fixtures, DFe.Simulador, DFe.Simulador.Client;
+  DFe.Simulador.Fixtures, DFe.Simulador, DFe.Simulador.Client, DFe.Transmissor, 
+  DFe.Simulador.Soap;
 
 implementation
 

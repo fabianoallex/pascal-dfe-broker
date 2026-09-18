@@ -43,3 +43,4 @@ __recovery/
 
 # saidas geradas pelo ACBr ao rodar o spike
 tools/spike-sim/Docs/
+tests/Integration/AcbrSim/Docs/

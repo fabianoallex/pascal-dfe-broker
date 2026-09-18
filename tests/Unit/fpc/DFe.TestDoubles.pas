@@ -127,6 +127,7 @@ type
     procedure Publicar(const ARoutingKey: string; const APayload: string);
     function Quantidade: Integer;
     function RoutingKey(const AIndice: Integer): string;
+    function Payload(const AIndice: Integer): string;
   end;
 
   { Subclasse de teste de TDFeOrquestrador: substitui Agora por um relogio
@@ -424,6 +425,11 @@ end;
 function TDFePublicadorFake.RoutingKey(const AIndice: Integer): string;
 begin
   Result := FRoutingKeys[AIndice];
+end;
+
+function TDFePublicadorFake.Payload(const AIndice: Integer): string;
+begin
+  Result := FPayloads[AIndice];
 end;
 
 { TDFeOrquestradorTestavel }

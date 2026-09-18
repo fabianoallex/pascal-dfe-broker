@@ -81,6 +81,14 @@
         <Filename Value="..\src\DFe.Simulador.Client.pas"/>
         <UnitName Value="DFe.Simulador.Client"/>
       </Item>
+      <Item>
+        <Filename Value="..\src\DFe.Transmissor.pas"/>
+        <UnitName Value="DFe.Transmissor"/>
+      </Item>
+      <Item>
+        <Filename Value="..\src\DFe.Simulador.Soap.pas"/>
+        <UnitName Value="DFe.Simulador.Soap"/>
+      </Item>
     </Files>
     <RequiredPkgs>
       <Item>
