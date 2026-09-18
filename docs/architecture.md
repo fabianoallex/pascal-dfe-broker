@@ -215,6 +215,26 @@ Contra o fonte do ACBr (`ACBrNFe.pas`, `ACBrNFeWebServices.pas`, `ACBrNFe.EnvEve
 - **Registrado vs rejeitado**: `CStatEventoRegistrado` (cStat do *evento* 135/136/155 — o mesmo critério do ACBr para montar o `procEventoNFe`; 128 é do *lote* e não conta). Registrado → `TipoEvento` do comando (`ciencia`, ...) e `procEventoNFe` completo (`RetInfEvento.XML`). Rejeitado (do evento ou do lote inteiro) → `TipoEvento` **`manifestacaorejeitada`** e o retorno bruto da SEFAZ (`retEnvEvento`) como payload. **Routing-keys diferentes**, então quem assina `evento.ciencia` nunca recebe uma rejeição. Um único tipo de rejeição (não um por manifestação): o AMQP topic só casa palavra inteira.
 - **Validação antes da rede**: `InterpretarComando` recusa tipo desconhecido, chave fora de 44 dígitos e justificativa fora de 15..255, para uma falha de schema no ACBr (exceção genérica, indistinguível de falha de comunicação sem ler texto de mensagem) nunca acontecer por entrada ruim.
 
+## Encoding do XML (`XmlDecodificado` / `XmlPayload`) — decidido: texto nativo de cada compilador
+
+**Contrato.** O XML que o core carrega e publica (`TDFeItemBruto.XmlDecodificado`, `TDFeEventoNormalizado.XmlPayload`) é uma `String` com o **texto nativo do compilador**:
+
+| Compilador | O que a `String` contém | Quem publica (AMQP) |
+|---|---|---|
+| Delphi | `UnicodeString` com o texto de verdade (`É` é U+00C9) | codifica em UTF-8 (`TEncoding.UTF8.GetBytes`) |
+| FPC | bytes UTF-8 (a `String` é `AnsiString`; `É` é `C3 89`) | usa os bytes como estão |
+
+A declaração `<?xml version="1.0" encoding="UTF-8"?>` que o ACBr acrescenta permanece: o que sai na mensagem é sempre UTF-8. No FPC, o executável deve chamar `SetMultiByteConversionCodePage(CP_UTF8)` (como o runner de testes) para a RTL não transcodificar essas strings.
+
+**Por quê (achado em 2026-09-18, teste de integração em Delphi Win64).** O ACBr guarda XML como "UTF-8 embutido em `String`". No FPC isso é invisível. No Delphi cada *byte* do UTF-8 vira um *caractere* pela página de código ANSI do sistema: `É` (UTF-8 `C3 89`) chegava como U+00C3 U+2030 (o byte `89` é "‰" em Windows-1252), `Ç` como U+00C3 U+2021. Publicado assim, o consumidor veria "JOSÃ‰". Nenhum teste puro pegaria isto; só rodar o client ACBr real em Delphi.
+
+**Como é garantido.** `DFe.Client.ACBrNFe` — a única unit que fala com o ACBr — passa o XML vindo do ACBr por `TextoDoAcbr` (`src/DFe.XmlTexto.pas`): identidade no FPC; no Delphi, volta pela mesma página ANSI da ida (recupera os bytes UTF-8) e decodifica. Se os bytes não forem UTF-8 válido (ex.: uma versão futura do ACBr que já devolva Unicode), devolve a entrada intacta. Aplicado a `docZip[I].XML` (distribuição) e ao `RetInfEvento.XML` (evento registrado).
+
+**Limites conhecidos.**
+- Depende de a página ANSI do sistema ser a mesma na ida e na volta (é, dentro do mesmo processo); bytes sem mapeamento na página (ex.: `8D` em Windows-1252) sobrevivem, comprovado pelo teste com `Í` (`C3 8D`).
+- **Não verificado em Delphi:** acentos no `RetInfEvento.XML` (o simulador só devolve ASCII no `retEvento`) e o payload de rejeição de manifestação (`RetWS`, texto bruto da resposta, que **não** passa por `TextoDoAcbr`). Verificar com um documento real ou estendendo o simulador.
+- Campos textuais que o ACBr já entrega em Unicode de verdade (`xMotivo`, via `ACBrStr`) não são convertidos.
+
 ## Estrutura de projeto/pacote e framework de teste — decidido
 
 Mesma convenção do `pascal-amqp-faa`, ponto a ponto:

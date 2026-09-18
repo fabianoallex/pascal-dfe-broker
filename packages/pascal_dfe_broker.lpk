@@ -89,6 +89,10 @@
         <Filename Value="..\src\DFe.Simulador.Soap.pas"/>
         <UnitName Value="DFe.Simulador.Soap"/>
       </Item>
+      <Item>
+        <Filename Value="..\src\DFe.XmlTexto.pas"/>
+        <UnitName Value="DFe.XmlTexto"/>
+      </Item>
     </Files>
     <RequiredPkgs>
       <Item>

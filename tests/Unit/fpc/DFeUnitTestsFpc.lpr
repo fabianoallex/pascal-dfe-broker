@@ -30,7 +30,8 @@ uses
   DFe.SimuladorTests,
   DFe.SimuladorClientTests,
   DFe.SimuladorSoapTests,
-  DFe.SimuladorEventoTests;
+  DFe.SimuladorEventoTests,
+  DFe.XmlTextoTests;
 
 var
   ConsoleApp: TTestRunner;

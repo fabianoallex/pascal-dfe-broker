@@ -56,6 +56,7 @@ uses
   DFe.Types,
   DFe.Errors,
   DFe.Transmissor,
+  DFe.XmlTexto,
   DFe.Provider,
   DFe.Provider.NFe,
   DFe.Manifestacao;
@@ -239,7 +240,10 @@ begin
       decodificacao manual de envelope aqui, ao contrario do que uma
       implementacao via ACBrLib exigiria (ver docs/architecture.md,
       "Fonte dos componentes classicos"). }
-    Result.Itens[I].XmlDecodificado := ARet.docZip[I].XML;
+    { TextoDoAcbr: no Delphi o ACBr entrega os bytes UTF-8 reinterpretados como
+      ANSI (mojibake); aqui vira o texto nativo do compilador. Achado pelo
+      teste de integracao em Delphi -- ver DFe.XmlTexto. }
+    Result.Itens[I].XmlDecodificado := TextoDoAcbr(ARet.docZip[I].XML);
   end;
 end;
 
@@ -443,7 +447,10 @@ begin
     if CStatEventoRegistrado(LRetorno.cStat) and (LRetorno.XML <> '') then
     begin
       Result.TipoEvento := AComando.TipoEvento;
-      Result.XmlPayload := string(LRetorno.XML);
+      { mesma fronteira de encoding do docZip (DFe.XmlTexto). NAO testado em
+        Delphi com acento (o simulador so' devolve ASCII no retEvento); o
+        fallback de TextoDoAcbr protege se o formato for outro. }
+      Result.XmlPayload := TextoDoAcbr(string(LRetorno.XML));
       if LRetorno.dhRegEvento <> 0 then
         Result.DataEmissao := LRetorno.dhRegEvento;
     end;
