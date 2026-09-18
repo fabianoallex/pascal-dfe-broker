@@ -1,0 +1,36 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{2A11D057-5EDC-4E2E-87AA-C0883E06FF53}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="tests\Unit\DFe.UnitTests.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="DFe_UnitTests">
+        <MSBuild Projects="tests\Unit\DFe.UnitTests.dproj"/>
+    </Target>
+    <Target Name="DFe_UnitTests:Clean">
+        <MSBuild Projects="tests\Unit\DFe.UnitTests.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="DFe_UnitTests:Make">
+        <MSBuild Projects="tests\Unit\DFe.UnitTests.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="DFe_UnitTests"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="DFe_UnitTests:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="DFe_UnitTests:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>

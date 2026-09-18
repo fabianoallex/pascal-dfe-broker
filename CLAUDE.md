@@ -2,14 +2,20 @@
 
 Ferramenta open source para consulta e distribuição de Documentos Fiscais Eletrônicos brasileiros (NFe na v1; CTe, MDFe e demais DFe planejados, idealmente via contribuição de terceiros) via serviço de **Distribuição de DFe** da SEFAZ. Usa componentes **ACBr** (LGPLv3) para a comunicação fiscal e o broker AMQP embutido do projeto-irmão `../pascal-amqp-faa` (MIT, mesmo autor) para distribuir os documentos como mensagens em filas configuráveis pelo usuário. MIT.
 
-**Estado em 2026-09-18: lado FPC compila e os testes passam de verdade.** `packages/pascal_dfe_broker.lpk` e `tests/Unit/fpc/DFeUnitTestsFpc.lpi` foram compilados nesta máquina via `lazbuild` (FPC 3.2.2, `C:\lazarus4.0`) — **17/17 testes passando, 0 erros, 0 falhas, 0 vazamento de memória (heaptrc)**. Isso já pegou dois defeitos reais que só um compilador acha (ver "Gotchas dual-compiler"). O lado Delphi (`tests/Unit/DFe.UnitTests.dproj`, DUnitX) **continua não verificado** — Delphi está instalado nesta máquina, mas não compila por linha de comando aqui (confirmado pelo usuário); precisa ser aberto na IDE. Existem interfaces completas (`DFe.Types`, `DFe.Provider`, `DFe.Errors`, `DFe.Publicador`) e implementações reais e agora testadas de verdade de tudo que independe de ACBr/broker: `DFe.RoutingKey`, `DFe.CursorStore.Arquivo`; `DFe.Orquestrador` + `DFe.Host.Loop` compilam mas ainda não têm teste próprio. O que falta para ter um binário de verdade está em "Próximos marcos" no final deste arquivo.
+**Estado em 2026-09-18: os dois compiladores compilam e os testes passam de verdade nos dois.** FPC 3.2.2 via `lazbuild` (linha de comando, `C:\lazarus4.0`) **e** Delphi via a IDE (linha de comando não funciona nesta máquina, confirmado pelo usuário) — **17/17 testes passando nos dois lados**, 0 falhas, 0 erros, 0 vazamento de memória (heaptrc no FPC; "Tests Leaked: 0" no DUnitX). A compilação real (não só leitura) já pegou dois defeitos reais só no lado FPC (ver "Gotchas dual-compiler"). Existem interfaces completas (`DFe.Types`, `DFe.Provider`, `DFe.Errors`, `DFe.Publicador`) e implementações reais e testadas de verdade nos dois compiladores de tudo que independe de ACBr/broker: `DFe.RoutingKey`, `DFe.CursorStore.Arquivo`; `DFe.Orquestrador` + `DFe.Host.Loop` compilam mas ainda não têm teste próprio. O que falta para ter um binário de verdade está em "Próximos marcos" no final deste arquivo.
 
-**Como recompilar/rodar os testes FPC** (máquina com Lazarus 4.0 + FPC 3.2.2 em `C:\lazarus4.0`):
-```
-"C:\lazarus4.0\lazbuild.exe" --add-package-link packages\pascal_dfe_broker.lpk   # so' na 1a vez
-"C:\lazarus4.0\lazbuild.exe" tests\Unit\fpc\DFeUnitTestsFpc.lpi
-tests\Unit\fpc\DFeUnitTestsFpc.exe --all --format=plain
-```
+**Grupo de projeto Delphi na raiz: `PascalDfeBroker.groupproj`** (criado pelo usuário em 2026-09-18, mesmo papel do `AMQP.groupproj` do `pascal-amqp-faa`). **Todo novo projeto Delphi (`.dproj`) deve ser adicionado a esse grupo** — é o que permite compilar tudo de uma vez pela IDE nesta máquina. Hoje só tem `tests\Unit\DFe.UnitTests.dproj`; os hosts (console, serviço Windows) entram aqui quando forem escritos.
+
+**Como recompilar/rodar os testes:**
+- **FPC** (linha de comando funciona nesta máquina):
+  ```
+  "C:\lazarus4.0\lazbuild.exe" --add-package-link packages\pascal_dfe_broker.lpk   # so' na 1a vez
+  "C:\lazarus4.0\lazbuild.exe" tests\Unit\fpc\DFeUnitTestsFpc.lpi
+  tests\Unit\fpc\DFeUnitTestsFpc.exe --all --format=plain
+  ```
+- **Delphi** (só pela IDE nesta máquina — linha de comando não funciona): abrir `PascalDfeBroker.groupproj`, compilar e rodar `DFe.UnitTests`.
+
+**Nota sobre `tests\Unit\DFe.UnitTests.dproj`**: a IDE reescreveu esse arquivo ao abrir (expandiu para a matriz completa de plataformas que o Delphi 23 gerencia por padrão — Android/iOS/OSX/etc. — em vez da versão enxuta Win32/Win64 que foi escrita à mão nesta sessão). Isso é comportamento normal da IDE, não um erro; a versão no disco é a que compila e passa os 17 testes, então é ela quem vale.
 
 ## Decisões travadas
 
@@ -37,7 +43,6 @@ Com isso, todas as decisões que ficaram em aberto ao longo da concepção e da 
 
 ## Próximos marcos (nenhum decidido ainda, nem discutido em detalhe)
 
-- **Compilar o lado Delphi (DUnitX)** abrindo `tests/Unit/DFe.UnitTests.dproj` na IDE — não verificado ainda (linha de comando do Delphi não funciona nesta máquina).
 - **Testes para `DFe.Orquestrador` e `DFe.Host.Loop`** — compilam, mas ainda não têm suíte própria (precisam de um `IDFeDistribuicaoClient`/`IDFePublicador`/`IDFeCursorStore`/`IDFeProvider` fake para testar isolado).
 - **Formato de configuração** (INI/JSON/YAML?) para certificados, UFs e tipos de documento habilitados — é o que vai efetivamente instanciar `TDFeUnidadeTrabalho` e decidir quais providers registrados ficam ativos.
 - **Implementação real de `IDFeDistribuicaoClient` via ACBrLib** (o adaptador que efetivamente fala com a SEFAZ) e do provider NFe (`IDFeProvider.Decodificar` para `resNFe`/`resEvento`/`procNFe`).
