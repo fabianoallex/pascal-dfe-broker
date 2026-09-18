@@ -31,11 +31,14 @@ type
     FCodigoConsumoIndevido: Integer;
     FEventosADevolver: TDFeEventoNormalizadoArray;
     FUltimoLoteRecebido: TDFeLoteBruto;
+    FExcecaoADecodificar: ExceptClass;
   public
     constructor Create(const AIdentificador: string; const ACodigoConsumoIndevido: Integer = 656);
     function Identificador: string;
     function CodigoConsumoIndevido: Integer;
     function Decodificar(const ALote: TDFeLoteBruto; const ACertificado: TDFeCertificado): TDFeEventoNormalizadoArray;
+    { Quando atribuida, Decodificar levanta esta excecao (depois de guardar o lote). }
+    property ExcecaoADecodificar: ExceptClass read FExcecaoADecodificar write FExcecaoADecodificar;
     property EventosADevolver: TDFeEventoNormalizadoArray read FEventosADevolver write FEventosADevolver;
     property UltimoLoteRecebido: TDFeLoteBruto read FUltimoLoteRecebido;
   end;
@@ -247,6 +250,8 @@ end;
 function TDFeProviderFake.Decodificar(const ALote: TDFeLoteBruto; const ACertificado: TDFeCertificado): TDFeEventoNormalizadoArray;
 begin
   FUltimoLoteRecebido := ALote;
+  if Assigned(FExcecaoADecodificar) then
+    raise FExcecaoADecodificar.Create('Falha simulada por TDFeProviderFake.Decodificar');
   Result := FEventosADevolver;
 end;
 

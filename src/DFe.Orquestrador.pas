@@ -255,12 +255,25 @@ begin
       (ver DFe.Host.Loop) -- um bug numa unidade (ou uma excecao que
       ExecutarUnidade nao modela, ver DFe.Errors) nao pode derrubar o
       processo inteiro e parar de atender as outras unidades/certificados.
-      Ainda assim NAO e' engolido em silencio: passa por RegistrarErro. }
+      Ainda assim NAO e' engolido em silencio: passa por RegistrarErro.
+
+      A unidade TAMBEM e' reagendada: ExecutarUnidade so' move
+      ProximaConsultaEm nos caminhos que completam, entao sem isto uma
+      excecao depois de Consultar (Decodificar com item malformado, falha
+      em Publicar, bug) deixaria a unidade elegivel no proximo tick e a
+      mesma consulta se repetiria a cada DFE_HOST_TICK_SEGUNDOS_PADRAO --
+      exatamente o consumo indevido (656) que o intervalo de 1h existe
+      para evitar. O cursor nao avanca (so' avanca depois de publicar
+      tudo), entao a proxima tentativa busca o mesmo lote de novo:
+      entrega pelo menos uma vez, nunca perde documento. }
     try
       ExecutarUnidade(FUnidades[I]);
     except
       on E: Exception do
-        RegistrarErro(FUnidades[I], Format('Excecao nao tratada processando a unidade: %s: %s', [E.ClassName, E.Message]));
+      begin
+        FUnidades[I].ProximaConsultaEm := Agora + SegundosParaTimeDelta(FUnidades[I].IntervaloBaseSegundos);
+        RegistrarErro(FUnidades[I], Format('Excecao nao tratada processando a unidade (reagendada; cursor nao avancou): %s: %s', [E.ClassName, E.Message]));
+      end;
     end;
   end;
 end;

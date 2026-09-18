@@ -35,6 +35,7 @@ type
     procedure RespostaInvalida_NaoPausaERegistraErro;
     procedure MultiplosLotes_ContinuaAteAlcancarMaxNSU;
     procedure UnidadeComExcecaoNaoModelada_NaoDerrubaOutrasUnidades;
+    procedure DecodificarLevanta_ReagendaSemAvancarCursorNemRepetirConsulta;
   end;
 
 implementation
@@ -256,6 +257,36 @@ begin
   // A quebrou (excecao nao modelada) mas nao impediu B de ser processada:
   AssertEquals(1, FPublicador.Quantidade);
   AssertTrue(FOrquestrador.QuantidadeErros > 0);
+end;
+
+procedure TDFeOrquestradorTests.DecodificarLevanta_ReagendaSemAvancarCursorNemRepetirConsulta;
+var
+  LClient: TDFeDistribuicaoClientFake;
+  LProvider: TDFeProviderFake;
+  LUnidade: TDFeUnidadeTrabalho;
+  LAgoraAntes: TDateTime;
+begin
+  LClient := TDFeDistribuicaoClientFake.Create;
+  LClient.AdicionarLote(LoteTeste(138, 500, 500));
+  LProvider := TDFeProviderFake.Create('nfe');
+  LProvider.ExcecaoADecodificar := EDFeRespostaInvalida;
+  LUnidade := TDFeUnidadeTrabalho.Create(LProvider, LClient, CertificadoTeste, FCursorStore);
+  FOrquestrador.AdicionarUnidade(LUnidade);
+  LAgoraAntes := FOrquestrador.AgoraSimulado;
+
+  FOrquestrador.ExecutarCiclo;
+
+  AssertTrue(FOrquestrador.QuantidadeErros > 0);
+  AssertEquals(0, FPublicador.Quantidade);
+  AssertEquals(Int64(0), FCursorStore.ObterUltimoNSU(NAMESPACE_TESTE));
+  AssertFalse(LUnidade.Pausada);
+  AssertEquals(Double(LAgoraAntes + (DFE_INTERVALO_BASE_SEGUNDOS_PADRAO / SecsPerDay)), Double(LUnidade.ProximaConsultaEm), 1 / SecsPerDay);
+
+  // Regressao: antes, ProximaConsultaEm nao mudava e o proximo tick
+  // consultava a SEFAZ de novo (consumo indevido). Agora, mesmo no
+  // "proximo tick" (sem o relogio andar), a unidade nao e' reconsultada.
+  FOrquestrador.ExecutarCiclo;
+  AssertEquals(1, LClient.Chamadas);
 end;
 
 initialization
