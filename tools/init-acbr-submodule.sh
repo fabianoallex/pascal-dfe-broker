@@ -17,19 +17,28 @@ set -euo pipefail
 
 SUBMODULE_PATH="vendor/ACBr"
 
-# Escopo atual (2026-09-18): base comum de todo componente ACBr
-# (ACBrComum), a arvore de Distribuicao de DFe (ACBrDFe, com os
-# subdiretorios ACBrNFe/ACBrCTe/ACBrMDFe/Comum e os units soltos de base
-# como ACBrDFeComum.DistDFeInt.pas), OpenSSL (assinatura/HTTPS) e
-# Terceiros (Synapse/synalist para HTTP, GZIPUtils/ZLibExGZ para o
-# docZip, LibXmlSec para assinatura XML). Ainda nao refinado ao minimo
-# exato -- isso so' fica claro quando a implementacao real de
-# IDFeDistribuicaoClient comecar e o compilador reclamar de unit
-# faltando (ver "Proximos marcos" em CLAUDE.md).
+# Escopo atual (2026-09-18, refinado compilando de verdade DFe.Client.ACBrNFe
+# contra vendor/ACBr -- ver tools/smoke/AcbrClientSmoke.lpi, o smoke test
+# que existe so' pra provar que esse escopo compila): base comum de todo
+# componente ACBr (ACBrComum), a arvore de Distribuicao de DFe (ACBrDFe,
+# com os subdiretorios ACBrNFe/ACBrCTe/ACBrMDFe/Comum e os units soltos de
+# base como ACBrDFeComum.DistDFeInt.pas), ACBrDiversos (ACBrValidador),
+# ACBrIntegrador, ACBrLibXML2 (backend xsLibXml2 usado internamente por
+# ACBrDFeSSL mesmo quando xsXmlSec e' o escolhido em runtime -- unit
+# sempre entra no uses, so' o backend ativo muda), ACBrTCP (ACBrIBGE,
+# ACBrMail, ACBrConsultaCNPJ), OpenSSL (assinatura/HTTPS) e Terceiros
+# (Synapse/synalist para HTTP, GZIPUtils/ZLibExGZ para o docZip,
+# LibXmlSec para assinatura XML). Em modo cone, listar um diretorio ja'
+# inclui os subdiretorios dele -- nao precisa listar cada um.
 SPARSE_PATHS=(
   "Fontes/ACBrComum"
   "Fontes/ACBrDFe"
+  "Fontes/ACBrDiversos"
+  "Fontes/ACBrIntegrador"
+  "Fontes/ACBrLibXML2"
   "Fontes/ACBrOpenSSL"
+  "Fontes/ACBrTCP"
+  "Fontes/PCNComum"
   "Fontes/Terceiros"
 )
 

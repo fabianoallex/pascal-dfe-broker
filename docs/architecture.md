@@ -151,14 +151,36 @@ Duas dúvidas resolvidas juntas (2026-09-18):
 
 - `Fontes/ACBrComum` — base compartilhada por todo componente ACBr.
 - `Fontes/ACBrDFe` — units soltos de base da Distribuição de DFe (`ACBrDFeComum.DistDFeInt.pas`/`RetDistDFeInt.pas`, entre outros) mais os subdiretórios `ACBrNFe`, `ACBrCTe`, `ACBrMDFe` e `Comum`. Os demais subdiretórios de `ACBrDFe` (`ACBrBPe`, `ACBrGNRE`, `ACBrReinf`, `ACBrNFSe`, etc. — outros tipos de documento que não são DFe de interesse deste projeto) ficam fora do escopo.
+- `Fontes/ACBrDiversos` — `ACBrValidador`, usado por `pcnAuxiliar` (validações genéricas compartilhadas).
+- `Fontes/ACBrIntegrador` — `TACBrIntegrador`, campo presente em `TACBrDFe` mesmo sem integrador nenhum configurado.
+- `Fontes/ACBrLibXML2` — backend `xsLibXml2` de assinatura XML: entra no `uses` de `ACBrDFeSSL` incondicionalmente (todos os backends são compilados, só o escolhido em runtime que importa).
 - `Fontes/ACBrOpenSSL` — assinatura/HTTPS.
+- `Fontes/ACBrTCP` — `ACBrIBGE` (tabela de códigos de município/UF) e `ACBrMail`, puxados por `ACBrDFeUtil`.
+- `Fontes/PCNComum` — conversões compartilhadas (`pcnConversao`, `TACBrTipoAmbiente`, etc.) usadas por `ACBrDFeConfiguracoes`.
 - `Fontes/Terceiros` — dependências vendored pelo próprio ACBr que os componentes de DFe usam (Synapse/`synalist` para HTTP, `GZIPUtils`/`ZLibExGZ` para o `docZip`, `LibXmlSec` para assinatura XML).
 
-Resultado: ~70 MB em vez de ~1,3 GB. **Esse escopo ainda não é o mínimo exato** — foi definido por inspeção da árvore de diretórios, não por compilação real; só vai ficar preciso quando a implementação real de `IDFeDistribuicaoClient` começar e o compilador apontar unit faltando (ou sobrando).
+Resultado: ~70 MB em vez de ~1,3 GB. **Escopo confirmado por compilação real** (2026-09-18) — ver "Implementação real de `IDFeDistribuicaoClient`: `DFe.Client.ACBrNFe`" abaixo. Não é necessariamente o mínimo absoluto (pode sobrar alguma coisa não estritamente necessária), mas é o que o compilador de fato pediu, não mais uma estimativa por inspeção de diretório.
 
 `git submodule update --init` sozinho, sem mais nada, baixaria o repositório inteiro (sparse-checkout não é gravado em `.gitmodules`, é configuração local do submodule). Por isso existe `tools/init-acbr-submodule.sh`, que faz o clone parcial + define o sparse-checkout num só passo, idempotente — rodar uma vez por clone do `pascal-dfe-broker`.
 
 **Pinado em**: commit `578954903fdbe5c8ca57fe1a35b79c6c49e1ec79` do mirror (SVN `trunk2@48289`, 2026-09-17). Não há tags de versão no mirror — só a branch `master` (mais ruído de branches do dependabot) — então atualizar significa apontar pra um commit novo específico (que corresponde 1:1 a uma revisão SVN, via o trailer `git-svn-id`), nunca "pegar a última".
+
+### Implementação real de `IDFeDistribuicaoClient`: `DFe.Client.ACBrNFe`
+
+`src/DFe.Client.ACBrNFe.pas` (`TDFeDistribuicaoClientACBrNFe`) é a primeira e, até agora, única implementação real de `IDFeDistribuicaoClient` (ver "Fronteira testável sem certificado real") — fala de verdade com `TACBrNFe`. **Compilada e linkada com sucesso no FPC** via `tools/smoke/AcbrClientSmoke.lpi` (453 mil linhas contando o vendor/ACBr, 0 erros) — é esse smoke test que confirmou o escopo de sparse-checkout acima. Existe também `tools/smoke/AcbrClientSmoke.dproj` (mesmo propósito, Delphi), **ainda não confirmado** — pendente do usuário compilar pela IDE (`PascalDfeBroker.groupproj`). **Não testável em execução nesta máquina**: sem certificado digital real, só a compilação foi verificada; tudo abaixo veio de ler o fonte do ACBr (`vendor/ACBr`), não de rodar contra a SEFAZ.
+
+Duas decisões de design nasceram de uma incompatibilidade real entre o modelo de erro do `TACBrNFe` e o de `DFe.Errors`:
+
+1. **Chama `WebServices.DistribuicaoDFe.Executar` diretamente, nunca `TACBrNFe.DistribuicaoDFePorUltNSU`/`.Distribuicao`.** O wrapper de conveniência (`TACBrNFe.Distribuicao`) levanta exceção (`GerarException`) sempre que `Executar` devolve `False` — e `TDistribuicaoDFe.TratarResposta` (`ACBrNFeWebServices.pas`) só considera sucesso `cStat` 137 ou 138. Isso faria consumo indevido (656), serviço indisponível (108/109) e qualquer outro `cStat` virarem exceção nessas chamadas de conveniência — exatamente o que `DFe.Errors` proíbe (ver comentário de topo daquele unit: `cStat` é "a chamada funcionou e a SEFAZ respondeu isto", nunca exceção). Chamar `WebServices.DistribuicaoDFe.Executar` diretamente (o método herdado de `TDFeWebService`, sem o wrapper por cima) devolve só um `Boolean` sem levantar nada quando `cStat` é outro valor — o que sobra é inspecionável via `retDistDFeInt` (populado de qualquer forma antes do `Boolean` ser calculado), que é o que `MontarLoteBruto` lê.
+2. **As três exceções de `DFe.Errors` são distinguidas sem depender de texto de mensagem** — mensagem de erro do ACBr não é um contrato estável entre versões, e o `TACBrNFe` não expõe uma exceção dedicada pra "certificado inválido" (tudo cai em `EACBrDFeException` genérica). Em vez disso:
+   - **`EDFeCertificadoInvalido`**: verificado num pré-flight explícito, ANTES da consulta de rede — `TDFeSSL.CarregarCertificadoSeNecessario` (carrega/valida o `.pfx`), depois `CertDataVenc` (vencimento) e `ValidarCNPJCertificado` (confere que o certificado é do CNPJ da unidade, raiz de 8 dígitos). Qualquer exceção nesse pré-flight vira `EDFeCertificadoInvalido` com confiança, porque essa etapa só toca certificado, nunca rede.
+   - **`EDFeComunicacaoFalhou`**: `EACBrDFeExceptionTimeOut` sempre; qualquer outra exceção da chamada de rede quando `retDistDFeInt.cStat = 0` (nenhuma resposta interpretável) E `SSL.HTTPResultCode <> 200`.
+   - **`EDFeRespostaInvalida`**: exceção da chamada de rede com `cStat = 0` mas `HTTPResultCode = 200` — a SEFAZ respondeu (HTTP OK) mas o corpo não deu pra interpretar como retorno de Distribuição de DFe.
+   - Se `retDistDFeInt.cStat <> 0` quando a exceção é pega, ela é **engolida de propósito** — é só o critério estreito de `TratarResposta` reclamando de um `cStat` que não é 137/138, não uma falha de verdade; `ClassificarCStat` (`DFe.Types`) decide o resto.
+
+**Gotcha novo, documentado em `CLAUDE.md`**: `TACBrNFe` arrasta LCL transitivamente mesmo num programa console sem GUI nenhuma (a árvore de units passa por relatório/DANFE em algum ponto) — sem `uses Interfaces` como primeira unit do programa, o link falha com dezenas de `Undefined symbol: WSRegisterCustomPanel` e afins, mesmo com toda unit resolvida na compilação. Isso significa que o host real (console/serviço, ainda não escrito) também vai precisar disso, e no Linux provavelmente vai exigir escolher um widgetset LCL "nogui" em vez de gtk2/qt5 (ainda não investigado).
+
+**Não decidido ainda**: `SSLCryptLib`/`SSLHttpLib`/`SSLXmlSignLib` fixados em `cryOpenSSL`/`httpOpenSSL`/`xsXmlSec` no construtor (única combinação sem dependência de COM/Windows — necessária pra funcionar em Linux/FPC, ver decisão 2) — depende de OpenSSL e libxmlsec1 disponíveis em tempo de execução, dependência de sistema não verificada nesta máquina.
 
 ## Estrutura de projeto/pacote e framework de teste — decidido
 

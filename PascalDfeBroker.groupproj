@@ -6,6 +6,9 @@
         <Projects Include="tests\Unit\DFe.UnitTests.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="tools\smoke\AcbrClientSmoke.dproj">
+            <Dependencies/>
+        </Projects>
     </ItemGroup>
     <ProjectExtensions>
         <Borland.Personality>Default.Personality.12</Borland.Personality>
@@ -23,14 +26,23 @@
     <Target Name="DFe_UnitTests:Make">
         <MSBuild Projects="tests\Unit\DFe.UnitTests.dproj" Targets="Make"/>
     </Target>
+    <Target Name="AcbrClientSmoke">
+        <MSBuild Projects="tools\smoke\AcbrClientSmoke.dproj"/>
+    </Target>
+    <Target Name="AcbrClientSmoke:Clean">
+        <MSBuild Projects="tools\smoke\AcbrClientSmoke.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="AcbrClientSmoke:Make">
+        <MSBuild Projects="tools\smoke\AcbrClientSmoke.dproj" Targets="Make"/>
+    </Target>
     <Target Name="Build">
-        <CallTarget Targets="DFe_UnitTests"/>
+        <CallTarget Targets="DFe_UnitTests;AcbrClientSmoke"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="DFe_UnitTests:Clean"/>
+        <CallTarget Targets="DFe_UnitTests:Clean;AcbrClientSmoke:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="DFe_UnitTests:Make"/>
+        <CallTarget Targets="DFe_UnitTests:Make;AcbrClientSmoke:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>
