@@ -13,12 +13,11 @@ unit DFe.AcbrSimEventoTests;
   conta os ignorados). No Delphi o DUnitX nao ignora em execucao, entao eles
   FALHAM com o prefixo 'AMBIENTE NAO PREPARADO'. }
 
-{$mode delphi}{$H+}
-
 interface
 
 uses
-  fpcunit, testregistry, SysUtils,
+  DUnitX.TestFramework,
+  System.SysUtils,
   ACBrDFe.Conversao,
   ACBrDFeSSL,
   ACBrNFe,
@@ -37,7 +36,8 @@ uses
   DFe.TestDoubles;
 
 type
-  TDFeAcbrSimEventoTests = class(TTestCase)
+  [TestFixture]
+  TDFeAcbrSimEventoTests = class
   private
     FRelogio: TDFeRelogioFake;
     FSim: TDFeSimuladorSefaz;
@@ -54,24 +54,24 @@ type
     procedure PublicarNFeDoDestinatario;
     procedure AssertSemViolacoes;
     function AssinaturaValida(const AEnvelope: string; out AMsg: string): Boolean;
-  protected
-    procedure SetUp; override;
-    procedure TearDown; override;
-  published
-    procedure Ciencia_Registrada_SaiComTipoEventoDoComando;
-    procedure OsQuatroTiposDeManifestacao_RegistramSemViolacoes;
-    procedure Assinatura_ECriptograficamenteValida_ETampering_Invalida;
-    procedure Duplicidade_ViraManifestacaoRejeitada573;
-    procedure ChaveInexistente_ViraManifestacaoRejeitada494;
-    procedure EventoRejeitadoForcado_ViraManifestacaoRejeitada;
-    procedure LoteRejeitado_ViraManifestacaoRejeitadaComRetEnvEvento;
-    procedure ServicoIndisponivel108_ViraManifestacaoRejeitada;
-    procedure Timeout_ViraComunicacaoFalhou;
-    procedure ErroHttp500_ViraComunicacaoFalhou;
-    procedure CorpoIlegivelComHttp200_ViraRespostaInvalida;
-    procedure CertificadoVencido_ViraCertificadoInvalidoSemChamarATransmissao;
-    procedure JustificativaAcentuada_AcbrRemoveOsAcentosSilenciosamente;
-    procedure FimAFim_CienciaAutomatica_PublicaDocumentoEEventoDeCiencia;
+  public
+    [Setup] procedure Setup;
+    [TearDown] procedure TearDown;
+
+    [Test] procedure Ciencia_Registrada_SaiComTipoEventoDoComando;
+    [Test] procedure OsQuatroTiposDeManifestacao_RegistramSemViolacoes;
+    [Test] procedure Assinatura_ECriptograficamenteValida_ETampering_Invalida;
+    [Test] procedure Duplicidade_ViraManifestacaoRejeitada573;
+    [Test] procedure ChaveInexistente_ViraManifestacaoRejeitada494;
+    [Test] procedure EventoRejeitadoForcado_ViraManifestacaoRejeitada;
+    [Test] procedure LoteRejeitado_ViraManifestacaoRejeitadaComRetEnvEvento;
+    [Test] procedure ServicoIndisponivel108_ViraManifestacaoRejeitada;
+    [Test] procedure Timeout_ViraComunicacaoFalhou;
+    [Test] procedure ErroHttp500_ViraComunicacaoFalhou;
+    [Test] procedure CorpoIlegivelComHttp200_ViraRespostaInvalida;
+    [Test] procedure CertificadoVencido_ViraCertificadoInvalidoSemChamarATransmissao;
+    [Test] procedure JustificativaAcentuada_AcbrRemoveOsAcentosSilenciosamente;
+    [Test] procedure FimAFim_CienciaAutomatica_PublicaDocumentoEEventoDeCiencia;
   end;
 
 implementation
@@ -120,7 +120,7 @@ end;
 
 { TDFeAcbrSimEventoTests }
 
-procedure TDFeAcbrSimEventoTests.SetUp;
+procedure TDFeAcbrSimEventoTests.Setup;
 begin
   FRelogio := TDFeRelogioFake.Create;
   FRelogio.Agora := EncodeDate(2026, 9, 18) + EncodeTime(10, 0, 0, 0);
@@ -160,10 +160,10 @@ end;
 procedure TDFeAcbrSimEventoTests.ExigirAmbiente;
 begin
   if not FileExists(DiretorioSchemas + 'envEvento_v1.00.xsd') then
-    Ignore('XSDs oficiais de NFe nao encontrados em ' + DiretorioSchemas +
+    Assert.Fail('AMBIENTE NAO PREPARADO (o DUnitX nao ignora em execucao): ' + 'XSDs oficiais de NFe nao encontrados em ' + DiretorioSchemas +
       ' (rode tools/init-acbr-submodule.sh)');
   if not InitLibXml2Interface then
-    Ignore('libxml2 nativa nao encontrada (libxml2.dll x64 no PATH) -- ver docs/simulador-sefaz.md, "Sonda da Fase 4"');
+    Assert.Fail('AMBIENTE NAO PREPARADO (o DUnitX nao ignora em execucao): ' + 'libxml2 nativa nao encontrada (libxml2.dll x64 no PATH) -- ver docs/simulador-sefaz.md, "Sonda da Fase 4"');
 end;
 
 function TDFeAcbrSimEventoTests.NovoClient(const APfx: string): IDFeDistribuicaoClient;
@@ -179,7 +179,7 @@ end;
 
 function TDFeAcbrSimEventoTests.Manifestador(const AClient: IDFeDistribuicaoClient): IDFeManifestador;
 begin
-  AssertTrue('o client real deve implementar IDFeManifestador', Supports(AClient, IDFeManifestador, Result));
+  Assert.IsTrue(Supports(AClient, IDFeManifestador, Result), 'o client real deve implementar IDFeManifestador');
 end;
 
 function TDFeAcbrSimEventoTests.Comando(const ATipo, AJustificativa: string): TDFeComandoManifestacao;
@@ -197,8 +197,7 @@ end;
 
 procedure TDFeAcbrSimEventoTests.AssertSemViolacoes;
 begin
-  AssertEquals('violacoes no request do ACBr: ' + FTransmissor.TodasViolacoes,
-    0, FTransmissor.QuantidadeViolacoes);
+  Assert.AreEqual(0, FTransmissor.QuantidadeViolacoes, 'violacoes no request do ACBr: ' + FTransmissor.TodasViolacoes);
 end;
 
 { Confere a assinatura do envEvento que o ACBr produziu, com o PROPRIO ACBr
@@ -231,17 +230,17 @@ begin
   PublicarNFeDoDestinatario;
   LEv := Manifestador(NovoClient).EnviarEvento(Certificado, Comando(DFE_EVENTO_MANIFESTACAO_CIENCIA));
 
-  AssertEquals(DFE_TIPO_DOCUMENTO_NFE, LEv.TipoDocumento);
-  AssertTrue(LEv.Categoria = dcEvento);
-  AssertEquals(DFE_EVENTO_MANIFESTACAO_CIENCIA, LEv.TipoEvento);
-  AssertEquals(FChave, LEv.ChaveAcesso);
-  AssertEquals(CNPJ_CERT, LEv.CnpjCpfConsultante);
-  AssertEquals('RS', LEv.UF);
-  AssertTrue('payload e o procEventoNFe montado pelo ACBr', Pos('<procEventoNFe', LEv.XmlPayload) > 0);
-  AssertTrue('payload traz o protocolo do simulador', Pos('<nProt>891000000000001</nProt>', LEv.XmlPayload) > 0);
-  AssertTrue('payload traz o retEvento', Pos('<retEvento', LEv.XmlPayload) > 0);
-  AssertTrue('payload traz a assinatura', Pos('<SignatureValue>', LEv.XmlPayload) > 0);
-  AssertEquals(1, FSim.EventosRegistrados);
+  Assert.AreEqual(DFE_TIPO_DOCUMENTO_NFE, LEv.TipoDocumento);
+  Assert.IsTrue(LEv.Categoria = dcEvento);
+  Assert.AreEqual(DFE_EVENTO_MANIFESTACAO_CIENCIA, LEv.TipoEvento);
+  Assert.AreEqual(FChave, LEv.ChaveAcesso);
+  Assert.AreEqual(CNPJ_CERT, LEv.CnpjCpfConsultante);
+  Assert.AreEqual('RS', LEv.UF);
+  Assert.IsTrue(Pos('<procEventoNFe', LEv.XmlPayload) > 0, 'payload e o procEventoNFe montado pelo ACBr');
+  Assert.IsTrue(Pos('<nProt>891000000000001</nProt>', LEv.XmlPayload) > 0, 'payload traz o protocolo do simulador');
+  Assert.IsTrue(Pos('<retEvento', LEv.XmlPayload) > 0, 'payload traz o retEvento');
+  Assert.IsTrue(Pos('<SignatureValue>', LEv.XmlPayload) > 0, 'payload traz a assinatura');
+  Assert.AreEqual(1, FSim.EventosRegistrados);
   AssertSemViolacoes;
 end;
 
@@ -251,18 +250,18 @@ var
 begin
   PublicarNFeDoDestinatario;
   LManif := Manifestador(NovoClient);
-  AssertEquals(DFE_EVENTO_MANIFESTACAO_CONFIRMACAO,
+  Assert.AreEqual(DFE_EVENTO_MANIFESTACAO_CONFIRMACAO,
     LManif.EnviarEvento(Certificado, Comando(DFE_EVENTO_MANIFESTACAO_CONFIRMACAO)).TipoEvento);
-  AssertEquals(DFE_EVENTO_MANIFESTACAO_CIENCIA,
+  Assert.AreEqual(DFE_EVENTO_MANIFESTACAO_CIENCIA,
     LManif.EnviarEvento(Certificado, Comando(DFE_EVENTO_MANIFESTACAO_CIENCIA)).TipoEvento);
-  AssertEquals(DFE_EVENTO_MANIFESTACAO_DESCONHECIMENTO,
+  Assert.AreEqual(DFE_EVENTO_MANIFESTACAO_DESCONHECIMENTO,
     LManif.EnviarEvento(Certificado, Comando(DFE_EVENTO_MANIFESTACAO_DESCONHECIMENTO,
       'Desconhecemos esta operacao comercial')).TipoEvento);
-  AssertEquals(DFE_EVENTO_MANIFESTACAO_OPERACAO_NAO_REALIZADA,
+  Assert.AreEqual(DFE_EVENTO_MANIFESTACAO_OPERACAO_NAO_REALIZADA,
     LManif.EnviarEvento(Certificado, Comando(DFE_EVENTO_MANIFESTACAO_OPERACAO_NAO_REALIZADA,
       'Mercadoria nao foi entregue no prazo')).TipoEvento);
-  AssertEquals(4, FSim.EventosRegistrados);
-  AssertEquals(4, FTransmissor.Requisicoes);
+  Assert.AreEqual(4, FSim.EventosRegistrados);
+  Assert.AreEqual(4, FTransmissor.Requisicoes);
   AssertSemViolacoes;
 end;
 
@@ -275,13 +274,13 @@ begin
   Manifestador(NovoClient).EnviarEvento(Certificado, Comando(DFE_EVENTO_MANIFESTACAO_CIENCIA));
 
   LOk := AssinaturaValida(FTransmissor.UltimoEnvelope, LMsg);
-  AssertTrue('assinatura do envEvento deveria verificar: ' + LMsg, LOk);
+  Assert.IsTrue(LOk, 'assinatura do envEvento deveria verificar: ' + LMsg);
 
   // controle negativo: mudar um digito da chave dentro do infEvento invalida o digest
   LAdulterado := StringReplace(FTransmissor.UltimoEnvelope, '<nSeqEvento>1</nSeqEvento>',
     '<nSeqEvento>2</nSeqEvento>', []);
-  AssertTrue('o envelope adulterado precisa diferir do original', LAdulterado <> FTransmissor.UltimoEnvelope);
-  AssertFalse('assinatura de envelope adulterado NAO pode verificar', AssinaturaValida(LAdulterado, LMsg));
+  Assert.IsTrue(LAdulterado <> FTransmissor.UltimoEnvelope, 'o envelope adulterado precisa diferir do original');
+  Assert.IsFalse(AssinaturaValida(LAdulterado, LMsg), 'assinatura de envelope adulterado NAO pode verificar');
 end;
 
 procedure TDFeAcbrSimEventoTests.Duplicidade_ViraManifestacaoRejeitada573;
@@ -291,15 +290,15 @@ var
 begin
   PublicarNFeDoDestinatario;
   LManif := Manifestador(NovoClient);
-  AssertEquals(DFE_EVENTO_MANIFESTACAO_CIENCIA,
+  Assert.AreEqual(DFE_EVENTO_MANIFESTACAO_CIENCIA,
     LManif.EnviarEvento(Certificado, Comando(DFE_EVENTO_MANIFESTACAO_CIENCIA)).TipoEvento);
 
   LEv := LManif.EnviarEvento(Certificado, Comando(DFE_EVENTO_MANIFESTACAO_CIENCIA));
-  AssertEquals(DFE_EVENTO_MANIFESTACAO_REJEITADA, LEv.TipoEvento);
-  AssertTrue('payload e o retEnvEvento bruto', Pos('<retEnvEvento', LEv.XmlPayload) > 0);
-  AssertTrue('payload traz o cStat 573', Pos('<cStat>573</cStat>', LEv.XmlPayload) > 0);
-  AssertTrue('payload traz a chave', Pos(FChave, LEv.XmlPayload) > 0);
-  AssertEquals(1, FSim.EventosRegistrados);
+  Assert.AreEqual(DFE_EVENTO_MANIFESTACAO_REJEITADA, LEv.TipoEvento);
+  Assert.IsTrue(Pos('<retEnvEvento', LEv.XmlPayload) > 0, 'payload e o retEnvEvento bruto');
+  Assert.IsTrue(Pos('<cStat>573</cStat>', LEv.XmlPayload) > 0, 'payload traz o cStat 573');
+  Assert.IsTrue(Pos(FChave, LEv.XmlPayload) > 0, 'payload traz a chave');
+  Assert.AreEqual(1, FSim.EventosRegistrados);
 end;
 
 procedure TDFeAcbrSimEventoTests.ChaveInexistente_ViraManifestacaoRejeitada494;
@@ -307,9 +306,9 @@ var
   LEv: TDFeEventoNormalizado;
 begin
   LEv := Manifestador(NovoClient).EnviarEvento(Certificado, Comando(DFE_EVENTO_MANIFESTACAO_CIENCIA));
-  AssertEquals(DFE_EVENTO_MANIFESTACAO_REJEITADA, LEv.TipoEvento);
-  AssertTrue(Pos('<cStat>494</cStat>', LEv.XmlPayload) > 0);
-  AssertEquals(0, FSim.EventosRegistrados);
+  Assert.AreEqual(DFE_EVENTO_MANIFESTACAO_REJEITADA, LEv.TipoEvento);
+  Assert.IsTrue(Pos('<cStat>494</cStat>', LEv.XmlPayload) > 0);
+  Assert.AreEqual(0, FSim.EventosRegistrados);
 end;
 
 procedure TDFeAcbrSimEventoTests.EventoRejeitadoForcado_ViraManifestacaoRejeitada;
@@ -319,8 +318,8 @@ begin
   PublicarNFeDoDestinatario;
   FSim.EnfileirarFalha(fsEventoRejeitado);
   LEv := Manifestador(NovoClient).EnviarEvento(Certificado, Comando(DFE_EVENTO_MANIFESTACAO_CIENCIA));
-  AssertEquals(DFE_EVENTO_MANIFESTACAO_REJEITADA, LEv.TipoEvento);
-  AssertTrue(Pos('<cStat>999</cStat>', LEv.XmlPayload) > 0);
+  Assert.AreEqual(DFE_EVENTO_MANIFESTACAO_REJEITADA, LEv.TipoEvento);
+  Assert.IsTrue(Pos('<cStat>999</cStat>', LEv.XmlPayload) > 0);
 end;
 
 procedure TDFeAcbrSimEventoTests.LoteRejeitado_ViraManifestacaoRejeitadaComRetEnvEvento;
@@ -330,10 +329,10 @@ begin
   PublicarNFeDoDestinatario;
   FSim.EnfileirarFalha(fsLoteEventoRejeitado);
   LEv := Manifestador(NovoClient).EnviarEvento(Certificado, Comando(DFE_EVENTO_MANIFESTACAO_CIENCIA));
-  AssertEquals(DFE_EVENTO_MANIFESTACAO_REJEITADA, LEv.TipoEvento);
-  AssertTrue('sem retEvento: o payload e o retEnvEvento do lote', Pos('<retEnvEvento', LEv.XmlPayload) > 0);
-  AssertTrue(Pos('<cStat>999</cStat>', LEv.XmlPayload) > 0);
-  AssertTrue(Pos('<retEvento', LEv.XmlPayload) = 0);
+  Assert.AreEqual(DFE_EVENTO_MANIFESTACAO_REJEITADA, LEv.TipoEvento);
+  Assert.IsTrue(Pos('<retEnvEvento', LEv.XmlPayload) > 0, 'sem retEvento: o payload e o retEnvEvento do lote');
+  Assert.IsTrue(Pos('<cStat>999</cStat>', LEv.XmlPayload) > 0);
+  Assert.IsTrue(Pos('<retEvento', LEv.XmlPayload) = 0);
 end;
 
 procedure TDFeAcbrSimEventoTests.ServicoIndisponivel108_ViraManifestacaoRejeitada;
@@ -343,9 +342,9 @@ begin
   PublicarNFeDoDestinatario;
   FSim.EnfileirarFalha(fsIndisponivelCurtoPrazo);
   LEv := Manifestador(NovoClient).EnviarEvento(Certificado, Comando(DFE_EVENTO_MANIFESTACAO_CIENCIA));
-  AssertEquals(DFE_EVENTO_MANIFESTACAO_REJEITADA, LEv.TipoEvento);
-  AssertTrue(Pos('<cStat>108</cStat>', LEv.XmlPayload) > 0);
-  AssertEquals(0, FSim.EventosRegistrados);
+  Assert.AreEqual(DFE_EVENTO_MANIFESTACAO_REJEITADA, LEv.TipoEvento);
+  Assert.IsTrue(Pos('<cStat>108</cStat>', LEv.XmlPayload) > 0);
+  Assert.AreEqual(0, FSim.EventosRegistrados);
 end;
 
 procedure TDFeAcbrSimEventoTests.Timeout_ViraComunicacaoFalhou;
@@ -357,7 +356,7 @@ begin
   LManif := Manifestador(NovoClient);
   try
     LManif.EnviarEvento(Certificado, Comando(DFE_EVENTO_MANIFESTACAO_CIENCIA));
-    Fail('esperava EDFeComunicacaoFalhou');
+    Assert.Fail('esperava EDFeComunicacaoFalhou');
   except
     on EDFeComunicacaoFalhou do ;
   end;
@@ -372,7 +371,7 @@ begin
   LManif := Manifestador(NovoClient);
   try
     LManif.EnviarEvento(Certificado, Comando(DFE_EVENTO_MANIFESTACAO_CIENCIA));
-    Fail('esperava EDFeComunicacaoFalhou');
+    Assert.Fail('esperava EDFeComunicacaoFalhou');
   except
     on EDFeComunicacaoFalhou do ;
   end;
@@ -387,7 +386,7 @@ begin
   LManif := Manifestador(NovoClient);
   try
     LManif.EnviarEvento(Certificado, Comando(DFE_EVENTO_MANIFESTACAO_CIENCIA));
-    Fail('esperava EDFeRespostaInvalida');
+    Assert.Fail('esperava EDFeRespostaInvalida');
   except
     on EDFeRespostaInvalida do ;
   end;
@@ -401,11 +400,11 @@ begin
   LManif := Manifestador(NovoClient('vencido.pfx'));
   try
     LManif.EnviarEvento(Certificado, Comando(DFE_EVENTO_MANIFESTACAO_CIENCIA));
-    Fail('esperava EDFeCertificadoInvalido');
+    Assert.Fail('esperava EDFeCertificadoInvalido');
   except
     on EDFeCertificadoInvalido do ;
   end;
-  AssertEquals(0, FTransmissor.Requisicoes);
+  Assert.AreEqual(0, FTransmissor.Requisicoes);
 end;
 
 { ACHADO (Fase 4): o ACBr REMOVE os acentos do texto livre do evento antes
@@ -425,11 +424,9 @@ begin
   PublicarNFeDoDestinatario;
   LEv := Manifestador(NovoClient).EnviarEvento(Certificado,
     Comando(DFE_EVENTO_MANIFESTACAO_OPERACAO_NAO_REALIZADA, LJust));
-  AssertEquals(DFE_EVENTO_MANIFESTACAO_OPERACAO_NAO_REALIZADA, LEv.TipoEvento);
-  AssertEquals('xJust sai sem acentos (chegou: ' + HexDe(ExtrairTag(FTransmissor.UltimoEnvelope, 'xJust')) + ')',
-    LSemAcento, ExtrairTag(FTransmissor.UltimoEnvelope, 'xJust'));
-  AssertTrue('o texto original com acento NAO esta no envelope',
-    Pos(LJust, FTransmissor.UltimoEnvelope) = 0);
+  Assert.AreEqual(DFE_EVENTO_MANIFESTACAO_OPERACAO_NAO_REALIZADA, LEv.TipoEvento);
+  Assert.AreEqual(LSemAcento, ExtrairTag(FTransmissor.UltimoEnvelope, 'xJust'), 'xJust sai sem acentos (chegou: ' + HexDe(ExtrairTag(FTransmissor.UltimoEnvelope, 'xJust')) + ')');
+  Assert.IsTrue(Pos(LJust, FTransmissor.UltimoEnvelope) = 0, 'o texto original com acento NAO esta no envelope');
   AssertSemViolacoes;
 end;
 
@@ -462,12 +459,12 @@ begin
     LOrq.ExecutarCiclo;
 
     // 1 documento (da distribuicao) + 1 evento de ciencia (da manifestacao)
-    AssertEquals(2, LPublicador.Quantidade);
-    AssertEquals('nfe.documento.rs.' + CNPJ_CERT, LPublicador.RoutingKey(0));
-    AssertEquals('nfe.evento.ciencia.rs.' + CNPJ_CERT, LPublicador.RoutingKey(1));
-    AssertTrue(Pos('<procEventoNFe', LPublicador.Payload(1)) > 0);
-    AssertEquals(1, FSim.EventosRegistrados);
-    AssertEquals(0, LOrq.QuantidadeErros);
+    Assert.AreEqual(2, LPublicador.Quantidade);
+    Assert.AreEqual('nfe.documento.rs.' + CNPJ_CERT, LPublicador.RoutingKey(0));
+    Assert.AreEqual('nfe.evento.ciencia.rs.' + CNPJ_CERT, LPublicador.RoutingKey(1));
+    Assert.IsTrue(Pos('<procEventoNFe', LPublicador.Payload(1)) > 0);
+    Assert.AreEqual(1, FSim.EventosRegistrados);
+    Assert.AreEqual(0, LOrq.QuantidadeErros);
     AssertSemViolacoes;
   finally
     LAuto.Free;
@@ -477,6 +474,6 @@ begin
 end;
 
 initialization
-  RegisterTest(TDFeAcbrSimEventoTests);
+  TDUnitX.RegisterTestFixture(TDFeAcbrSimEventoTests);
 
 end.

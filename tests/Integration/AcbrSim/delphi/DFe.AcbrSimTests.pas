@@ -8,12 +8,11 @@ unit DFe.AcbrSimTests;
 
   NAO cobre: TLS/HTTP reais, a SEFAZ de verdade, EnviarEvento (Fase 4). }
 
-{$mode delphi}{$H+}
-
 interface
 
 uses
-  fpcunit, testregistry, SysUtils,
+  DUnitX.TestFramework,
+  System.SysUtils,
   ACBrDFe.Conversao,
   DFe.Types,
   DFe.Errors,
@@ -28,7 +27,8 @@ uses
   DFe.TestDoubles;
 
 type
-  TDFeAcbrSimTests = class(TTestCase)
+  [TestFixture]
+  TDFeAcbrSimTests = class
   private
     FRelogio: TDFeRelogioFake;
     FSim: TDFeSimuladorSefaz;
@@ -40,27 +40,27 @@ type
     procedure PublicarNFe(const ANumero: Integer; const AXNome: string = DFE_SIM_XNOME_EMITENTE);
     procedure AssertSemViolacoes;
     procedure PublicarLoteQueOAcbrTrunca;
-  protected
-    procedure SetUp; override;
-    procedure TearDown; override;
-  published
-    procedure Consultar137_NenhumDocumento;
-    procedure Consultar138_QuatroSchemasDaDistribuicao;
-    procedure Consultar138_UltimoNSUEnviadoChegaNoRequest;
-    procedure Acentos_ChegamComoUtf8AoLote;
-    procedure ConsumoIndevido656_ELoteNaoExcecao;
-    procedure Indisponivel108_ELoteNaoExcecao;
-    procedure Timeout_ViraComunicacaoFalhou;
-    procedure ErroHttp500_ViraComunicacaoFalhou;
-    procedure CorpoIlegivelComHttp200_ViraRespostaInvalida;
-    procedure DocZipCorrompido_NaoPassaDespercebido;
-    procedure LoteTruncadoPeloAcbr_ViraRespostaInvalidaEmVezDePerderDocumentos;
-    procedure LoteTruncadoPeloAcbr_OrquestradorNaoAvancaOCursor;
-    procedure ClientRecuperaAposFalha_SemEstadoSujo;
-    procedure CertificadoVencido_ViraCertificadoInvalidoSemChamarATransmissao;
-    procedure CnpjDivergenteDoCertificado_ViraCertificadoInvalido;
-    procedure FimAFim_OrquestradorProviderNFeEPublicador;
-    procedure FimAFim_AcentosChegamAoPayloadPublicado;
+  public
+    [Setup] procedure Setup;
+    [TearDown] procedure TearDown;
+
+    [Test] procedure Consultar137_NenhumDocumento;
+    [Test] procedure Consultar138_QuatroSchemasDaDistribuicao;
+    [Test] procedure Consultar138_UltimoNSUEnviadoChegaNoRequest;
+    [Test] procedure Acentos_ChegamComoUtf8AoLote;
+    [Test] procedure ConsumoIndevido656_ELoteNaoExcecao;
+    [Test] procedure Indisponivel108_ELoteNaoExcecao;
+    [Test] procedure Timeout_ViraComunicacaoFalhou;
+    [Test] procedure ErroHttp500_ViraComunicacaoFalhou;
+    [Test] procedure CorpoIlegivelComHttp200_ViraRespostaInvalida;
+    [Test] procedure DocZipCorrompido_NaoPassaDespercebido;
+    [Test] procedure LoteTruncadoPeloAcbr_ViraRespostaInvalidaEmVezDePerderDocumentos;
+    [Test] procedure LoteTruncadoPeloAcbr_OrquestradorNaoAvancaOCursor;
+    [Test] procedure ClientRecuperaAposFalha_SemEstadoSujo;
+    [Test] procedure CertificadoVencido_ViraCertificadoInvalidoSemChamarATransmissao;
+    [Test] procedure CnpjDivergenteDoCertificado_ViraCertificadoInvalido;
+    [Test] procedure FimAFim_OrquestradorProviderNFeEPublicador;
+    [Test] procedure FimAFim_AcentosChegamAoPayloadPublicado;
   end;
 
 implementation
@@ -119,7 +119,7 @@ end;
 
 { TDFeAcbrSimTests }
 
-procedure TDFeAcbrSimTests.SetUp;
+procedure TDFeAcbrSimTests.Setup;
 begin
   FRelogio := TDFeRelogioFake.Create;
   FRelogio.Agora := EncodeDate(2026, 9, 18) + EncodeTime(10, 0, 0, 0);
@@ -155,7 +155,7 @@ begin
   LCred.ArquivoPFX := DiretorioBase + 'cert-teste' + PathDelim + APfx;
   LCred.Senha := SENHA_CERT;
   LCred.PathSchemas := DiretorioBase + 'Schemas' + PathDelim;
-  AssertTrue('certificado de teste nao encontrado: ' + LCred.ArquivoPFX, FileExists(LCred.ArquivoPFX));
+  Assert.IsTrue(FileExists(LCred.ArquivoPFX), 'certificado de teste nao encontrado: ' + LCred.ArquivoPFX);
   Result := TDFeDistribuicaoClientACBrNFe.Create(LCred, taHomologacao, FTransmissorIntf);
 end;
 
@@ -167,8 +167,7 @@ end;
 
 procedure TDFeAcbrSimTests.AssertSemViolacoes;
 begin
-  AssertEquals('violacoes no request do ACBr: ' + FTransmissor.TodasViolacoes,
-    0, FTransmissor.QuantidadeViolacoes);
+  Assert.AreEqual(0, FTransmissor.QuantidadeViolacoes, 'violacoes no request do ACBr: ' + FTransmissor.TodasViolacoes);
 end;
 
 procedure TDFeAcbrSimTests.Consultar137_NenhumDocumento;
@@ -176,9 +175,9 @@ var
   LLote: TDFeLoteBruto;
 begin
   LLote := NovoClient.Consultar(Certificado, 0);
-  AssertEquals(137, LLote.CStat);
-  AssertEquals(0, Length(LLote.Itens));
-  AssertEquals(1, FTransmissor.Requisicoes);
+  Assert.AreEqual(137, LLote.CStat);
+  Assert.AreEqual(0, Length(LLote.Itens));
+  Assert.AreEqual(1, FTransmissor.Requisicoes);
   AssertSemViolacoes;
 end;
 
@@ -195,18 +194,18 @@ begin
 
   LLote := NovoClient.Consultar(Certificado, 0);
 
-  AssertEquals(138, LLote.CStat);
-  AssertEquals(4, Length(LLote.Itens));
-  AssertEquals(Int64(4), LLote.UltimoNSU);
-  AssertEquals(Int64(4), LLote.MaxNSU);
-  AssertEquals('resNFe', LLote.Itens[0].Schema);
-  AssertEquals('procNFe', LLote.Itens[1].Schema);
-  AssertEquals('resEvento', LLote.Itens[2].Schema);
-  AssertEquals('procEventoNFe', LLote.Itens[3].Schema);
-  AssertEquals(Int64(1), LLote.Itens[0].NSU);
-  AssertEquals(Int64(4), LLote.Itens[3].NSU);
-  AssertTrue('resNFe traz a chave', Pos(LChave, LLote.Itens[0].XmlDecodificado) > 0);
-  AssertTrue('resEvento traz o tpEvento', Pos('<tpEvento>110111</tpEvento>', LLote.Itens[2].XmlDecodificado) > 0);
+  Assert.AreEqual(138, LLote.CStat);
+  Assert.AreEqual(4, Length(LLote.Itens));
+  Assert.AreEqual(Int64(4), LLote.UltimoNSU);
+  Assert.AreEqual(Int64(4), LLote.MaxNSU);
+  Assert.AreEqual('resNFe', LLote.Itens[0].Schema);
+  Assert.AreEqual('procNFe', LLote.Itens[1].Schema);
+  Assert.AreEqual('resEvento', LLote.Itens[2].Schema);
+  Assert.AreEqual('procEventoNFe', LLote.Itens[3].Schema);
+  Assert.AreEqual(Int64(1), LLote.Itens[0].NSU);
+  Assert.AreEqual(Int64(4), LLote.Itens[3].NSU);
+  Assert.IsTrue(Pos(LChave, LLote.Itens[0].XmlDecodificado) > 0, 'resNFe traz a chave');
+  Assert.IsTrue(Pos('<tpEvento>110111</tpEvento>', LLote.Itens[2].XmlDecodificado) > 0, 'resEvento traz o tpEvento');
   AssertSemViolacoes;
 end;
 
@@ -215,13 +214,11 @@ begin
   PublicarNFe(1);
   PublicarNFe(2);
   NovoClient.Consultar(Certificado, 1);
-  AssertEquals(Int64(1), FSim.UltimoNSURecebido);
-  AssertTrue('envelope leva o ultNSU de 15 digitos',
-    Pos('<ultNSU>000000000000001</ultNSU>', FTransmissor.UltimoEnvelope) > 0);
-  AssertTrue('envelope leva o CNPJ do certificado',
-    Pos('<CNPJ>' + CNPJ_CERT + '</CNPJ>', FTransmissor.UltimoEnvelope) > 0);
-  AssertTrue('cUFAutor de RS = 43', Pos('<cUFAutor>43</cUFAutor>', FTransmissor.UltimoEnvelope) > 0);
-  AssertTrue('homologacao', Pos('<tpAmb>2</tpAmb>', FTransmissor.UltimoEnvelope) > 0);
+  Assert.AreEqual(Int64(1), FSim.UltimoNSURecebido);
+  Assert.IsTrue(Pos('<ultNSU>000000000000001</ultNSU>', FTransmissor.UltimoEnvelope) > 0, 'envelope leva o ultNSU de 15 digitos');
+  Assert.IsTrue(Pos('<CNPJ>' + CNPJ_CERT + '</CNPJ>', FTransmissor.UltimoEnvelope) > 0, 'envelope leva o CNPJ do certificado');
+  Assert.IsTrue(Pos('<cUFAutor>43</cUFAutor>', FTransmissor.UltimoEnvelope) > 0, 'cUFAutor de RS = 43');
+  Assert.IsTrue(Pos('<tpAmb>2</tpAmb>', FTransmissor.UltimoEnvelope) > 0, 'homologacao');
   AssertSemViolacoes;
 end;
 
@@ -233,9 +230,8 @@ begin
   LXNome := XNomeAcentuado;
   PublicarNFe(1, LXNome);
   LLote := NovoClient.Consultar(Certificado, 0);
-  AssertEquals(1, Length(LLote.Itens));
-  AssertTrue(MsgAcento(LXNome, LLote.Itens[0].XmlDecodificado, '<xNome>'),
-    Pos('<xNome>' + LXNome + '</xNome>', LLote.Itens[0].XmlDecodificado) > 0);
+  Assert.AreEqual(1, Length(LLote.Itens));
+  Assert.IsTrue(Pos('<xNome>' + LXNome + '</xNome>', LLote.Itens[0].XmlDecodificado) > 0, MsgAcento(LXNome, LLote.Itens[0].XmlDecodificado, '<xNome>'));
 end;
 
 procedure TDFeAcbrSimTests.ConsumoIndevido656_ELoteNaoExcecao;
@@ -244,11 +240,11 @@ var
   LLote: TDFeLoteBruto;
 begin
   LClient := NovoClient;
-  AssertEquals(137, LClient.Consultar(Certificado, 0).CStat);
+  Assert.AreEqual(137, LClient.Consultar(Certificado, 0).CStat);
   LLote := LClient.Consultar(Certificado, 0);
-  AssertEquals(656, LLote.CStat);
-  AssertEquals(0, Length(LLote.Itens));
-  AssertTrue(ClassificarCStat(LLote.CStat, 656) = dccConsumoIndevido);
+  Assert.AreEqual(656, LLote.CStat);
+  Assert.AreEqual(0, Length(LLote.Itens));
+  Assert.IsTrue(ClassificarCStat(LLote.CStat, 656) = dccConsumoIndevido);
 end;
 
 procedure TDFeAcbrSimTests.Indisponivel108_ELoteNaoExcecao;
@@ -257,8 +253,8 @@ var
 begin
   FSim.EnfileirarFalha(fsIndisponivelCurtoPrazo);
   LLote := NovoClient.Consultar(Certificado, 0);
-  AssertEquals(108, LLote.CStat);
-  AssertTrue(ClassificarCStat(LLote.CStat, 656) = dccServicoIndisponivel);
+  Assert.AreEqual(108, LLote.CStat);
+  Assert.IsTrue(ClassificarCStat(LLote.CStat, 656) = dccServicoIndisponivel);
 end;
 
 procedure TDFeAcbrSimTests.Timeout_ViraComunicacaoFalhou;
@@ -269,7 +265,7 @@ begin
   LClient := NovoClient;
   try
     LClient.Consultar(Certificado, 0);
-    Fail('esperava EDFeComunicacaoFalhou');
+    Assert.Fail('esperava EDFeComunicacaoFalhou');
   except
     on EDFeComunicacaoFalhou do ;
   end;
@@ -283,7 +279,7 @@ begin
   LClient := NovoClient;
   try
     LClient.Consultar(Certificado, 0);
-    Fail('esperava EDFeComunicacaoFalhou');
+    Assert.Fail('esperava EDFeComunicacaoFalhou');
   except
     on EDFeComunicacaoFalhou do ;
   end;
@@ -297,7 +293,7 @@ begin
   LClient := NovoClient;
   try
     LClient.Consultar(Certificado, 0);
-    Fail('esperava EDFeRespostaInvalida');
+    Assert.Fail('esperava EDFeRespostaInvalida');
   except
     on EDFeRespostaInvalida do ;
   end;
@@ -313,7 +309,7 @@ begin
   LClient := NovoClient;
   try
     LLote := LClient.Consultar(Certificado, 0);
-    Fail(Format('docZip corrompido virou lote "valido": cStat=%d itens=%d xml0="%s"',
+    Assert.Fail(Format('docZip corrompido virou lote "valido": cStat=%d itens=%d xml0="%s"',
       [LLote.CStat, Length(LLote.Itens), Copy(LLote.Itens[0].XmlDecodificado, 1, 60)]));
   except
     on EDFeRespostaInvalida do ;
@@ -342,10 +338,10 @@ begin
   LClient := NovoClient;
   try
     LClient.Consultar(Certificado, 0);
-    Fail('esperava EDFeRespostaInvalida: o lote truncado nao pode ser entregue como valido');
+    Assert.Fail('esperava EDFeRespostaInvalida: o lote truncado nao pode ser entregue como valido');
   except
     on E: EDFeRespostaInvalida do
-      AssertTrue('mensagem explica o truncamento: ' + E.Message, Pos('truncado', E.Message) > 0);
+      Assert.IsTrue(Pos('truncado', E.Message) > 0, 'mensagem explica o truncamento: ' + E.Message);
   end;
 end;
 
@@ -366,9 +362,9 @@ begin
     LOrq.AdicionarUnidade(TDFeUnidadeTrabalho.Create(TDFeProviderNFe.Create, LClient, Certificado, LCursor));
     LOrq.ExecutarCiclo;
 
-    AssertEquals(0, LPublicador.Quantidade);
-    AssertEquals(Int64(0), LCursor.ObterUltimoNSU(MontarNamespaceCursor('nfe', Certificado)));
-    AssertEquals(1, LOrq.QuantidadeErros);
+    Assert.AreEqual(0, LPublicador.Quantidade);
+    Assert.AreEqual(Int64(0), LCursor.ObterUltimoNSU(MontarNamespaceCursor('nfe', Certificado)));
+    Assert.AreEqual(1, LOrq.QuantidadeErros);
   finally
     LOrq.Free;
   end;
@@ -392,7 +388,7 @@ begin
     on EDFeComunicacaoFalhou do ;
   end;
   // depois de duas falhas seguidas, a mesma instancia consulta normalmente
-  AssertEquals(137, LClient.Consultar(Certificado, 0).CStat);
+  Assert.AreEqual(137, LClient.Consultar(Certificado, 0).CStat);
 end;
 
 procedure TDFeAcbrSimTests.CertificadoVencido_ViraCertificadoInvalidoSemChamarATransmissao;
@@ -402,11 +398,11 @@ begin
   LClient := NovoClient('vencido.pfx');
   try
     LClient.Consultar(Certificado, 0);
-    Fail('esperava EDFeCertificadoInvalido');
+    Assert.Fail('esperava EDFeCertificadoInvalido');
   except
     on EDFeCertificadoInvalido do ;
   end;
-  AssertEquals(0, FTransmissor.Requisicoes);
+  Assert.AreEqual(0, FTransmissor.Requisicoes);
 end;
 
 procedure TDFeAcbrSimTests.CnpjDivergenteDoCertificado_ViraCertificadoInvalido;
@@ -419,11 +415,11 @@ begin
   LClient := NovoClient;
   try
     LClient.Consultar(LCert, 0);
-    Fail('esperava EDFeCertificadoInvalido');
+    Assert.Fail('esperava EDFeCertificadoInvalido');
   except
     on EDFeCertificadoInvalido do ;
   end;
-  AssertEquals(0, FTransmissor.Requisicoes);
+  Assert.AreEqual(0, FTransmissor.Requisicoes);
 end;
 
 procedure TDFeAcbrSimTests.FimAFim_OrquestradorProviderNFeEPublicador;
@@ -450,21 +446,21 @@ begin
 
     LOrq.ExecutarCiclo;
 
-    AssertEquals(4, LPublicador.Quantidade);
-    AssertEquals('nfe.documento.rs.' + CNPJ_CERT, LPublicador.RoutingKey(0));
-    AssertEquals('nfe.documento.rs.' + CNPJ_CERT, LPublicador.RoutingKey(1));
-    AssertEquals('nfe.evento.cancelamento.rs.' + CNPJ_CERT, LPublicador.RoutingKey(2));
-    AssertEquals('nfe.evento.ciencia.rs.' + CNPJ_CERT, LPublicador.RoutingKey(3));
-    AssertEquals(Int64(4), LCursor.ObterUltimoNSU(MontarNamespaceCursor('nfe', Certificado)));
-    AssertEquals(0, LOrq.QuantidadeErros);
-    AssertEquals(0, LOrq.QuantidadeAvisos);
+    Assert.AreEqual(4, LPublicador.Quantidade);
+    Assert.AreEqual('nfe.documento.rs.' + CNPJ_CERT, LPublicador.RoutingKey(0));
+    Assert.AreEqual('nfe.documento.rs.' + CNPJ_CERT, LPublicador.RoutingKey(1));
+    Assert.AreEqual('nfe.evento.cancelamento.rs.' + CNPJ_CERT, LPublicador.RoutingKey(2));
+    Assert.AreEqual('nfe.evento.ciencia.rs.' + CNPJ_CERT, LPublicador.RoutingKey(3));
+    Assert.AreEqual(Int64(4), LCursor.ObterUltimoNSU(MontarNamespaceCursor('nfe', Certificado)));
+    Assert.AreEqual(0, LOrq.QuantidadeErros);
+    Assert.AreEqual(0, LOrq.QuantidadeAvisos);
 
     // +1h: 137, sem publicar e sem consumo indevido (janela igual nos dois lados)
     FRelogio.Agora := FRelogio.Agora + 1 / 24;
     LOrq.AgoraSimulado := FRelogio.Agora;
     LOrq.ExecutarCiclo;
-    AssertEquals(4, LPublicador.Quantidade);
-    AssertEquals(0, LOrq.QuantidadeAvisos);
+    Assert.AreEqual(4, LPublicador.Quantidade);
+    Assert.AreEqual(0, LOrq.QuantidadeAvisos);
     AssertSemViolacoes;
   finally
     LOrq.Free;
@@ -491,15 +487,14 @@ begin
     LOrq.AdicionarUnidade(TDFeUnidadeTrabalho.Create(TDFeProviderNFe.Create, LClient, Certificado, LCursor));
     LOrq.ExecutarCiclo;
 
-    AssertEquals(1, LPublicador.Quantidade);
-    AssertTrue(MsgAcento(LXNome, LPublicador.Payload(0), '<xNome>'),
-      Pos('<xNome>' + LXNome + '</xNome>', LPublicador.Payload(0)) > 0);
+    Assert.AreEqual(1, LPublicador.Quantidade);
+    Assert.IsTrue(Pos('<xNome>' + LXNome + '</xNome>', LPublicador.Payload(0)) > 0, MsgAcento(LXNome, LPublicador.Payload(0), '<xNome>'));
   finally
     LOrq.Free;
   end;
 end;
 
 initialization
-  RegisterTest(TDFeAcbrSimTests);
+  TDUnitX.RegisterTestFixture(TDFeAcbrSimTests);
 
 end.
