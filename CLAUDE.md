@@ -13,6 +13,11 @@ Ferramenta open source para consulta e distribuição de Documentos Fiscais Elet
   "C:\lazarus4.0\lazbuild.exe" tests\Unit\fpc\DFeUnitTestsFpc.lpi
   tests\Unit\fpc\DFeUnitTestsFpc.exe --all --format=plain
   ```
+- **FPC/Linux via Docker** (imagem local `fpc322-bookworm`, a mesma do `pascal-amqp-faa`: Debian bookworm, FPC 3.2.2, `libssl3`, `libxml2`, gtk2-dev; **sem Lazarus/LCL e sem `libxmlsec1`**). Validado em 2026-09-18: **89/89 em Linux x86_64**, sem tocar no Windows. Não mede vazamento (o `heaptrc` não imprimiu nada no Linux — os "0 vazamento" vêm do FPC/Windows e do Delphi). Do git-bash, na raiz do repo:
+  ```
+  MSYS_NO_PATHCONV=1 docker run --rm -v "$(pwd -W):/proj:ro" -v "<pasta-saida-windows>:/out" --entrypoint bash fpc322-bookworm -c     'cd /proj/tests/Unit/fpc && fpc -Mdelphi -Sh -Fu/proj/src -Fu/proj/tests/Unit/fpc -Fi/proj/src -FU/out -FE/out -oDFeUnitTestsFpc DFeUnitTestsFpc.lpr && /out/DFeUnitTestsFpc --all --format=plain'
+  ```
+  Compila direto com `fpc` (sem `lazbuild`, que não existe na imagem) — só serve para units sem LCL. **`DFe.Client.ACBrNFe` e o host real (gotcha do LCL) ainda não foram tentados no Linux**: precisam de LCL (provavelmente `lcl-nogui` do apt) e `libxmlsec1`, que a imagem não tem.
 - **Delphi** (só pela IDE nesta máquina — linha de comando não funciona): abrir `PascalDfeBroker.groupproj`, compilar e rodar `DFe.UnitTests`.
 
 **Nota sobre `tests\Unit\DFe.UnitTests.dproj`**: a IDE reescreveu esse arquivo ao abrir (expandiu para a matriz completa de plataformas que o Delphi 23 gerencia por padrão — Android/iOS/OSX/etc. — em vez da versão enxuta Win32/Win64 que foi escrita à mão nesta sessão). Isso é comportamento normal da IDE, não um erro; a versão no disco é a que compila e passa os testes, então é ela quem vale.
