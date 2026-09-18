@@ -182,15 +182,21 @@ begin
   inherited Create;
   FACBrNFe := TACBrNFe.Create(nil);
 
-  { OpenSSL/XmlSec em vez de WinCrypt/CAPICOM/MSXml -- unica combinacao
+  { OpenSSL/LibXml2 em vez de WinCrypt/CAPICOM/MSXml -- unica combinacao
     que funciona nos dois compiladores/plataformas (ver decisao 2 em
-    CLAUDE.md, dual-compiler desde o inicio). Depende de libcrypto/
-    libssl e libxmlsec1 disponiveis em tempo de execucao -- dependencia
-    de sistema, nao de compilacao; NAO verificado nesta maquina (sem
-    certificado real para exercitar a chamada de verdade). }
+    CLAUDE.md, dual-compiler desde o inicio). xsLibXml2 e NAO xsXmlSec: o
+    ACBr.inc upstream define DFE_SEM_XMLSEC por padrao, e nesse caso
+    atribuir xsXmlSec LEVANTA EXCECAO no construtor (achado pelo spike da
+    Fase 0 do simulador, docs/simulador-sefaz.md). Depende de libcrypto/
+    libssl (e libxml2, so' para ASSINAR -- a distribuicao nao assina)
+    disponiveis em tempo de execucao; carregamento de certificado e
+    libcrypto-3 confirmados em execucao (Win64) so' com o spike, nao contra
+    a SEFAZ. Requer tambem uma pasta Schemas\*.xsd (ver
+    Configuracoes.Arquivos.PathSchemas) -- o ACBr a consulta ate' para
+    resolver a versao do servico de distribuicao. }
   FACBrNFe.Configuracoes.Geral.SSLCryptLib := cryOpenSSL;
   FACBrNFe.Configuracoes.Geral.SSLHttpLib := httpOpenSSL;
-  FACBrNFe.Configuracoes.Geral.SSLXmlSignLib := xsXmlSec;
+  FACBrNFe.Configuracoes.Geral.SSLXmlSignLib := xsLibXml2;
 
   FACBrNFe.Configuracoes.WebServices.Ambiente := AAmbiente;
   FACBrNFe.Configuracoes.Certificados.ArquivoPFX := ACredencial.ArquivoPFX;

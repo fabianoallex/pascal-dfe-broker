@@ -40,3 +40,6 @@ dfe_cursor_teste.cursores*
 *.stat
 __history/
 __recovery/
+
+# saidas geradas pelo ACBr ao rodar o spike
+tools/spike-sim/Docs/

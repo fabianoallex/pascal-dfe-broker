@@ -1,6 +1,6 @@
 # Simulador da SEFAZ para testes — plano de execução
 
-> Estado: **planejado, nada implementado** (2026-09-18). Este documento existe para uma sessão futura retomar sem depender do contexto em que o plano nasceu. O que está marcado **[verificado]** foi conferido lendo o fonte do ACBr em `vendor/ACBr`; **[hipótese]** ainda precisa ser confirmado por um spike (Fase 0).
+> Estado: **Fase 0 (spike) concluída em 2026-09-18 — resultados na seção "Resultado da Fase 0"; Fases 1+ não iniciadas.** Este documento existe para uma sessão futura retomar sem depender do contexto em que o plano nasceu. O que está marcado **[verificado]** foi conferido lendo o fonte do ACBr em `vendor/ACBr`; **[hipótese]** ainda precisa ser confirmado por um spike (Fase 0).
 
 ## Por que
 
@@ -55,6 +55,35 @@ Hipóteses a confirmar:
 
 Se (1) ou (3) falharem de forma incontornável, o valor da camada 2 cai muito e a camada 1 sozinha passa a ser o plano.
 
+#### Resultado da Fase 0 (2026-09-18, FPC Win64) — spike em `tools/spike-sim/`
+
+Programa `SpikeSim.lpr` (+ `.lpi`): monta o `TDFeDistribuicaoClientACBrNFe` **real**, liga `OnTransmit` a respostas roteirizadas e chama `Consultar`. Uso: `SpikeSim <arquivo.pfx> <senha>`. `.pfx` autoassinado gerado com o OpenSSL do Git (CN `EMPRESA TESTE LTDA:11222333000181` + `otherName` 2.16.76.1.3.3; **não versionado**, a pasta `certs/` do `.gitignore` é o lugar). O spike acessa o campo privado `FACBrNFe` por offset — isso é o que a Fase 1 (costura de injeção) resolve direito. A pasta `tools/spike-sim/Schemas/` tem um `.xsd` **vazio** de propósito (ver achado 3).
+
+1. **[verificado] Certificado autoassinado é aceito.** `CarregarCertificadoSeNecessario` carrega o `.pfx` (OpenSSL 3 default, sem `-legacy`), `CertDataVenc` lê, e `ValidarCNPJCertificado` extrai o CNPJ: CNPJ igual passa; CNPJ válido diferente → `EDFeCertificadoInvalido` ("CNPJ do Documento é diferente..."); CNPJ inválido nos dígitos → `EDFeCertificadoInvalido` com "CNPJ inválido". (Certificado **vencido** ainda não exercitado — precisa de um `.pfx` já expirado.)
+2. **[verificado, só Win64] O ACBr carrega o OpenSSL 3 do PATH** (`libcrypto-3-x64.dll` do Git). **Delphi Win32 ainda não testado** — continua sendo o risco de DLLs de 32 bits.
+3. **[verificado, com 2 correções] `Executar` completa só com `OnTransmit`** — sem rede, sem HTTP. Mas exigiu:
+   - **Bug real do client, corrigido em `src/DFe.Client.ACBrNFe.pas`**: `SSLXmlSignLib := xsXmlSec` **levantava exceção no construtor**, porque o `ACBr.inc` upstream define `DFE_SEM_XMLSEC` por padrão. Trocado para `xsLibXml2` (padrão do ACBr). Nenhum teste anterior pegaria isso: era só compilação. Consequência para a Fase 4: assinar evento passa a exigir **libxml2** (não `libxmlsec1`); não há `libxml2*.dll` no PATH desta máquina (só `xmlwf.exe` do Git).
+   - **Pasta `Schemas\` com pelo menos um `*.xsd` é dependência de execução**, mesmo para distribuição (que não valida): `TACBrDFe.AchaArquivoSchema` é chamado por `LerServicoDeParams` para achar a versão mais próxima do serviço e levanta "Nenhum arquivo de Schema encontrado na pasta" se a pasta estiver vazia/ausente. Um `.xsd` vazio basta para a distribuição. Os XSDs oficiais estão no mirror em `Exemplos/ACBrDFe/Schemas/NFe/` (**fora** do sparse-checkout atual) — o host real precisará de `Configuracoes.Arquivos.PathSchemas` configurável e de uma decisão de como distribuí-los (necessários de verdade para `EnviarEvento`, que valida o XML).
+4. **[verificado] Formato de resposta que o ACBr espera** — `TratarResposta` faz `SeparaDadosArray(['nfeDistDFeInteresseResult','nfeResultMsg'])` e lê o `retDistDFeInt` dentro. Envelope que funciona: `soap:Envelope > soap:Body > nfeDistDFeInteresseResponse xmlns=".../wsdl/NFeDistribuicaoDFe" > nfeDistDFeInteresseResult > retDistDFeInt xmlns=".../nfe" versao="1.01"` com `tpAmb, verAplic, cStat, xMotivo, dhResp, ultNSU, maxNSU` e, para 138, `loteDistDFeInt > docZip NSU=".." schema="resNFe_v1.01.xsd"` (conteúdo = base64 de **gzip**; o spike gera com `ACBrCompress.GZipCompress`). O request do ACBr, visível no callback: URL `https://hom1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx`, SoapAction `.../NFeDistribuicaoDFe/nfeDistDFeInteresse`, `MimeType` vazio, corpo `distDFeInt versao="1.01"` com `tpAmb, cUFAutor, CNPJ, distNSU/ultNSU` (15 dígitos) — o adaptador da Fase 3 pode **afirmar** sobre isso.
+
+Comportamento observado do client real, por cenário (todos via `OnTransmit`):
+
+| Cenário | Resultado |
+|---|---|
+| 137 | lote com `CStat=137`, 0 itens |
+| 138 + 1 `docZip` | 1 item, `Schema='resNFe'`, NSU/ultNSU/maxNSU corretos |
+| 656 | lote com `CStat=656` (sem exceção — como projetado) |
+| `InternalErrorCode=10060` | `EDFeComunicacaoFalhou` ("Connection Time Out") |
+| `InternalErrorCode<>0` (erro interno) | `EDFeComunicacaoFalhou` |
+| corpo ilegível, HTTP 200 | **`EDFeComunicacaoFalhou`, não `EDFeRespostaInvalida`** (ver abaixo) |
+| 137 logo após as falhas | ok — sem estado sujo entre chamadas |
+
+**Achados sobre os dois riscos da seção seguinte:**
+- **Encoding [refutado como risco, para este caminho]:** um `xNome` com acentos passando pelo `docZip` chega em `XmlDecodificado` com os bytes UTF-8 intactos (`C3 89` = É, `C3 87` = Ç, `C3 8D` = Í), precedidos da declaração `<?xml ... encoding="UTF-8"?>` que o ACBr acrescenta. Ou seja: `XmlPayload` carrega **UTF-8 em `String`** de fato. Falta só confirmar o mesmo para `RetInfEvento.XML` (Fase 4) e que o publicador/consumidor tratam a `String` como bytes UTF-8.
+- **`SSL.HTTPResultCode` velho [parcialmente refutado]:** `TDFeSSLHttpClass.ConfigConnection`/`Clear` zeram `HTTPResultCode` a cada requisição real, então não fica velho entre chamadas. **Mas** o caminho `OnTransmit` **não popula** `SSL.HTTPResultCode` (o `HTTPResultCode` do callback só vai para `OnTransmitError`) e a propriedade é somente-leitura. Logo, **a camada 2 não consegue simular "HTTP 200 com corpo ilegível → `EDFeRespostaInvalida`"**: sempre cai em `EDFeComunicacaoFalhou`. Esse ramo de `TratarFalhaDeChamada` só é coberto pela camada 3 (HTTP real) ou por teste da lógica isolada. Vale considerar se a distinção `SSL.HTTPResultCode = 200` continua valendo a pena.
+
+**Conclusão: a camada 2 vale a pena** — hipóteses 1 e 3 (as que a derrubariam) passaram. Próximo passo: Fase 1 (costura de injeção), que também elimina o acesso por offset.
+
 ### Fase 1 — costura de injeção no client
 
 `TDFeDistribuicaoClientACBrNFe` ganha um transmissor opcional (interface ou tipo de método próprio, ex. `IDFeTransmissor.Transmitir(const AEnvelope, AURL, ASoapAction, AMimeType): TDFeRespostaTransmissao`) que, se presente, é ligado a `FACBrNFe.OnTransmit` no construtor. Sem transmissor, comportamento idêntico ao de hoje (produção não muda). O tipo de retorno carrega texto, `HTTPResultCode` e `InternalErrorCode`.
@@ -76,7 +105,7 @@ Se (1) ou (3) falharem de forma incontornável, o valor da camada 2 cai muito e 
 
 ### Fase 4 — eventos de manifestação (depende de `libxmlsec1`)
 
-Eventos são **assinados** (`xsXmlSec`); `libxmlsec` **não existe** nesta máquina Windows (verificado: nem `libxmlsec.dll` nem `libxmlsec1.dll` no PATH). A distribuição não assina, então as Fases 0–3 não dependem disso. Para o `EnviarEvento`: usar container Debian com `libxmlsec1` (parte do trabalho de Linux/Docker adiado — ver `CLAUDE.md`, "FPC/Linux via Docker"), ou instalar a DLL no Windows. Simular `RecepcaoEvento` AN: resposta com `retEnvEvento` (cStat 128 do lote + `retEvento` com 135/136 ou rejeição), exercitando `CStatEventoRegistrado` e o `TipoEvento` `manifestacaorejeitada`.
+Eventos são **assinados**. Desde a Fase 0 o client usa `xsLibXml2` (o `xsXmlSec` levanta exceção com o `ACBr.inc` padrão), então o que falta é **libxml2** (não `libxmlsec1`): não há `libxml2*.dll` no PATH desta máquina Windows. A distribuição não assina, então as Fases 0–3 não dependem disso. Para o `EnviarEvento`: usar container Debian com `libxml2` (parte do trabalho de Linux/Docker adiado — ver `CLAUDE.md`, "FPC/Linux via Docker"), ou instalar a DLL no Windows. `EnviarEvento` também valida o XML contra XSD, então exige os schemas reais (ver achado 3 da Fase 0). Simular `RecepcaoEvento` AN: resposta com `retEnvEvento` (cStat 128 do lote + `retEvento` com 135/136 ou rejeição), exercitando `CStatEventoRegistrado` e o `TipoEvento` `manifestacaorejeitada`.
 
 ### Fase 5 (opcional) — HTTP/TLS mútuo
 
@@ -91,5 +120,5 @@ Só se surgir necessidade de validar a configuração OpenSSL/TLS. Servidor `fph
 
 1. Ler este arquivo, `CLAUDE.md` (decisões 14, 16, 17, 18) e a seção "Implementação real de `IDFeDistribuicaoClient`" de `docs/architecture.md`.
 2. Rodar as suítes para confirmar o ponto de partida: FPC `lazbuild -B -r tests/Unit/fpc/DFeUnitTestsFpc.lpi` (95/95 esperado); Delphi pela IDE.
-3. Começar pela **Fase 0**. Não escrever o simulador antes de ela responder as hipóteses 1–4.
-4. Ao terminar a Fase 0, registrar os fatos aqui (trocar **[hipótese]** por **[verificado]**) antes de seguir.
+3. A **Fase 0 está feita** (ver "Resultado da Fase 0"; rodar de novo: `lazbuild tools/spike-sim/SpikeSim.lpi` e `tools/spike-sim/SpikeSim.exe <pfx> <senha>` — o `.pfx` se regenera com o `openssl` do Git, receita no resultado). Começar pela **Fase 1** (costura de injeção).
+4. Pendências da Fase 0: certificado **vencido**; **Delphi Win32** (DLLs OpenSSL de 32 bits); carregamento de `libxml2` para assinar.
