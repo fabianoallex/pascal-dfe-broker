@@ -311,25 +311,26 @@ begin
 
   Result.TipoDocumento := DFE_TIPO_DOCUMENTO_NFE;
   Result.Categoria := dcEvento;
-  Result.TipoEvento := AComando.TipoEvento;
+  Result.TipoEvento := DFE_EVENTO_MANIFESTACAO_REJEITADA;
   Result.ChaveAcesso := AComando.ChaveAcesso;
   Result.CnpjCpfConsultante := ACertificado.CnpjCpf;
   Result.UF := ACertificado.UF;
   Result.NSU := 0; // nao veio da distribuicao -- nao ha NSU
   Result.DataEmissao := Now;
 
-  { Payload padrao = retorno bruto da SEFAZ (retEnvEvento) -- cobre rejeicao
-    do lote inteiro e rejeicao do evento. So' quando o evento foi
-    registrado (135/136/155) o ACBr monta o procEventoNFe completo em
-    RetInfEvento.XML, e esse passa a ser o payload -- consumidores
-    distinguem aceito de rejeitado pela raiz do XML (procEventoNFe vs
-    retEnvEvento), ja' que a routing-key e' a mesma. }
+  { Rejeicao (do evento ou do lote inteiro, sem retEvento): TipoEvento
+    'manifestacaorejeitada' e payload = retorno bruto da SEFAZ
+    (retEnvEvento). So' quando o evento foi registrado (CStatEventoRegistrado)
+    o resultado usa o TipoEvento do comando e o procEventoNFe completo que o
+    ACBr monta em RetInfEvento.XML -- assim a routing-key ja' diz se a
+    manifestacao valeu (ver DFE_EVENTO_MANIFESTACAO_REJEITADA). }
   Result.XmlPayload := LEnvio.RetWS;
   if LEnvio.EventoRetorno.retEvento.Count > 0 then
   begin
     LRetorno := LEnvio.EventoRetorno.retEvento.Items[0].RetInfEvento;
-    if LRetorno.XML <> '' then
+    if CStatEventoRegistrado(LRetorno.cStat) and (LRetorno.XML <> '') then
     begin
+      Result.TipoEvento := AComando.TipoEvento;
       Result.XmlPayload := string(LRetorno.XML);
       if LRetorno.dhRegEvento <> 0 then
         Result.DataEmissao := LRetorno.dhRegEvento;

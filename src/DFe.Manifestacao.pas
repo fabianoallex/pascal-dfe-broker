@@ -58,6 +58,16 @@ const
   DFE_EVENTO_MANIFESTACAO_DESCONHECIMENTO = 'desconhecimento';
   DFE_EVENTO_MANIFESTACAO_OPERACAO_NAO_REALIZADA = 'operacaonaorealizada';
 
+  { TipoEvento do resultado quando a SEFAZ NAO registrou a manifestacao
+    (rejeicao do evento ou do lote). E' um TipoEvento proprio, e nao o do
+    comando, para o resultado sair numa routing-key diferente
+    (<tipo>.evento.manifestacaorejeitada.<uf>.<cnpj>) -- quem assina
+    "evento.ciencia" so' recebe ciencia de fato registrada. O payload de
+    uma rejeicao e' o retorno bruto da SEFAZ (retEnvEvento), que traz a
+    chave, o tpEvento e o cStat/xMotivo. Decidido pelo usuario em
+    2026-09-18 (ver CLAUDE.md, decisao 18). }
+  DFE_EVENTO_MANIFESTACAO_REJEITADA = 'manifestacaorejeitada';
+
   DFE_MANIFESTACAO_JUSTIFICATIVA_MIN = 15;
   DFE_MANIFESTACAO_JUSTIFICATIVA_MAX = 255;
 
@@ -81,6 +91,14 @@ type
   evento, ou o ACBr levantaria uma excecao generica de validacao de
   schema, dificil de distinguir de falha de comunicacao). }
 function InterpretarComando(const APayload: string): TDFeComandoManifestacao;
+
+{ True quando o cStat de UM evento (retEvento, nao o do lote) significa que a
+  SEFAZ registrou a manifestacao: 135 (registrado e vinculado a NFe), 136
+  (registrado, nao vinculado) e 155 (o mesmo criterio que o ACBr usa para
+  montar o procEventoNFe, ver TNFeEnvEvento.TratarResposta). Qualquer outro
+  valor -- inclusive 128, que e' cStat do LOTE -- e' rejeicao. Pura, para o
+  criterio aceito/rejeitado ser testavel sem ACBr. }
+function CStatEventoRegistrado(const ACStat: Integer): Boolean;
 
 type
   { Capacidade OPCIONAL de provider -- ver comentario de topo do unit.
@@ -201,6 +219,11 @@ begin
       raise Exception.CreateFmt('"Justificativa" de "%s" deve ter de %d a %d caracteres',
         [Result.TipoEvento, DFE_MANIFESTACAO_JUSTIFICATIVA_MIN, DFE_MANIFESTACAO_JUSTIFICATIVA_MAX]);
   end;
+end;
+
+function CStatEventoRegistrado(const ACStat: Integer): Boolean;
+begin
+  Result := (ACStat = 135) or (ACStat = 136) or (ACStat = 155);
 end;
 
 { TDFeManifestacaoProcessador }

@@ -35,6 +35,8 @@ type
     [Test] procedure InterpretarComando_ChaveAcessoFora44Digitos_Levanta;
     [Test] procedure InterpretarComando_JustificativaCurta_Levanta;
     [Test] procedure InterpretarComando_JustificativaValida_NaoLevanta;
+    [Test] procedure CStatEventoRegistrado_135_136_155_Registrado;
+    [Test] procedure CStatEventoRegistrado_RejeicoesELote_NaoRegistrado;
 
     [Test] procedure ProcessarComando_AliasDesconhecido_RegistraErroNaoPublica;
     [Test] procedure ProcessarComando_ClientSemManifestador_RegistraErroNaoPublica;
@@ -203,6 +205,21 @@ var
 begin
   LComando := InterpretarComando(MontarPayload(['Alias=matriz', 'ChaveAcesso=' + CHAVE_TESTE, 'TipoEvento=operacaonaorealizada', 'Justificativa=Fornecedor nao reconhecido pela empresa']));
   Assert.AreEqual('operacaonaorealizada', LComando.TipoEvento);
+end;
+
+procedure TDFeManifestacaoTests.CStatEventoRegistrado_135_136_155_Registrado;
+begin
+  Assert.IsTrue(CStatEventoRegistrado(135));
+  Assert.IsTrue(CStatEventoRegistrado(136));
+  Assert.IsTrue(CStatEventoRegistrado(155));
+end;
+
+procedure TDFeManifestacaoTests.CStatEventoRegistrado_RejeicoesELote_NaoRegistrado;
+begin
+  // 128 e' cStat do LOTE (processado), nao de registro do evento; 573 = duplicidade; 0 = sem resposta
+  Assert.IsFalse(CStatEventoRegistrado(128));
+  Assert.IsFalse(CStatEventoRegistrado(573));
+  Assert.IsFalse(CStatEventoRegistrado(0));
 end;
 
 procedure TDFeManifestacaoTests.ProcessarComando_AliasDesconhecido_RegistraErroNaoPublica;
