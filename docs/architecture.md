@@ -163,6 +163,7 @@ Provider=nfe
 CnpjCpf=12345678000199
 UF=RS
 Ativo=true                  ; opcional, default true
+ManifestacaoAutomatica=false ; opcional, default false -- ver "Manifestação do destinatário"
 ```
 
 Implementado em `src/DFe.Config.pas`:
@@ -199,3 +200,23 @@ Carga inicial e recarga a quente usam a mesma função: um orquestrador recém-c
 Gatilho explícito (sinal do SO, comando externo) foi cogitado e descartado por enquanto: reaproveitar o tick já existente não pede nenhuma infraestrutura nova.
 
 **Testado de verdade (2026-09-18): 52/52 no FPC** (`DFe.ConfigTests`, incluindo `RecarregarConfig` — cria/sincroniza/pausa — e `TDFeConfigWatcher`, com data de modificação controlável via `TDFeConfigWatcherTestavel` em vez de depender do mtime real de um arquivo). 0 erros, 0 falhas, 0 vazamento de memória. Lado Delphi ainda não recompilado com esses testes (arquivos `.dpr`/`.dproj` já referenciam os mesmos arquivos, que só cresceram de conteúdo — não precisam de nova edição, só recompilar).
+
+## Manifestação do destinatário — decidido: comando simples, não RPC clássico
+
+Cenário motivador: a manifestação (Confirmação/Ciência/Desconhecimento/Operação não Realizada, no caso da NFe) precisa ser configurável por certificado para ser automática ou exigir autorização externa — e, com múltiplos CNPJ configurados, um pode querer automática enquanto outro exige manual. Implementado em `src/DFe.Manifestacao.pas`.
+
+**Desacoplamento do orquestrador**: `TDFeOrquestrador` não sabe o que é "manifestação". Ganhou só um hook opcional, `AoPublicarDocumento` (`nil` por padrão — nenhuma mudança de comportamento para quem não usa), chamado depois que um evento de **categoria documento** (nunca evento fiscal) é publicado com sucesso. É uma `property` de tipo `procedure(...) of object`, não um método virtual — conectar manifestação automática (ou qualquer reação futura) não exige subclassificar `TDFeOrquestrador`.
+
+**`IDFeManifestador` é uma capacidade opcional de provider**, verificada em runtime via `Supports(provider, IDFeManifestador, ...)` — não faz parte de `IDFeProvider`, porque nem todo tipo de documento tem "manifestação do destinatário" (é um conceito específico de NFe). Simétrica a `IDFeDistribuicaoClient`/`IDFeProvider`: só levanta exceção (`DFe.Errors`) quando a chamada em si falha antes de existir uma resposta interpretável — rejeição de protocolo da SEFAZ (evento não aceito) vem no evento normalizado devolvido, não como exceção.
+
+**Comando simples publicado como evento normal, em vez de RPC clássico (reply-to/correlation-id)**: o broker inteiro já é pub/sub, e quem manda um comando de manifestação já está ouvindo a exchange `dfe` — o resultado sai lá, reaproveitando `MontarRoutingKey`, sem exigir fila de resposta temporária, correlação nem timeout do lado de quem chama.
+
+- **`TDFeManifestacaoProcessador`** resolve o `Alias` do comando na unidade do orquestrador (`ObterUnidadePorAlias`), verifica se o provider dela suporta `IDFeManifestador`, envia o evento e publica o resultado. Nunca propaga exceção — qualquer falha (alias desconhecido, provider sem suporte, ou uma das 3 exceções de `DFe.Errors`) é reportada via `RegistrarErro` (hook no-op, mesmo padrão do orquestrador), porque uma falha não pode travar quem estiver drenando vários comandos.
+- **`IDFeComandoFonte`** abstrai de onde vem o comando manual — a implementação real embrulha um consumidor AMQP (ainda não escrita); testes usam uma fila pré-carregada. `ProcessarTodos` drena a fonte até não haver mais comando pendente.
+- **`TDFeAutoManifestador`** liga o hook do orquestrador ao processador: reage a `AoPublicarDocumento`, e se a unidade que publicou tem `ManifestacaoAutomatica = True` (novo campo em `TDFeUnidadeTrabalho` e em `TDFeConfigCertificado`/`ManifestacaoAutomatica=` no INI, default `false`, sincronizado em `CarregarConfig`/`RecarregarConfig` do mesmo jeito que `Ativo`/`Pausada`), gera sozinho um comando de "ciência" e entrega ao mesmo processador. **Automático e manual convergem no mesmo `TDFeManifestacaoProcessador` — só o gatilho difere**, o que resolve o caso de múltiplos CNPJ com políticas diferentes sem exigir nada além de um `Boolean` por alias (já que `ManifestacaoAutomatica` não participa da colisão de `Ativo`/`Provider`/`CnpjCpf`/`UF` — dois certificados do mesmo CNPJ podem ter valores diferentes, dado que só um dos dois estará `Ativo` por vez de qualquer forma).
+
+**Formato do comando** (`TDFeComandoManifestacao`, via `InterpretarComando`): texto chave=valor, uma por linha (mesmo estilo do arquivo de config) — `Alias`, `ChaveAcesso`, `TipoEvento` (`confirmacao`/`ciencia`/`desconhecimento`/`operacaonaorealizada`) e `Justificativa` (obrigatória para os dois últimos tipos, por regra da SEFAZ — `InterpretarComando` valida e levanta exceção alto e cedo, antes de tentar falar com qualquer provider).
+
+**Testado de verdade (2026-09-18): 68/68 nos dois compiladores** (FPC via `lazbuild`, Delphi via a IDE) — 16 testes novos em `DFe.ManifestacaoTests` (parsing/validação de comando, sucesso/erro do processador incluindo as 3 exceções de `DFe.Errors`, drenagem de fila, disparo/não-disparo do auto-manifestador conforme o flag), 0 erros, 0 falhas, 0 vazamento de memória. Dublês novos em `DFe.TestDoubles.pas`: `TDFeProviderManifestadorFake` (implementa `IDFeProvider` **e** `IDFeManifestador`, ao contrário do `TDFeProviderFake` existente, que representa "provider sem suporte a manifestação") e `TDFeComandoFonteFake` (fila FIFO pré-carregada).
+
+**Ainda não escrita**: a implementação real de `IDFeComandoFonte` (consumidor AMQP de comando manual) — depende do broker embutido estar de fato ligado a um host, que por sua vez depende dos `.dpr`/`.lpr` dos hosts (ver "Modelo de execução"), ainda não escritos.
