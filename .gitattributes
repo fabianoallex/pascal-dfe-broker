@@ -1,0 +1,4 @@
+# scripts executados em bash/Docker precisam de LF mesmo em clones Windows (autocrlf)
+*.sh text eol=lf
+tools/docker/Dockerfile* text eol=lf
+tests/Integration/AcbrSim/cert-teste/*.sh text eol=lf
