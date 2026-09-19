@@ -115,7 +115,7 @@ Broker AMQP roda **embutido** no processo (reusa o submódulo server do pascal-a
 - **`TDFeHostLoop`** encapsula só a cadência (chama `TDFeOrquestrador.ExecutarCiclo` a cada `DFE_HOST_TICK_SEGUNDOS_PADRAO` = 60s, configurável) — nenhum dos dois hosts reimplementa esse laço. 60s de tick não gera nenhuma consulta extra a SEFAZ: o orquestrador só age de verdade quando `ProximaConsultaEm` permite (cadência real de 1h por unidade); o tick do host só decide com que atraso máximo o processo reage a uma janela que acabou de abrir.
 - Consequência direta no orquestrador: como um host roda desassistido por longos períodos, `TDFeOrquestrador.ExecutarCiclo` agora isola cada unidade de trabalho num `try/except` — uma exceção não modelada numa unidade (bug, falha inesperada) é logada via `RegistrarErro` e não derruba o processamento das demais unidades/certificados, nem o processo inteiro.
 
-**Escrito (2026-09-19): o host console** — ver "Host console e aplicação" abaixo. **Ainda não escrito: o Serviço Windows**, que deve ser só `TDFeAplicacao` + timer/thread do serviço (nada de montagem nova).
+**Escrito (2026-09-19): o host console** — ver "Host console e aplicação" abaixo. **Escrito, ainda não verificado: o Serviço Windows** (`hosts/servico/`, decisão 20 do `CLAUDE.md`) — só `TDFeAplicacao` + uma thread para o loop; log em arquivo diário (`DFe.Host.LogArquivo`) e falha de subida no Event Log.
 
 ### Host console e aplicação
 

@@ -18,6 +18,9 @@
         <Projects Include="hosts\console\DFeBrokerConsole.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="hosts\servico\DFeBrokerServico.dproj">
+            <Dependencies/>
+        </Projects>
     </ItemGroup>
     <ProjectExtensions>
         <Borland.Personality>Default.Personality.12</Borland.Personality>
@@ -71,14 +74,23 @@
     <Target Name="DFeBrokerConsole:Make">
         <MSBuild Projects="hosts\console\DFeBrokerConsole.dproj" Targets="Make"/>
     </Target>
+    <Target Name="DFeBrokerServico">
+        <MSBuild Projects="hosts\servico\DFeBrokerServico.dproj"/>
+    </Target>
+    <Target Name="DFeBrokerServico:Clean">
+        <MSBuild Projects="hosts\servico\DFeBrokerServico.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="DFeBrokerServico:Make">
+        <MSBuild Projects="hosts\servico\DFeBrokerServico.dproj" Targets="Make"/>
+    </Target>
     <Target Name="Build">
-        <CallTarget Targets="DFe_UnitTests;AcbrClientSmoke;AcbrSimDelphiTests;AmqpBrokerDelphiTests;DFeBrokerConsole"/>
+        <CallTarget Targets="DFe_UnitTests;AcbrClientSmoke;AcbrSimDelphiTests;AmqpBrokerDelphiTests;DFeBrokerConsole;DFeBrokerServico"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="DFe_UnitTests:Clean;AcbrClientSmoke:Clean;AcbrSimDelphiTests:Clean;AmqpBrokerDelphiTests:Clean;DFeBrokerConsole:Clean"/>
+        <CallTarget Targets="DFe_UnitTests:Clean;AcbrClientSmoke:Clean;AcbrSimDelphiTests:Clean;AmqpBrokerDelphiTests:Clean;DFeBrokerConsole:Clean;DFeBrokerServico:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="DFe_UnitTests:Make;AcbrClientSmoke:Make;AcbrSimDelphiTests:Make;AmqpBrokerDelphiTests:Make;DFeBrokerConsole:Make"/>
+        <CallTarget Targets="DFe_UnitTests:Make;AcbrClientSmoke:Make;AcbrSimDelphiTests:Make;AmqpBrokerDelphiTests:Make;DFeBrokerConsole:Make;DFeBrokerServico:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

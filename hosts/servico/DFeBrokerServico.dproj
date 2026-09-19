@@ -1,0 +1,95 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{31847DD1-A828-4BA0-94CC-4A3847FCB859}</ProjectGuid>
+        <ProjectVersion>20.1</ProjectVersion>
+        <FrameworkType>VCL</FrameworkType>
+        <Base>True</Base>
+        <Config Condition="'$(Config)'==''">Debug</Config>
+        <Platform Condition="'$(Platform)'==''">Win64</Platform>
+        <TargetedPlatforms>3</TargetedPlatforms>
+        <AppType>Application</AppType>
+        <MainSource>DFeBrokerServico.dpr</MainSource>
+        <ProjectName Condition="'$(ProjectName)'==''">DFeBrokerServico</ProjectName>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Config)'=='Base' or '$(Base)'!=''">
+        <Base>true</Base>
+    </PropertyGroup>
+    <PropertyGroup Condition="('$(Platform)'=='Win32' and '$(Base)'=='true') or '$(Base_Win32)'!=''">
+        <Base_Win32>true</Base_Win32>
+        <CfgParent>Base</CfgParent>
+        <Base>true</Base>
+    </PropertyGroup>
+    <PropertyGroup Condition="('$(Platform)'=='Win64' and '$(Base)'=='true') or '$(Base_Win64)'!=''">
+        <Base_Win64>true</Base_Win64>
+        <CfgParent>Base</CfgParent>
+        <Base>true</Base>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Config)'=='Debug' or '$(Cfg_1)'!=''">
+        <Cfg_1>true</Cfg_1>
+        <CfgParent>Base</CfgParent>
+        <Base>true</Base>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Config)'=='Release' or '$(Cfg_2)'!=''">
+        <Cfg_2>true</Cfg_2>
+        <CfgParent>Base</CfgParent>
+        <Base>true</Base>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Base)'!=''">
+        <DCC_DcuOutput>.\$(Platform)\$(Config)</DCC_DcuOutput>
+        <DCC_ExeOutput>.\$(Platform)\$(Config)</DCC_ExeOutput>
+        <DCC_Namespace>Winapi;System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;Bde;Vcl;Vcl.Imaging;Vcl.Touch;Vcl.Samples;Vcl.Shell;System;Xml;Data;Datasnap;Web;Soap;$(DCC_Namespace)</DCC_Namespace>
+        <DCC_UnitSearchPath>..\..\vendor\pascal-amqp-faa\src;..\..\vendor\pascal-amqp-faa\src\server;..\..\vendor\ACBr\Fontes;..\..\vendor\ACBr\Fontes\ACBrComum;..\..\vendor\ACBr\Fontes\ACBrDFe;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrANe;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrANe\Base;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrANe\Base\Seguradoras;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrANe\Base\WebServices;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrANe\PCNANe;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrANe\Seguradoras;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrBlocoX;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrBlocoX\PCNBlocoX;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrBPe;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrBPe\Base;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrBPe\Base\Servicos;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrBPe\DABPE;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrBPe\DABPE\EscPos;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrBPe\DABPE\Fast;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrBPe\DABPE\FPDF;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrCIOT;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrCIOT\Base;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrCIOT\PCNCIOT;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrCTe;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrCTe\Base;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrCTe\Base\Servicos;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrCTe\DACTE;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrCTe\DACTE\Fast;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrCTe\DACTE\Fortes;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrCTe\DACTE\FPDF;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrCTe\PCNCTe;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrDCe;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrDCe\Base;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrDCe\Base\Servicos;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrDCe\DACE;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrDCe\DACE\Fortes;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrDI;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrDI\PCNDI;..\..\vendor\ACBr\Fontes\ACBrDiversos;..\..\vendor\ACBr\Fontes\ACBrIntegrador;..\..\vendor\ACBr\Fontes\ACBrIntegrador\pcnVFPe;..\..\vendor\ACBr\Fontes\ACBrLibXML2;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBreSocial;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBreSocial\PCNeSocial;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrGNRE;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrGNRE\GNRE;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrGNRE\GNRE\Fast;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrGNRE\GNRE\Fortes;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrGNRE\GNRE\Laz;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrGNRE\PCNGNRE;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrGTIN;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrGTIN\Base;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrGTIN\Base\Servicos;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrMDFe;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrMDFe\Base;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrMDFe\Base\Servicos;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrMDFe\DAMDFE;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrMDFe\DAMDFE\Fast;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrMDFe\DAMDFE\Fortes;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrMDFe\DAMDFE\FPDF;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrMDFe\PCNMDFe;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNF3e;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNF3e\Base;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNF3e\Base\Servicos;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNF3e\DANF3e;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNF3e\DANF3e\EscPos;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNF3e\DANF3e\Fortes;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNFAg;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNFAg\Base;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNFAg\Base\Servicos;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNFAg\DANFAg;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNFCom;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNFCom\Base;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNFCom\Base\Servicos;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNFCom\DANFCom;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNFCom\DANFCom\Fortes;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNFe;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNFe\ACBrECFVirtualNFCe;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNFe\Base;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNFe\Base\Servicos;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNFe\DANFE;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNFe\DANFE\NFCe;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNFe\DANFE\NFCe\EscPos;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNFe\DANFE\NFCe\Fortes;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNFe\DANFE\NFCe\FPDF;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNFe\DANFE\NFe;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNFe\DANFE\NFe\Fast;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNFe\DANFE\NFe\Fortes;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNFe\DANFE\NFe\FPDF;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNFe\DANFE\NFe\LazReport;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNFe\PCNNFe;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNFGas;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNFGas\Base;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNFGas\Base\Servicos;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNFGas\DANFGas;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNFSe;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNFSe\DANFSE;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNFSe\DANFSE\Fast;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNFSe\DANFSE\Fortes;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNFSe\PCNNFSe;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNFSe\Provedores;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNFSeX;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNFSeX\Base;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNFSeX\Base\Provedores;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNFSeX\Base\WebServices;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNFSeX\DANFSE;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNFSeX\DANFSE\Fast;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNFSeX\DANFSE\Fortes;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNFSeX\DANFSE\FPDF;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNFSeX\Modelos;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrNFSeX\Provedores;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrONE;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrONE\Base;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrONE\Base\Servicos;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrPAFNFCe;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrReinf;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrReinf\PCNReinf;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrSATWS;..\..\vendor\ACBr\Fontes\ACBrDFe\ACBrSATWS\PCNSATWS;..\..\vendor\ACBr\Fontes\ACBrDFe\Comum;..\..\vendor\ACBr\Fontes\ACBrOpenSSL;..\..\vendor\ACBr\Fontes\ACBrTCP;..\..\vendor\ACBr\Fontes\ACBrTCP\ACBrConsultaCNPJ;..\..\vendor\ACBr\Fontes\PCNComum;..\..\vendor\ACBr\Fontes\Terceiros;..\..\vendor\ACBr\Fontes\Terceiros\AJBarcode;..\..\vendor\ACBr\Fontes\Terceiros\CodeGear;..\..\vendor\ACBr\Fontes\Terceiros\DelphiZXingQRCode;..\..\vendor\ACBr\Fontes\Terceiros\Elgin;..\..\vendor\ACBr\Fontes\Terceiros\FastStringReplace;..\..\vendor\ACBr\Fontes\Terceiros\FPDF-Pascal;..\..\vendor\ACBr\Fontes\Terceiros\Gertec;..\..\vendor\ACBr\Fontes\Terceiros\GZIPUtils;..\..\vendor\ACBr\Fontes\Terceiros\JediWin32API;..\..\vendor\ACBr\Fontes\Terceiros\json4delphi;..\..\vendor\ACBr\Fontes\Terceiros\json4delphi\src;..\..\vendor\ACBr\Fontes\Terceiros\JsonDataObjects;..\..\vendor\ACBr\Fontes\Terceiros\JsonDataObjects\Source;..\..\vendor\ACBr\Fontes\Terceiros\LibXmlSec;..\..\vendor\ACBr\Fontes\Terceiros\Ole;..\..\vendor\ACBr\Fontes\Terceiros\synalist;..\..\vendor\ACBr\Fontes\Terceiros\TecToy;..\..\vendor\ACBr\Fontes\Terceiros\TGif;..\..\vendor\ACBr\Fontes\Terceiros\ZLibExGZ;..\..\vendor\ACBr\Fontes\Terceiros\ZLibExGZ\zlib;..\..\src;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <SanitizedProjectName>DFeBrokerServico</SanitizedProjectName>
+        <UsingDelphiRTL>true</UsingDelphiRTL>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Cfg_1)'!=''">
+        <DCC_Define>DEBUG;$(DCC_Define)</DCC_Define>
+        <DCC_Optimize>false</DCC_Optimize>
+        <DCC_GenerateStackFrames>true</DCC_GenerateStackFrames>
+        <DCC_DebugInformation>true</DCC_DebugInformation>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Cfg_2)'!=''">
+        <DCC_LocalDebugSymbols>False</DCC_LocalDebugSymbols>
+        <DCC_Define>RELEASE;$(DCC_Define)</DCC_Define>
+        <DCC_SymbolReferenceInfo>0</DCC_SymbolReferenceInfo>
+        <DCC_DebugInformation>0</DCC_DebugInformation>
+    </PropertyGroup>
+    <ItemGroup>
+        <DelphiCompile Include="$(MainSource)">
+            <MainSource>MainSource</MainSource>
+        </DelphiCompile>
+        <DCCReference Include="DFe.Host.Servico.pas">
+            <Form>DFeBrokerService</Form>
+            <FormType>dfm</FormType>
+            <DesignClass>TService</DesignClass>
+        </DCCReference>
+        <BuildConfiguration Include="Base">
+            <Key>Base</Key>
+        </BuildConfiguration>
+        <BuildConfiguration Include="Debug">
+            <Key>Cfg_1</Key>
+            <CfgParent>Base</CfgParent>
+        </BuildConfiguration>
+        <BuildConfiguration Include="Release">
+            <Key>Cfg_2</Key>
+            <CfgParent>Base</CfgParent>
+        </BuildConfiguration>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Delphi.Personality.12</Borland.Personality>
+        <Borland.ProjectType>Application</Borland.ProjectType>
+        <BorlandProject>
+            <Delphi.Personality>
+                <Source>
+                    <Source Name="MainSource">DFeBrokerServico.dpr</Source>
+                </Source>
+            </Delphi.Personality>
+            <Platforms>
+                <Platform value="Win32">True</Platform>
+                <Platform value="Win64">True</Platform>
+            </Platforms>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Import Project="$(BDS)\Bin\CodeGear.Delphi.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Delphi.Targets')"/>
+    <Import Project="$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj" Condition="Exists('$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj')"/>
+</Project>

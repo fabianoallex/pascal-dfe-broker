@@ -27,6 +27,7 @@ uses
   DFe.XmlTexto in '..\..\src\DFe.XmlTexto.pas',
   DFe.Ambiente in '..\..\src\DFe.Ambiente.pas',
   DFe.Fuso in '..\..\src\DFe.Fuso.pas',
+  DFe.Host.LogArquivo in '..\..\src\DFe.Host.LogArquivo.pas',
   DFe.TestDoubles in 'DFe.TestDoubles.pas',
   DFe.RoutingKeyTests in 'DFe.RoutingKeyTests.pas',
   DFe.TypesTests in 'DFe.TypesTests.pas',
@@ -45,7 +46,8 @@ uses
   DFe.SimuladorEventoTests in 'DFe.SimuladorEventoTests.pas',
   DFe.XmlTextoTests in 'DFe.XmlTextoTests.pas',
   DFe.AmbienteTests in 'DFe.AmbienteTests.pas',
-  DFe.FusoTests in 'DFe.FusoTests.pas';
+  DFe.FusoTests in 'DFe.FusoTests.pas',
+  DFe.LogArquivoTests in 'DFe.LogArquivoTests.pas';
 
 var
   runner: ITestRunner;

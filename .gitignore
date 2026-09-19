@@ -53,3 +53,8 @@ tests/Integration/AcbrSim/tmp-amb-*/
 hosts/console/dfe.ini
 hosts/console/broker/
 hosts/console/cursores.dat
+hosts/servico/dfe.ini
+hosts/servico/logs/
+hosts/servico/broker/
+hosts/servico/cursores.dat
+hosts/console/logs/

@@ -101,6 +101,10 @@
         <Filename Value="..\src\DFe.Fuso.pas"/>
         <UnitName Value="DFe.Fuso"/>
       </Item>
+      <Item>
+        <Filename Value="..\src\DFe.Host.LogArquivo.pas"/>
+        <UnitName Value="DFe.Host.LogArquivo"/>
+      </Item>
     </Files>
     <RequiredPkgs>
       <Item>

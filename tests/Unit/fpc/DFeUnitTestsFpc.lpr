@@ -33,7 +33,8 @@ uses
   DFe.SimuladorEventoTests,
   DFe.XmlTextoTests,
   DFe.AmbienteTests,
-  DFe.FusoTests;
+  DFe.FusoTests,
+  DFe.LogArquivoTests;
 
 var
   ConsoleApp: TTestRunner;
