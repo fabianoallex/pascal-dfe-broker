@@ -3,6 +3,8 @@
 O broker depende de coisas que **não estão no binário**: bibliotecas nativas e arquivos XSD. Faltar qualquer uma não aparece na compilação. Este documento diz o que é necessário, como obter, e como verificar — antes de a falta virar um erro enganoso em produção.
 
 > Estado (2026-09-18): verificado em **Windows 11 (FPC Win64 e Delphi Win64)** e **Linux x86_64 (Debian 12, FPC, em Docker — ver `docs/linux.md`)**. **Delphi Win32 e Delphi para Linux não foram testados** — o que consta para eles vem da leitura do fonte do ACBr e está marcado.
+>
+> Atualização (2026-09-19): o **Serviço Windows** (Delphi Win64) foi instalado e rodou com as 4 DLLs (`libssl`, `libcrypto`, `libxml2`, `zlib1`) **copiadas para a pasta do executável** e o PATH do sistema apenas — um serviço **não enxerga o PATH do usuário**. Ver `hosts/servico/LEIAME.md`, que também mostra de onde copiá-las e o cuidado de não misturar `libssl` e `libcrypto` de pacotes/versões diferentes (o verificador mostra o caminho de cada uma).
 
 ## O que é necessário
 
@@ -56,7 +58,7 @@ Ambiente INCOMPLETO: 1 dependencia(s) obrigatoria(s) ausente(s).
 
 Código de saída: `0` completo, `1` falta algo obrigatório, `2` uso.
 
-**No código**: `DFe.Ambiente.ACBr.VerificarAmbienteACBr(PathSchemas, [uaDistribuicao, uaManifestacao])` devolve o relatório (`DFe.Ambiente` tem `AmbienteCompleto`, `FormatarRelatorio`). **O host real deve chamá-lo na inicialização, registrar o relatório e recusar subir** (ou subir avisando) se `AmbienteCompleto` for falso — os hosts ainda não existem (ver `CLAUDE.md`, "Próximos marcos").
+**No código**: `DFe.Ambiente.ACBr.VerificarAmbienteACBr(PathSchemas, [uaDistribuicao, uaManifestacao])` devolve o relatório (`DFe.Ambiente` tem `AmbienteCompleto`, `FormatarRelatorio`). **O host real deve chamá-lo na inicialização, registrar o relatório e recusar subir** (ou subir avisando) se `AmbienteCompleto` for falso — os dois hosts já fazem isso (`DFe.Host.ACBr.TDFeFabricaClientesACBr.VerificarAmbiente`): o console imprime o relatório e sai com código 2 se faltar algo; o Serviço Windows o grava no log e não inicia. `DFeBrokerConsole --config <ini> --verificar-ambiente` só confere e sai.
 
 ## Duas correções que o próprio broker faz (Linux)
 
