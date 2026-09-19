@@ -1,0 +1,47 @@
+name: Linux (FPC)
+
+# Roda a suite completa em Linux x86_64 (Debian 12, FPC 3.2.2) dentro de Docker:
+# pura, integracao ACBr x simulador, integracao AMQP embutido e o host console
+# (sobe e recebe SIGTERM). E' o mesmo script que se roda localmente:
+#   tools/docker/testar-linux.sh
+# O Delphi NAO roda aqui (so' pela IDE); ver CLAUDE.md.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  testar-linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        # SEM submodules aqui: o do ACBr e' um monorepo de ~1,3 GB; o script abaixo
+        # faz o clone parcial (~70 MB) so' do que o projeto usa.
+
+      - name: Submodulos (pascal-amqp-faa completo, ACBr parcial)
+        run: |
+          git submodule update --init vendor/pascal-amqp-faa
+          ./tools/init-acbr-submodule.sh
+
+      - name: Suites (pura, ACBr x simulador, AMQP, host console)
+        run: tools/docker/testar-linux.sh
+
+  testar-systemd:
+    # A unit de systemd em conteiner com systemd como PID 1. Precisa de --privileged
+    # e cgroup v2; se o runner nao suportar, este job falha sem derrubar o principal.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Submodulos (pascal-amqp-faa completo, ACBr parcial)
+        run: |
+          git submodule update --init vendor/pascal-amqp-faa
+          ./tools/init-acbr-submodule.sh
+
+      - name: Unit de systemd (subida, queda + reinicio, SIGTERM, exit 2)
+        run: tools/docker/testar-systemd.sh
