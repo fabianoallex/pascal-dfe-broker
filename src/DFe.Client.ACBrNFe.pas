@@ -264,6 +264,7 @@ constructor TDFeDistribuicaoClientACBrNFe.Create(const ACredencial: TDFeCredenci
   const AAmbiente: TACBrTipoAmbiente; const ATransmissor: IDFeTransmissor);
 begin
   inherited Create;
+  PrepararParaBibliotecasNativas; // antes de o ACBr poder carregar qualquer biblioteca nativa
   FACBrNFe := TACBrNFe.Create(nil);
   FTransmissor := ATransmissor;
   if ACredencial.PathSchemas <> '' then
@@ -366,6 +367,7 @@ function TDFeDistribuicaoClientACBrNFe.Consultar(const ACertificado: TDFeCertifi
 var
   LDistribuicao: TDistribuicaoDFe;
 begin
+  PrepararParaBibliotecasNativas; // FPU mascarada nesta thread (DFe.Ambiente.ACBr)
   ExigirAmbiente(uaDistribuicao);
   GarantirCertificadoValido(ACertificado.CnpjCpf);
   FHttpDoTransmissor := 0;
@@ -425,6 +427,7 @@ var
   LEnvio: TNFeEnvEvento;
   LRetorno: TRetInfEvento;
 begin
+  PrepararParaBibliotecasNativas;
   ExigirAmbiente(uaManifestacao);
   GarantirCertificadoValido(ACertificado.CnpjCpf);
   FHttpDoTransmissor := 0;

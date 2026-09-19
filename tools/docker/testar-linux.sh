@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+# Compila e roda os testes do broker em Linux x86_64 (Debian 12) via Docker.
+# Ver docs/linux.md. Do git-bash (Windows), do Linux ou do macOS, na raiz do repo:
+#
+#   tools/docker/testar-linux.sh              # suite pura + integracao (com libxml2.so)
+#   tools/docker/testar-linux.sh --sem-link   # integracao SEM o link libxml2.so: mostra
+#                                             # a recusa que o operador veria (esperado: falha)
+#   tools/docker/testar-linux.sh --so-pura    # so' a suite pura (rapido, ~10 s)
+#
+# Pre-requisito da integracao: vendor/ACBr inicializado (tools/init-acbr-submodule.sh).
+set -euo pipefail
+export MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL="*"
+
+SEM_LINK=0; SO_PURA=0
+for a in "$@"; do
+  case "$a" in
+    --sem-link) SEM_LINK=1 ;;
+    --so-pura)  SO_PURA=1 ;;
+    *) echo "opcao desconhecida: $a" >&2; exit 2 ;;
+  esac
+done
+
+cd "$(dirname "$0")/../.."
+RAIZ="$(pwd -W 2>/dev/null || pwd)"   # -W: caminho estilo Windows no git-bash
+
+if ! docker image inspect dfe-linux-teste >/dev/null 2>&1; then
+  echo ">> construindo a imagem dfe-linux-teste (uma vez)..."
+  docker build -f tools/docker/Dockerfile.linux-teste -t dfe-linux-teste tools/docker
+fi
+
+SAIDA="$(mktemp -d)"; trap 'rm -rf "$SAIDA"' EXIT
+SAIDA_MONTAGEM="$(cd "$SAIDA" && (pwd -W 2>/dev/null || pwd))"
+
+docker run --rm \
+  -v "$RAIZ:/proj:ro" -v "$SAIDA_MONTAGEM:/out" \
+  -e SEM_LINK="$SEM_LINK" -e SO_PURA="$SO_PURA" \
+  --entrypoint bash dfe-linux-teste -c '
+set -uo pipefail
+
+echo "=== suite pura (FPCUnit) ==="
+cd /proj/tests/Unit/fpc
+fpc -Mdelphi -Sh -Fu/proj/src -Fu/proj/tests/Unit/fpc -Fi/proj/src -FU/out -FE/out \
+    -oDFeUnitTestsFpc DFeUnitTestsFpc.lpr 2>&1 | grep -E "Fatal|Error:|lines compiled"
+/out/DFeUnitTestsFpc --all --format=plain > /out/pura.txt 2>&1; RCP=$?
+grep -E "Number of|unfreed" /out/pura.txt
+if [ "$SO_PURA" = "1" ]; then exit $RCP; fi
+
+echo; echo "=== integracao ACBr x simulador ==="
+LPI=/proj/tests/Integration/AcbrSim/AcbrSimTests.lpi
+# caminhos do .lpi (relativos a tests/Integration/AcbrSim, com barra invertida) -> absolutos no contêiner
+conv() { tr ";" "\n" | sed "s#\\\\#/#g; s#^\.\./\.\./\.\./#/proj/#; s#^\.\./\.\./Unit#/proj/tests/Unit#"; }
+UNITS=$(grep -o "OtherUnitFiles Value=\"[^\"]*\"" $LPI | sed "s/.*Value=\"//; s/\"\$//" | conv | sed "s#^#-Fu#" | tr "\n" " ")
+INCS=$(grep -o "IncludeFiles Value=\"[^\"]*\"" $LPI | sed "s/.*Value=\"//; s/\"\$//" | conv | sed "s#^#-Fi#" | tr "\n" " ")
+LAZ=/usr/lib/lazarus/2.2.6
+cd /proj/tests/Integration/AcbrSim
+fpc -Mdelphi -Sh $UNITS $INCS \
+    -Fu$LAZ/lcl/units/x86_64-linux/nogui -Fu$LAZ/lcl/units/x86_64-linux \
+    -Fu$LAZ/components/lazutils/lib/x86_64-linux -dLCL -dLCLnogui \
+    -FU/out -FE/out -oAcbrSimTests AcbrSimTests.lpr 2>&1 | grep -E "Fatal|Error:|lines compiled"
+
+cp -r /proj/tests/Integration/AcbrSim/cert-teste /proj/tests/Integration/AcbrSim/Schemas /out/
+ln -sf /proj/vendor /vendor    # os testes de evento acham os XSDs em ../../../vendor a partir do executavel
+if [ "$SEM_LINK" = "0" ]; then
+  ln -sf /usr/lib/x86_64-linux-gnu/libxml2.so.2 /usr/lib/x86_64-linux-gnu/libxml2.so
+else
+  echo "(sem o link libxml2.so -- o ACBr nao vai achar a libxml2)"
+fi
+cd /out
+timeout 300 ./AcbrSimTests --all --format=plain > /out/resultado.txt 2>&1; RCI=$?
+echo "saida da integracao=$RCI (0 = tudo passou; 124 = estourou o tempo)"
+grep -E "Number of|Time:" /out/resultado.txt | head -6 || true
+grep -A2 "Message:" /out/resultado.txt | head -4 | cut -c1-400 || true
+# codigo de saida do script = falha se QUALQUER suite falhou
+if [ "$RCP" -ne 0 ] || [ "$RCI" -ne 0 ]; then exit 1; fi
+exit 0
+'

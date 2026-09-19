@@ -28,6 +28,7 @@ uses
   DFe.Ambiente.ACBr,
   DFe.AcbrSimPastas,
   DFe.AcbrSimFixo,
+  OpenSSLExt,
   DFe.TestDoubles;
 
 type
@@ -70,6 +71,7 @@ type
     [Test] procedure SemSchemas_Consultar_LevantaAmbienteIndisponivelSemChamarATransmissao;
     [Test] procedure AmbienteConsertado_ProximaChamadaFuncionaSemReiniciar;
     [Test] procedure VerificacaoDeAmbiente_DestaMaquina_Distribuicao_EstaCompleta;
+    [Test] procedure VerificacaoDeAmbiente_OpenSSL3_DeixaOProviderPadraoAtivo;
     [Test] procedure VerificacaoDeAmbiente_PastaInexistenteOuVazia_Reprova;
     [Test] procedure VerificacaoDeAmbiente_UmXsdBastaParaDistribuicaoMasNaoParaManifestacao;
   end;
@@ -573,6 +575,20 @@ begin
   R := VerificarAmbienteACBr(DiretorioBase + 'Schemas', [uaDistribuicao]);
   Assert.IsTrue(AmbienteCompleto(R), 'ambiente da distribuicao deveria estar completo:' + sLineBreak + FormatarRelatorio(R));
   Assert.IsTrue(Pos('OpenSSL', FormatarRelatorio(R)) > 0, 'o relatorio cita o OpenSSL carregado');
+end;
+
+{ OpenSSL 3.0.x no Linux nao ativa o provider padrao sozinho e todo PKCS12
+  falha ("unsupported"); o verificador o ativa. So' faz sentido com OpenSSL 3. }
+procedure TDFeAcbrSimTests.VerificacaoDeAmbiente_OpenSSL3_DeixaOProviderPadraoAtivo;
+var
+  R: TDFeRelatorioAmbiente;
+begin
+  R := VerificarAmbienteACBr(DiretorioBase + 'Schemas', [uaDistribuicao]);
+  Assert.IsTrue(AmbienteCompleto(R), 'ambiente completo:' + sLineBreak + FormatarRelatorio(R));
+  if OpenSSLVersionNum >= $30000000 then
+    Assert.AreEqual(1, OSSL_PROVIDER_available(nil, 'default'))
+  else
+    Assert.IsTrue(True, 'OpenSSL anterior a 3.0: nao ha providers');
 end;
 
 procedure TDFeAcbrSimTests.VerificacaoDeAmbiente_PastaInexistenteOuVazia_Reprova;

@@ -1,0 +1,20 @@
+# Imagem para compilar e testar o broker em Linux x86_64 (Debian 12 bookworm).
+# Autocontida: nao depende de nenhuma imagem local. Ver docs/linux.md.
+#
+#   docker build -f tools/docker/Dockerfile.linux-teste -t dfe-linux-teste tools/docker
+#
+# - fpc: compilador FPC 3.2.2 do Debian (mesma versao do Windows)
+# - lcl-nogui-2.2 + lcl-units-2.2: LCL com o backend SEM interface grafica --
+#   o ACBr arrasta a LCL transitivamente (ver CLAUDE.md, gotcha do LCL) e um
+#   host headless nao pode depender de gtk/qt. lcl-units-2.2 traz o LazUtils
+#   (e, por dependencia do Debian, bibliotecas gtk2 que NAO sao usadas: o
+#   programa e' compilado com -dLCLnogui e usa o widgetset "nogui")
+# - libssl3, libxml2: o RUNTIME que o ACBr carrega. DE PROPOSITO sem
+#   libxml2-dev: o ACBr procura o nome "libxml2.so" (o link do pacote -dev),
+#   que o runtime nao cria -- e' isso que os testes exercitam.
+FROM debian:bookworm-slim
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      fpc lcl-nogui-2.2 lcl-units-2.2 binutils libssl3 libxml2 ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+WORKDIR /proj

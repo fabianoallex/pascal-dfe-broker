@@ -2,7 +2,7 @@
 
 O broker depende de coisas que **não estão no binário**: bibliotecas nativas e arquivos XSD. Faltar qualquer uma não aparece na compilação. Este documento diz o que é necessário, como obter, e como verificar — antes de a falta virar um erro enganoso em produção.
 
-> Estado (2026-09-18): verificado em **Windows 11, FPC Win64 e Delphi Win64**. **Linux e Delphi Win32 não foram testados** — o que consta para eles vem da leitura do fonte do ACBr e está marcado.
+> Estado (2026-09-18): verificado em **Windows 11 (FPC Win64 e Delphi Win64)** e **Linux x86_64 (Debian 12, FPC, em Docker — ver `docs/linux.md`)**. **Delphi Win32 e Delphi para Linux não foram testados** — o que consta para eles vem da leitura do fonte do ACBr e está marcado.
 
 ## O que é necessário
 
@@ -18,8 +18,8 @@ O broker depende de coisas que **não estão no binário**: bibliotecas nativas 
 
 Por **nome fixo**, pelo mecanismo do sistema operacional (não por caminho):
 
-- **OpenSSL, Windows 64 bits**: `libssl-3-x64.dll` / `libcrypto-3-x64.dll` (ou as `-1_1-x64`); **32 bits**: `libssl-3.dll` / `libcrypto-3.dll` (ou `-1_1`); nomes antigos (`ssleay32`/`libeay32`) também são tentados. **Linux**: `libssl.so`, `libssl.so.3`, `libssl.so.1.1`… e `libcrypto.so.3`… *(lido do fonte, `OpenSSLExt.pas`; não testado em Linux)*.
-- **libxml2**: Windows `libxml2.dll`; Linux **`libxml2.so`** — o link *sem versão*, que no Debian/Ubuntu só o pacote `-dev` cria (o pacote de runtime traz `libxml2.so.2`). *(`ACBrLibXml2Ext.pas`; não testado em Linux.)*
+- **OpenSSL, Windows 64 bits**: `libssl-3-x64.dll` / `libcrypto-3-x64.dll` (ou as `-1_1-x64`); **32 bits**: `libssl-3.dll` / `libcrypto-3.dll` (ou `-1_1`); nomes antigos (`ssleay32`/`libeay32`) também são tentados. **Linux**: `libssl.so`, `libssl.so.3`, `libssl.so.1.1`… e `libcrypto.so.3`… *(lido do fonte, `OpenSSLExt.pas`; no Linux, `libssl.so.3`/`libcrypto.so.3` do pacote `libssl3` foram achados em execução)*.
+- **libxml2**: Windows `libxml2.dll`; Linux **`libxml2.so`** — o link *sem versão*, que no Debian/Ubuntu só o pacote `-dev` cria (o pacote de runtime traz `libxml2.so.2`). *(`ACBrLibXml2Ext.pas`; **confirmado em execução no Linux**: sem o link `libxml2.so` o client recusa com a mensagem de correção; com ele, os testes passam.)*
 - **Arquitetura**: as DLLs precisam ter os **mesmos bits do executável**. Um executável de 64 bits com DLLs de 32 (ou o contrário) falha ao carregar.
 - **Onde procurar (Windows)**: primeiro a **pasta do executável**, depois o `PATH`. **Recomendado: copie as DLLs para a pasta do executável** do broker — assim o resultado não depende do `PATH` do usuário/serviço que o inicia. `libssl` e `libcrypto` são procurados **separadamente**: podem vir de pastas diferentes (e de versões diferentes!) se estiverem em várias entradas do `PATH`; o verificador mostra o caminho de cada uma.
 
@@ -29,7 +29,7 @@ Por **nome fixo**, pelo mecanismo do sistema operacional (não por caminho):
 
 - **OpenSSL 3 (Windows x64)**: os binários `libcrypto-3-x64.dll` e `libssl-3-x64.dll` do **Git for Windows** (`mingw64\bin`, 3.2.4) e do **PostgreSQL 18** (3.5.4) funcionaram. O OpenSSL 3 é Apache-2.0.
 - **libxml2 (Windows x64)**: o `libxml2.dll` do **PostgreSQL 18** (`bin`) funcionou; ele importa só `zlib1.dll` e o runtime do Visual C++ (`VCRUNTIME140`, UCRT), então copie o `zlib1.dll` junto. O projeto libxml2 (MIT) distribui código-fonte; binários para Windows vêm de terceiros (por exemplo vcpkg, conda-forge, ou embarcados por outros produtos como o PostgreSQL). **Não verificado** além do caso do PostgreSQL.
-- **Linux (Debian/Ubuntu)** *(não testado)*: `apt install libssl3 libxml2` e, para o nome que o ACBr procura, `apt install libxml2-dev` **ou** `ln -s libxml2.so.2 libxml2.so` na pasta das bibliotecas.
+- **Linux (Debian/Ubuntu)** *(testado no Debian 12)*: `apt install libssl3 libxml2` e, para o nome que o ACBr procura, `apt install libxml2-dev` **ou** `ln -s libxml2.so.2 libxml2.so` na pasta das bibliotecas. **OpenSSL 3.0.x** (Debian 12, Ubuntu 22.04): o broker ativa o *provider padrão* sozinho (ver abaixo).
 - **XSDs**: no repositório, `vendor/ACBr/Exemplos/ACBrDFe/Schemas/NFe` (depois de rodar `tools/init-acbr-submodule.sh`, que já inclui essa pasta, ~2 MB), ou o pacote de schemas do portal da NF-e. Copie para uma pasta e aponte `PathSchemas` (`TDFeCredencialCertificado.PathSchemas`); sem isso o ACBr usa `Schemas\` ao lado do executável.
   - **Só distribuição**: basta **um** `.xsd` (um arquivo vazio serviu nos testes; use os reais).
   - **Manifestação**: estes **11** arquivos (o fecho mínimo, conferido enviando os 4 tipos de manifestação; ver `DFE_XSDS_MANIFESTACAO`): `envEvento_v1.00.xsd`, `leiauteEvento_v1.00.xsd`, `envConfRecebto_v1.00.xsd`, `confRecebto_v1.00.xsd`, `leiauteConfRecebto_v1.00.xsd`, `e210200_v1.00.xsd`, `e210210_v1.00.xsd`, `e210220_v1.00.xsd`, `e210240_v1.00.xsd`, `tiposBasico_v1.03.xsd`, `xmldsig-core-schema_v1.01.xsd`.
@@ -57,6 +57,13 @@ Ambiente INCOMPLETO: 1 dependencia(s) obrigatoria(s) ausente(s).
 Código de saída: `0` completo, `1` falta algo obrigatório, `2` uso.
 
 **No código**: `DFe.Ambiente.ACBr.VerificarAmbienteACBr(PathSchemas, [uaDistribuicao, uaManifestacao])` devolve o relatório (`DFe.Ambiente` tem `AmbienteCompleto`, `FormatarRelatorio`). **O host real deve chamá-lo na inicialização, registrar o relatório e recusar subir** (ou subir avisando) se `AmbienteCompleto` for falso — os hosts ainda não existem (ver `CLAUDE.md`, "Próximos marcos").
+
+## Duas correções que o próprio broker faz (Linux)
+
+Ambas descobertas rodando no Linux (`docs/linux.md`, "O que o Linux exigiu"); estão em `DFe.Ambiente.ACBr` e são aplicadas pelo verificador e pelo client:
+
+- **Exceções de FPU mascaradas** (`PrepararParaBibliotecasNativas`, FPC): sem isso a inicialização da libxml2 derruba o processo com `EInvalidOp`. A máscara é **por thread**.
+- **Provider padrão do OpenSSL 3.0.x ativado** (`OSSL_PROVIDER_load(nil, 'default')`): sem isso, todo `.pfx` falha com "Erro ao ler informações do Certificado", mesmo válido.
 
 ## Como o broker reage a um ambiente incompleto
 

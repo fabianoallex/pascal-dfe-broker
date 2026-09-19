@@ -44,6 +44,18 @@ const
     'tiposBasico_v1.03.xsd',
     'xmldsig-core-schema_v1.01.xsd');
 
+{ MASCARA as excecoes de ponto flutuante da THREAD ATUAL (FPC; no Delphi e' no-op).
+  O FPC deixa habilitadas as excecoes de FPU (x87 e SSE) e as bibliotecas
+  nativas em C (libxml2, OpenSSL) fazem operacoes que as disparam -- no Linux
+  x86_64 a libxml2 derrubava a inicializacao com "EInvalidOp: Invalid floating
+  point operation" (achado em 2026-09-18 rodando os testes de integracao no
+  Docker). E' o mesmo que o Lazarus faz para o GTK. A mascara vale POR THREAD:
+  chame em toda thread que va usar o client/verificador (o client ja chama a
+  cada operacao; VerificarAmbienteACBr tambem). Efeito colateral aceito:
+  divisao por zero em ponto flutuante passa a dar Inf/NaN em vez de excecao --
+  nada neste projeto depende dessa excecao. }
+procedure PrepararParaBibliotecasNativas;
+
 { AUsos so' muda o que se exige dos XSDs: a manifestacao pede tambem os XSDs do
   evento. OpenSSL e libxml2 sao obrigatorios em qualquer uso.
 
@@ -56,12 +68,37 @@ function VerificarAmbienteACBr(const APathSchemas: string;
 implementation
 
 uses
+  {$IFDEF FPC}Math,{$ENDIF}
   OpenSSLExt,
   ACBrLibXml2Ext;
+
+procedure PrepararParaBibliotecasNativas;
+begin
+  {$IFDEF FPC}
+  SetExceptionMask(GetExceptionMask +
+    [exInvalidOp, exDenormalized, exZeroDivide, exOverflow, exUnderflow, exPrecision]);
+  {$ENDIF}
+end;
 
 function BitsDoExecutavel: string;
 begin
   Result := IntToStr(SizeOf(Pointer) * 8);
+end;
+
+{ OpenSSL 3.0.x (Debian 12, Ubuntu 22.04): neste processo o PROVIDER PADRAO nao
+  vem ativo -- OSSL_PROVIDER_available('default') = 0 -- e entao toda operacao
+  de PKCS12 falha: PKCS12_parse devolve 0 com "digital envelope routines::
+  unsupported / key gen error / mac generation error", e o ACBr reporta
+  "Erro ao ler informacoes do Certificado" para um .pfx PERFEITAMENTE valido
+  (o openssl da linha de comando le o mesmo arquivo). Achado em 2026-09-18
+  rodando a integracao no Linux (Docker); no Windows, com OpenSSL 3.2/3.5, o
+  provider ja vem ativo, por isso nunca apareceu. Carregar 'default'
+  explicitamente resolve (PKCS12_parse -> 1) e e' idempotente. }
+procedure GarantirProviderPadraoDoOpenSSL3;
+begin
+  if OpenSSLVersionNum >= $30000000 then
+    if OSSL_PROVIDER_available(nil, 'default') = 0 then
+      OSSL_PROVIDER_load(nil, 'default');
 end;
 
 procedure VerificarOpenSSL(var R: TDFeRelatorioAmbiente);
@@ -70,6 +107,7 @@ var
 begin
   if InitSSLInterface then
   begin
+    GarantirProviderPadraoDoOpenSSL3;
     LDetalhe := string(OpenSSLVersion(0));
     { libssl e libcrypto podem vir de PASTAS diferentes (a primeira de cada nome
       no PATH) -- versoes misturadas sao fonte de erro dificil; mostrar as duas. }
@@ -178,6 +216,7 @@ end;
 function VerificarAmbienteACBr(const APathSchemas: string;
   const AUsos: TDFeUsosAmbiente): TDFeRelatorioAmbiente;
 begin
+  PrepararParaBibliotecasNativas;
   Result.Itens := nil;
   VerificarOpenSSL(Result);
   VerificarLibXml2(Result);
