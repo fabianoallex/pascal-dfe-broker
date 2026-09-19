@@ -8,6 +8,8 @@ Ferramenta open source para consulta e distribuição de Documentos Fiscais Elet
 
 **Grupo de projeto Delphi na raiz: `PascalDfeBroker.groupproj`** (criado pelo usuário em 2026-09-18, mesmo papel do `AMQP.groupproj` do `pascal-amqp-faa`). **Todo novo projeto Delphi (`.dproj`) deve ser adicionado a esse grupo** — é o que permite compilar tudo de uma vez pela IDE nesta máquina. Tem `tests\Unit\DFe.UnitTests.dproj` (suíte de testes) e `tools\smoke\AcbrClientSmoke.dproj` (smoke test de compilação do adaptador ACBr real, ver decisão 15) e `tests\Integration\AcbrSim\delphi\AcbrSimDelphiTests.dproj` (integração ACBr×simulador em DUnitX, **Win64**, criado em 2026-09-18 e ainda não rodado); os hosts (`hosts\console\DFeBrokerConsole.dproj`, `hosts\servico\DFeBrokerServico.dproj`), o `AmqpBrokerDelphiTests` e o `DFe.UnitTests` já estão no grupo.
 
+**CI (2026-09-19): `.github/workflows/linux.yml`** roda no GitHub Actions (`ubuntu-latest`) o `tools/docker/testar-linux.sh` (pura 250, ACBr×simulador 44, AMQP 18, host + SIGTERM) e, em job separado, `tools/docker/testar-systemd.sh` (15 verificações); ~2 min cada, **verde**. Os submódulos entram sem `--recurse-submodules` (`git submodule update --init vendor/pascal-amqp-faa` + `tools/init-acbr-submodule.sh`). **O Delphi NÃO roda no CI** (só pela IDE). Achado: em runner de CI o contêiner (root) deixa arquivos que o usuário comum não apaga — os scripts agora limpam de dentro de um contêiner. Os `.sh` precisam do bit de execução no índice (`git update-index --chmod=+x`), porque o Windows não o guarda.
+
 **Como recompilar/rodar os testes:**
 - **FPC** (linha de comando funciona nesta máquina):
   ```

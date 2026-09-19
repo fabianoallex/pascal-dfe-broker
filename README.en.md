@@ -1,5 +1,7 @@
 # DFe Broker
 
+[![Linux (FPC)](https://github.com/fabianoallex/pascal-dfe-broker/actions/workflows/linux.yml/badge.svg)](https://github.com/fabianoallex/pascal-dfe-broker/actions/workflows/linux.yml)
+
 > ⚠️ **Status (September 2026): works end to end against a SEFAZ simulator, but has never been run against the real SEFAZ** — the author has no ICP-Brasil digital certificate. Tested on Delphi (Win32/Win64) and FPC (Windows and Linux/Docker); the console host starts and stops cleanly on both compilers. Do not use in production without validating with your own certificate (homologation first) and, if you can, [report what you find](https://github.com/fabianoallex/pascal-dfe-broker/issues). Design decisions are tracked in [`CLAUDE.md`](CLAUDE.md) and [`docs/architecture.md`](docs/architecture.md). Portuguese is the primary language for this project (see [`README.md`](README.md)); this file is a mirror for non-Portuguese-speaking contributors.
 
 Open source tool to query and distribute Brazilian electronic fiscal documents (NFe in v1; CTe, MDFe and other DFe types planned) through SEFAZ's **DFe Distribution** web service, publishing the received documents and events to user-configurable AMQP queues — with no external messaging infrastructure required to run it.

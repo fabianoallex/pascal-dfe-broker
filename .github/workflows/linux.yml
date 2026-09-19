@@ -30,11 +30,10 @@ jobs:
         run: tools/docker/testar-linux.sh
 
   testar-systemd:
-    # A unit de systemd em conteiner com systemd como PID 1. Precisa de --privileged
-    # e cgroup v2; se o runner nao suportar, este job falha sem derrubar o principal.
+    # A unit de systemd em conteiner com systemd como PID 1 (--privileged, cgroup v2);
+    # o ubuntu-latest do GitHub suporta (verificado em 2026-09-19).
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
