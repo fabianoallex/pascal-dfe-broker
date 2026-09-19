@@ -2,7 +2,7 @@
 
 Host do pascal-dfe-broker como Serviço Windows. **Delphi-only** (Win64) — um serviço é uma noção inerentemente Windows; em Lazarus/Windows use o host console (`hosts/console`). É o mesmo core do console (`TDFeAplicacao`): mesmo `dfe.ini`, mesmo comportamento; só muda o log (arquivo, sem console) e o ciclo de vida (Iniciar/Parar do SCM).
 
-> **Estado:** compila e roda como serviço **não foi verificado pelo autor** (ver `CLAUDE.md`, decisão 20). Teste primeiro com o console (`hosts/console`) usando o mesmo `dfe.ini`; só então instale o serviço.
+> **Estado (2026-09-19):** verificado em Windows 11 (Delphi Win64, instalado com `/install`, LocalSystem): sobe, escuta, para e reinicia limpo, e a falha de subida aparece no log e no Event Log. **Não verificado:** reinício automático (`sc failure`), parada com tick em andamento, conta `NT SERVICE\...` e, como em todo o projeto, **certificado real / SEFAZ real** (ver `CLAUDE.md`, decisão 20). Teste primeiro com o console (`hosts/console`) usando o mesmo `dfe.ini`; só então instale o serviço.
 
 ## Antes de instalar
 
