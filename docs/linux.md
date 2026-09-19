@@ -1,6 +1,6 @@
 # Linux
 
-Estado (2026-09-18): o core, o client ACBr real e o simulador da SEFAZ **compilam e passam todos os testes em Linux x86_64** (Debian 12), em contêiner Docker. **Não testado**: Delphi para Linux, outras distribuições/arquiteturas (ARM), execução como serviço (systemd) e — como no Windows — TLS/HTTP reais com a SEFAZ.
+Estado (2026-09-18): o core, o client ACBr real e o simulador da SEFAZ **compilam e passam todos os testes em Linux x86_64** (Debian 12), em contêiner Docker. **Não testado**: Delphi para Linux, outras distribuições/arquiteturas (ARM), systemd em máquina real (só em contêiner, ver abaixo) e — como no Windows — TLS/HTTP reais com a SEFAZ. Desde 2026-09-19 também há o host console e a unit de systemd (verificados em contêiner).
 
 ## Como rodar
 
@@ -39,4 +39,4 @@ Tudo abaixo passou despercebido no Windows e só apareceu rodando no Linux — u
 
 ## Limites
 
-O contêiner roda os testes como `root`, com `/proj` somente-leitura; nada aqui exercita permissões de arquivo, o cursor de NSU em disco com outro usuário ou o comportamento sob systemd. Os testes de FPU/thread cobrem só a thread principal.
+O contêiner roda os testes como `root`, com `/proj` somente-leitura; os testes de `testar-linux.sh` não exercitam permissões de arquivo nem o cursor de NSU em disco com outro usuário (o de `testar-systemd.sh` roda como o usuário `dfe`, mas num contêiner, não numa máquina real). Os testes de FPU/thread cobrem só a thread principal.
