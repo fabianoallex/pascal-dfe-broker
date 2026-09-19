@@ -85,9 +85,9 @@ type
     CStatLote: Integer;       // 128 = lote processado
     XMotivoLote: string;
     TemEvento: Boolean;       // False quando o proprio lote foi rejeitado/indisponivel
-    CStat: Integer;           // do evento: 135 registrado; demais = rejeicao
+    CStat: Integer;           // do evento: 135/136 registrado; demais = rejeicao
     XMotivo: string;
-    NProt: string;            // so' quando registrado
+    NProt: string;            // so' quando registrado (135/136)
     DhRegEvento: TDateTime;
   end;
 
@@ -117,7 +117,9 @@ type
     FUltimoNSURecebido: Int64;
     FTotalEventos: Integer;
     FEventosRegistrados: array of string; // 'chave|tpEvento|nSeq'
-    function ChaveConhecida(const ACnpjCpf, AChave: string): Boolean;
+    procedure LocalizarChave(const ACnpjAutor, AChave: string;
+      out AExiste, ADoAutor: Boolean);
+    function JaManifestouDeFormaFinal(const AChave: string): Boolean;
     function ObterConta(const ACnpjCpf, AUF: string): TDFeSimConta;
     function AgoraAtual: TDateTime;
     function ProximaFalha(out AFalha: TDFeFalhaSimulada): Boolean;
@@ -141,14 +143,26 @@ type
 
     function Consultar(const ACnpjCpf, AUF: string; const AUltimoNSU: Int64): TDFeRespostaSimulada;
 
-    { Manifestacao do destinatario (RecepcaoEvento do Ambiente Nacional).
-      Regras, na ordem: falha enfileirada; chave que este CNPJ nao ve nos
-      documentos publicados -> rejeicao 494; mesmo (chave, tpEvento,
-      nSeqEvento) ja registrado -> rejeicao 573; senao registra (135) e
-      atribui um protocolo. Os cStat 494 e 573 vem do Manual de Orientacao
-      do Contribuinte, que NAO tem copia em docs/referencias -- conferir
-      antes de tratar como definitivos. A assinatura/forma do XML NAO e'
-      julgada aqui (e' assunto do transporte: DFe.Simulador.Soap). }
+    { Manifestacao do destinatario (RecepcaoEvento do Ambiente Nacional),
+      conforme a NT 2012/002 v1.02 (docs/referencias/), secao 4.9.9 e regras
+      G07/G09 e H02/H06. Na ordem, depois de uma eventual falha enfileirada:
+      1. mesmo (chave, tpEvento, nSeqEvento) ja registrado -> 573;
+      2. NF-e que o SIMULADOR conhece, mas so' de OUTRO CNPJ -> 575 (autor
+         diverge do destinatario da NF-e);
+      3. nSeqEvento <> 1 -> 594;
+      4. Ciencia (210210) depois de uma manifestacao FINAL (confirmacao,
+         desconhecimento ou operacao nao realizada) da mesma chave -> 655;
+      5. senao registra e atribui protocolo: 135 (vinculado) se a NF-e existe,
+         **136 (registrado, mas nao vinculado) se ela NAO existe** -- NAO e'
+         rejeicao: a NT preve evento recebido antes da NF-e chegar.
+      "Existe" = a chave aparece num documento publicado em alguma conta.
+      NAO modelado (a NT preve, o simulador nao): 596 (prazo de 180 dias),
+      650/651 (NF-e cancelada/denegada), 577/578/579 (datas do evento), 574
+      (autor diverge do emitente), 595 (justificativa: e' violacao no
+      adaptador, pois o client nunca deveria omiti-la). O 494 ("Chave de
+      Acesso inexistente") consta da lista de codigos da NT mas SEM regra
+      associada a evento -- por isso NAO e' usado aqui. A assinatura/forma do
+      XML NAO e' julgada aqui (e' assunto do transporte: DFe.Simulador.Soap). }
     function ReceberEvento(const ACnpjDest, AChave, ATpEvento: string;
       const ANSeq: Integer): TDFeRespostaEventoSimulada;
 
@@ -371,21 +385,43 @@ begin
   Result := Length(FEventosRegistrados);
 end;
 
-function TDFeSimuladorSefaz.ChaveConhecida(const ACnpjCpf, AChave: string): Boolean;
+procedure TDFeSimuladorSefaz.LocalizarChave(const ACnpjAutor, AChave: string;
+  out AExiste, ADoAutor: Boolean);
 var
-  I, J: Integer;
-  LPrefixo: string;
+  I, J, LBarra: Integer;
+  LCnpjDaConta: string;
+begin
+  AExiste := False;
+  ADoAutor := False;
+  for I := 0 to High(FContas) do
+  begin
+    LBarra := Pos('/', FContas[I].Chave);
+    LCnpjDaConta := Copy(FContas[I].Chave, 1, LBarra - 1);
+    for J := 0 to High(FContas[I].Documentos) do
+      if Pos(AChave, FContas[I].Documentos[J].Xml) > 0 then
+      begin
+        AExiste := True;
+        if LCnpjDaConta = ACnpjAutor then
+          ADoAutor := True;
+        Break;
+      end;
+  end;
+end;
+
+function TDFeSimuladorSefaz.JaManifestouDeFormaFinal(const AChave: string): Boolean;
+var
+  I: Integer;
 begin
   Result := False;
-  LPrefixo := ACnpjCpf + '/';
-  for I := 0 to High(FContas) do
-    if Copy(FContas[I].Chave, 1, Length(LPrefixo)) = LPrefixo then
-      for J := 0 to High(FContas[I].Documentos) do
-        if Pos(AChave, FContas[I].Documentos[J].Xml) > 0 then
-        begin
-          Result := True;
-          Exit;
-        end;
+  for I := 0 to High(FEventosRegistrados) do
+    if (Pos(AChave + '|', FEventosRegistrados[I]) = 1) and
+       ((Pos('|210200|', FEventosRegistrados[I]) > 0) or
+        (Pos('|210220|', FEventosRegistrados[I]) > 0) or
+        (Pos('|210240|', FEventosRegistrados[I]) > 0)) then
+    begin
+      Result := True;
+      Exit;
+    end;
 end;
 
 function TDFeSimuladorSefaz.ReceberEvento(const ACnpjDest, AChave, ATpEvento: string;
@@ -394,7 +430,10 @@ var
   LFalha: TDFeFalhaSimulada;
   LId: string;
   I: Integer;
+  LAgora: TDateTime;
+  LExiste, LDoAutor: Boolean;
 
+  { Define o resultado do EVENTO (rejeicao ou, para 135/136, registro). }
   procedure Rejeitar(const ACStat: Integer; const AMotivo: string);
   begin
     Result.CStat := ACStat;
@@ -447,41 +486,61 @@ begin
       fsLoteEventoRejeitado:
         begin
           Result.CStatLote := 999;
-          Result.XMotivoLote := 'Rejeicao: lote de evento rejeitado (simulado)';
+          Result.XMotivoLote := 'Rejeicao: Erro nao catalogado (simulado)';
           Result.TemEvento := False;
           Exit;
         end;
       fsEventoRejeitado:
         begin
-          Rejeitar(999, 'Rejeicao: evento rejeitado (simulado)');
+          Rejeitar(999, 'Rejeicao: Erro nao catalogado (simulado)');
           Exit;
         end;
     else
       raise Exception.Create('Falha simulada so'' vale para Consultar, nao para ReceberEvento');
     end;
 
-  Result.DhRegEvento := AgoraAtual;
-
-  if not ChaveConhecida(ACnpjDest, AChave) then
-  begin
-    Rejeitar(494, 'Rejeicao: Chave de Acesso inexistente');
-    Result.DhRegEvento := 0;
-    Exit;
-  end;
-
+  LAgora := AgoraAtual;
   LId := AChave + '|' + ATpEvento + '|' + IntToStr(ANSeq);
+
+  // 1. G07 -- duplicidade (tpEvento + chNFe + nSeqEvento)
   for I := 0 to High(FEventosRegistrados) do
     if FEventosRegistrados[I] = LId then
     begin
-      Rejeitar(573, 'Rejeicao: Duplicidade de evento');
-      Result.DhRegEvento := 0;
+      Rejeitar(573, 'Rejeicao: Duplicidade de Evento');
       Exit;
     end;
 
+  // 2. G09 -- autor do evento diverge do destinatario, SE a NF-e existir
+  LocalizarChave(ACnpjDest, AChave, LExiste, LDoAutor);
+  if LExiste and not LDoAutor then
+  begin
+    Rejeitar(575, 'Rejeicao: O autor do evento diverge do destinatario da NF-e');
+    Exit;
+  end;
+
+  // 3. H02 -- nSeqEvento deve ser 1
+  if ANSeq <> 1 then
+  begin
+    Rejeitar(594, 'Rejeicao: O numero de sequencia do evento informado e maior que o permitido');
+    Exit;
+  end;
+
+  // 4. H06 -- ciencia depois da manifestacao final
+  if (ATpEvento = '210210') and JaManifestouDeFormaFinal(AChave) then
+  begin
+    Rejeitar(655, 'Rejeicao: Evento de Ciencia da Operacao informado apos a manifestacao final do destinatario');
+    Exit;
+  end;
+
+  // 5. registro: 135 vinculado / 136 registrado mas nao vinculado (NF-e inexistente)
   SetLength(FEventosRegistrados, Length(FEventosRegistrados) + 1);
   FEventosRegistrados[High(FEventosRegistrados)] := LId;
-  Rejeitar(135, 'Evento registrado e vinculado a NF-e');
+  if LExiste then
+    Rejeitar(135, 'Evento registrado e vinculado a NF-e')
+  else
+    Rejeitar(136, 'Evento registrado, mas nao vinculado a NF-e');
   Result.NProt := '891' + Format('%.12d', [Length(FEventosRegistrados)]);
+  Result.DhRegEvento := LAgora;
 end;
 
 end.

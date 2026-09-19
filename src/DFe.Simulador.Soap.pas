@@ -367,7 +367,7 @@ procedure TDFeSimuladorTransmissor.ConferirEvento(const AEnvelope, AURL,
   ASoapAction: string; out ACnpjDest, AChave, ATpEvento, ATpAmb, AIdLote: string;
   out ANSeq: Integer);
 var
-  LId, LSeq, LDesc, LSig, LUri, LOrgao, LEsperadoId, LSufixo: string;
+  LId, LSeq, LDesc, LSig, LUri, LOrgao, LEsperadoId, LSufixo, LXJust: string;
   LPosInfFim, LPosSig, LN, LPos: Integer;
 begin
   if Pos('NFeRecepcaoEvento4', AURL) = 0 then
@@ -443,9 +443,19 @@ begin
   if (LDesc <> '') and (LowerCase(ExtrairTag(AEnvelope, 'descEvento')) <> LDesc) then
     Violar('descEvento "' + ExtrairTag(AEnvelope, 'descEvento') + '" nao bate com tpEvento ' + ATpEvento);
 
-  // xJust: obrigatorio so' em Operacao nao Realizada (210240)
-  if (ATpEvento = '210240') and (ExtrairTag(AEnvelope, 'xJust') = '') then
-    Violar('210240 (Operacao nao Realizada) exige xJust');
+  // xJust (NT 2012/002, HP20): "deve ser informado SOMENTE no evento de Operacao
+  // nao Realizada" (210240), com 15 a 255 caracteres (o ACBr ja remove acentos,
+  // entao bytes = caracteres); nos demais tipos nao pode ir.
+  LXJust := ExtrairTag(AEnvelope, 'xJust');
+  if ATpEvento = '210240' then
+  begin
+    if LXJust = '' then
+      Violar('210240 (Operacao nao Realizada) exige xJust (rejeicao 595 na SEFAZ)')
+    else if (Length(LXJust) < 15) or (Length(LXJust) > 255) then
+      Violar('xJust deve ter de 15 a 255 caracteres, tem ' + IntToStr(Length(LXJust)));
+  end
+  else if LXJust <> '' then
+    Violar('xJust so'' pode ser informado em 210240 (Operacao nao Realizada), veio em ' + ATpEvento);
 
   // Id = "ID" + tpEvento + chNFe + nSeqEvento com 2 digitos
   LId := ExtrairAtributo(AEnvelope, 'infEvento', 'Id');
@@ -489,7 +499,7 @@ begin
   begin
     LNProt := '';
     LDh := '';
-    if AResposta.NProt <> '' then
+    if AResposta.NProt <> '' then // registrado (135/136)
     begin
       LNProt := '<nProt>' + AResposta.NProt + '</nProt>';
       LDh := '<dhRegEvento>' + DhRegFormatado(AResposta.DhRegEvento) + '</dhRegEvento>';

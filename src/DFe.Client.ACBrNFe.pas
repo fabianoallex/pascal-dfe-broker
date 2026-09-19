@@ -406,7 +406,11 @@ begin
     infEvento.dhEvento := Now;
     infEvento.tpEvento := TipoEventoACBr(AComando.TipoEvento);
     infEvento.nSeqEvento := 1;
-    if AComando.Justificativa <> '' then
+    { xJust so' existe em Operacao nao Realizada: a NT 2012/002 (HP20) manda
+      informa-lo SOMENTE nesse evento. O ACBr o enviaria tambem no
+      desconhecimento se estivesse preenchido. }
+    if (AComando.Justificativa <> '')
+      and (AComando.TipoEvento = DFE_EVENTO_MANIFESTACAO_OPERACAO_NAO_REALIZADA) then
       infEvento.detEvento.xJust := AComando.Justificativa;
   end;
 

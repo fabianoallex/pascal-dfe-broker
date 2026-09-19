@@ -25,10 +25,15 @@ type
     [TearDown] procedure TearDown;
 
     [Test] procedure ChaveVisivel_Registra135ComProtocoloEHorario;
-    [Test] procedure ChaveDesconhecida_Rejeita494SemProtocolo;
-    [Test] procedure ChaveDeOutroCnpj_Rejeita494;
+    [Test] procedure ChaveDesconhecida_Registra136SemVinculo;
+    [Test] procedure ChaveDeOutroCnpj_Rejeita575;
     [Test] procedure MesmoEvento_Rejeita573ComoDuplicidade;
-    [Test] procedure OutroTipoOuOutraSequencia_NaoEDuplicidade;
+    [Test] procedure OutroTipo_NaoEDuplicidade;
+    [Test] procedure SequenciaDiferenteDe1_Rejeita594;
+    [Test] procedure CienciaAposManifestacaoFinal_Rejeita655;
+    [Test] procedure ManifestacaoFinalAposCiencia_Registra;
+    [Test] procedure Regra655_SoAplicaAMesmaChave;
+    [Test] procedure Ordem_DuplicidadeAntesDeAutorEDeSequencia;
     [Test] procedure ProtocolosSaoSequenciaisEUnicos;
     [Test] procedure Falha_TransporteDevolveOTipo;
     [Test] procedure Falha_Indisponivel108e109_SemEvento;
@@ -62,10 +67,12 @@ type
     [Test] procedure ExtrairAtributo_LeAtributoDoPrimeiroElemento;
     [Test] procedure RequisicaoDoAcbr_NaoGeraViolacao;
     [Test] procedure Registrado_RespondeRetEnvEventoComProtocolo;
-    [Test] procedure ChaveDesconhecida_RespondeRejeicaoSemProtocolo;
+    [Test] procedure ChaveDesconhecida_RespondeRegistradoNaoVinculado136ComProtocolo;
     [Test] procedure LoteRejeitado_RespondeSemRetEvento;
     [Test] procedure Timeout_ErroHttp_CorpoIlegivel_TiposDeTransporte;
     [Test] procedure OperacaoNaoRealizada_ExigeXJust;
+    [Test] procedure XJust_EmTipoQueNaoAceita_EViolacao;
+    [Test] procedure XJust_TamanhoForaDe15a255_EViolacao;
     [Test] procedure Violacao_OrgaoDiferenteDe91;
     [Test] procedure Violacao_IdDoEventoIncoerente;
     [Test] procedure Violacao_SemAssinatura;
@@ -120,22 +127,31 @@ begin
   Assert.IsTrue(R.DhRegEvento = FRelogio.Agora);
 end;
 
-procedure TDFeSimuladorEventoNucleoTests.ChaveDesconhecida_Rejeita494SemProtocolo;
+{ NT 2012/002, 4.9.9: evento para NF-e que a SEFAZ ainda nao conhece NAO e'
+  rejeitado -- e' registrado com cStat 136 ("registrado, mas nao vinculado"). }
+procedure TDFeSimuladorEventoNucleoTests.ChaveDesconhecida_Registra136SemVinculo;
 var
   R: TDFeRespostaEventoSimulada;
 begin
   R := FSim.ReceberEvento(CNPJ_DEST, FChave, '210210', 1);
   Assert.AreEqual(128, R.CStatLote);
-  Assert.AreEqual(494, R.CStat);
-  Assert.AreEqual('', R.NProt);
-  Assert.AreEqual(0, FSim.EventosRegistrados);
+  Assert.IsTrue(R.TemEvento);
+  Assert.AreEqual(136, R.CStat);
+  Assert.AreEqual('891000000000001', R.NProt);
+  Assert.IsTrue(R.DhRegEvento = FRelogio.Agora);
+  Assert.AreEqual(1, FSim.EventosRegistrados);
 end;
 
-procedure TDFeSimuladorEventoNucleoTests.ChaveDeOutroCnpj_Rejeita494;
+{ G09: autor do evento diverge do destinatario da NF-e (que EXISTE): 575. }
+procedure TDFeSimuladorEventoNucleoTests.ChaveDeOutroCnpj_Rejeita575;
+var
+  R: TDFeRespostaEventoSimulada;
 begin
   PublicarNFeDoDestinatario;
-  // a NFe existe, mas e' visivel so' ao CNPJ_DEST
-  Assert.AreEqual(494, FSim.ReceberEvento('11444777000161', FChave, '210210', 1).CStat);
+  R := FSim.ReceberEvento('11444777000161', FChave, '210210', 1);
+  Assert.AreEqual(575, R.CStat);
+  Assert.AreEqual('', R.NProt);
+  Assert.AreEqual(0, FSim.EventosRegistrados);
 end;
 
 procedure TDFeSimuladorEventoNucleoTests.MesmoEvento_Rejeita573ComoDuplicidade;
@@ -146,13 +162,73 @@ begin
   Assert.AreEqual(1, FSim.EventosRegistrados);
 end;
 
-procedure TDFeSimuladorEventoNucleoTests.OutroTipoOuOutraSequencia_NaoEDuplicidade;
+procedure TDFeSimuladorEventoNucleoTests.OutroTipo_NaoEDuplicidade;
 begin
   PublicarNFeDoDestinatario;
   Assert.AreEqual(135, FSim.ReceberEvento(CNPJ_DEST, FChave, '210210', 1).CStat);
   Assert.AreEqual(135, FSim.ReceberEvento(CNPJ_DEST, FChave, '210200', 1).CStat);
-  Assert.AreEqual(135, FSim.ReceberEvento(CNPJ_DEST, FChave, '210210', 2).CStat);
-  Assert.AreEqual(3, FSim.EventosRegistrados);
+  Assert.AreEqual(2, FSim.EventosRegistrados);
+end;
+
+{ H02: nSeqEvento deve ser 1 (HP15 "informar 1"). }
+procedure TDFeSimuladorEventoNucleoTests.SequenciaDiferenteDe1_Rejeita594;
+begin
+  PublicarNFeDoDestinatario;
+  Assert.AreEqual(594, FSim.ReceberEvento(CNPJ_DEST, FChave, '210210', 2).CStat);
+  Assert.AreEqual(0, FSim.EventosRegistrados);
+end;
+
+{ H06: ciencia informada apos a manifestacao final (confirmacao, operacao nao
+  realizada ou desconhecimento). }
+procedure TDFeSimuladorEventoNucleoTests.CienciaAposManifestacaoFinal_Rejeita655;
+
+  { uma NF-e distinta por tipo final, para os casos nao se contaminarem }
+  procedure Verificar(const ATipoFinal: string; const ANumeroNota: Integer);
+  var
+    LChave: string;
+  begin
+    LChave := ChaveNFeSintetica(DFE_SIM_CNPJ_EMITENTE, ANumeroNota);
+    FSim.PublicarDocumento(CNPJ_DEST, 'RS', DFE_SIM_SCHEMA_RESNFE, XmlResNFe(LChave));
+    Assert.AreEqual(135, FSim.ReceberEvento(CNPJ_DEST, LChave, ATipoFinal, 1).CStat);
+    Assert.AreEqual(655, FSim.ReceberEvento(CNPJ_DEST, LChave, '210210', 1).CStat);
+  end;
+
+begin
+  Verificar('210200', 11); // confirmacao
+  Verificar('210220', 12); // desconhecimento
+  Verificar('210240', 13); // operacao nao realizada
+end;
+
+procedure TDFeSimuladorEventoNucleoTests.ManifestacaoFinalAposCiencia_Registra;
+begin
+  PublicarNFeDoDestinatario;
+  Assert.AreEqual(135, FSim.ReceberEvento(CNPJ_DEST, FChave, '210210', 1).CStat);
+  Assert.AreEqual(135, FSim.ReceberEvento(CNPJ_DEST, FChave, '210200', 1).CStat);
+end;
+
+procedure TDFeSimuladorEventoNucleoTests.Regra655_SoAplicaAMesmaChave;
+var
+  LOutraChave: string;
+begin
+  LOutraChave := ChaveNFeSintetica(DFE_SIM_CNPJ_EMITENTE, 2);
+  PublicarNFeDoDestinatario;
+  FSim.PublicarDocumento(CNPJ_DEST, 'RS', DFE_SIM_SCHEMA_RESNFE, XmlResNFe(LOutraChave));
+  Assert.AreEqual(135, FSim.ReceberEvento(CNPJ_DEST, FChave, '210200', 1).CStat);
+  Assert.AreEqual(135, FSim.ReceberEvento(CNPJ_DEST, LOutraChave, '210210', 1).CStat);
+end;
+
+{ Ordem das regras (NT: G07 antes de G09, antes das H): a duplicidade vem
+  primeiro. }
+procedure TDFeSimuladorEventoNucleoTests.Ordem_DuplicidadeAntesDeAutorEDeSequencia;
+begin
+  PublicarNFeDoDestinatario;
+  Assert.AreEqual(135, FSim.ReceberEvento(CNPJ_DEST, FChave, '210200', 1).CStat);
+  Assert.AreEqual(573, FSim.ReceberEvento(CNPJ_DEST, FChave, '210200', 1).CStat);
+  // outro autor com o MESMO (chave, tpEvento, nSeq): tambem e' duplicidade e
+  // vem ANTES da regra do autor (G07 antes de G09), entao 573 e nao 575
+  Assert.AreEqual(573, FSim.ReceberEvento('11444777000161', FChave, '210200', 1).CStat);
+  // ja um evento NOVO de outro autor cai na G09: 575
+  Assert.AreEqual(575, FSim.ReceberEvento('11444777000161', FChave, '210220', 1).CStat);
 end;
 
 procedure TDFeSimuladorEventoNucleoTests.ProtocolosSaoSequenciaisEUnicos;
@@ -363,15 +439,15 @@ begin
   Assert.IsTrue(Pos('<CNPJDest>' + CNPJ_DEST + '</CNPJDest>', R.Texto) > 0);
 end;
 
-procedure TDFeSimuladorEventoSoapTests.ChaveDesconhecida_RespondeRejeicaoSemProtocolo;
+procedure TDFeSimuladorEventoSoapTests.ChaveDesconhecida_RespondeRegistradoNaoVinculado136ComProtocolo;
 var
   R: TDFeRespostaTransmissao;
 begin
-  R := Transmitir(Requisicao); // nada publicado
+  R := Transmitir(Requisicao); // nada publicado: NT 4.9.9, registrado mas nao vinculado
   Assert.IsTrue(Pos('<cStat>128</cStat>', R.Texto) > 0);
-  Assert.IsTrue(Pos('<cStat>494</cStat>', R.Texto) > 0);
-  Assert.IsTrue(Pos('<nProt>', R.Texto) = 0);
-  Assert.IsTrue(Pos('<dhRegEvento>', R.Texto) = 0);
+  Assert.IsTrue(Pos('<cStat>136</cStat>', R.Texto) > 0);
+  Assert.IsTrue(Pos('<nProt>891000000000001</nProt>', R.Texto) > 0);
+  Assert.IsTrue(Pos('<dhRegEvento>', R.Texto) > 0);
 end;
 
 procedure TDFeSimuladorEventoSoapTests.LoteRejeitado_RespondeSemRetEvento;
@@ -409,6 +485,20 @@ begin
   Transmitir(Requisicao('210240', 'Operacao nao Realizada', '91', 2, True, 'mercadoria nao foi entregue no prazo'));
   // a segunda requisicao (com xJust) nao acrescenta violacao de xJust
   Assert.AreEqual(1, FTransmissor.QuantidadeViolacoes);
+end;
+
+procedure TDFeSimuladorEventoSoapTests.XJust_EmTipoQueNaoAceita_EViolacao;
+begin
+  // NT 2012/002, HP20: xJust "deve ser informado somente no evento de Operacao nao Realizada"
+  Transmitir(Requisicao('210220', 'Desconhecimento da Operacao', '91', 1, True,
+    'Desconhecemos esta operacao comercial'));
+  Assert.IsTrue(Pos('so'' pode ser informado em 210240', FTransmissor.TodasViolacoes) > 0);
+end;
+
+procedure TDFeSimuladorEventoSoapTests.XJust_TamanhoForaDe15a255_EViolacao;
+begin
+  Transmitir(Requisicao('210240', 'Operacao nao Realizada', '91', 1, True, 'curto'));
+  Assert.IsTrue(Pos('15 a 255', FTransmissor.TodasViolacoes) > 0);
 end;
 
 procedure TDFeSimuladorEventoSoapTests.Violacao_OrgaoDiferenteDe91;

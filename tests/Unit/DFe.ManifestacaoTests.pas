@@ -28,7 +28,8 @@ type
     [Test] procedure InterpretarComando_SemAlias_Levanta;
     [Test] procedure InterpretarComando_SemChaveAcesso_Levanta;
     [Test] procedure InterpretarComando_SemTipoEvento_Levanta;
-    [Test] procedure InterpretarComando_DesconhecimentoSemJustificativa_Levanta;
+    [Test] procedure InterpretarComando_DesconhecimentoSemJustificativa_NaoLevanta;
+    [Test] procedure InterpretarComando_JustificativaForaDeOperacaoNaoRealizada_EDescartada;
     [Test] procedure InterpretarComando_OperacaoNaoRealizadaSemJustificativa_Levanta;
     [Test] procedure InterpretarComando_ConfirmacaoSemJustificativa_NaoLevanta;
     [Test] procedure InterpretarComando_TipoEventoDesconhecido_Levanta;
@@ -140,14 +141,31 @@ begin
     Exception);
 end;
 
-procedure TDFeManifestacaoTests.InterpretarComando_DesconhecimentoSemJustificativa_Levanta;
+{ NT 2012/002, HP20/H01: xJust e' obrigatorio SO' na Operacao nao Realizada. }
+procedure TDFeManifestacaoTests.InterpretarComando_DesconhecimentoSemJustificativa_NaoLevanta;
+var
+  LComando: TDFeComandoManifestacao;
 begin
-  Assert.WillRaise(
-    procedure
-    begin
-      InterpretarComando(MontarPayload(['Alias=matriz', 'ChaveAcesso=' + CHAVE_TESTE, 'TipoEvento=desconhecimento']));
-    end,
-    Exception);
+  LComando := InterpretarComando(MontarPayload(['Alias=matriz', 'ChaveAcesso=' + CHAVE_TESTE, 'TipoEvento=desconhecimento']));
+  Assert.AreEqual('desconhecimento', LComando.TipoEvento);
+  Assert.AreEqual('', LComando.Justificativa);
+end;
+
+{ A NT manda informar xJust SOMENTE na Operacao nao Realizada; nos outros tipos
+  ele e' descartado (versao anterior o exigia no desconhecimento: quem ja
+  mandava continua funcionando). }
+procedure TDFeManifestacaoTests.InterpretarComando_JustificativaForaDeOperacaoNaoRealizada_EDescartada;
+var
+  LComando: TDFeComandoManifestacao;
+begin
+  LComando := InterpretarComando(MontarPayload(['Alias=matriz', 'ChaveAcesso=' + CHAVE_TESTE,
+    'TipoEvento=desconhecimento', 'Justificativa=Desconhecemos esta operacao comercial']));
+  Assert.AreEqual('desconhecimento', LComando.TipoEvento);
+  Assert.AreEqual('', LComando.Justificativa);
+
+  LComando := InterpretarComando(MontarPayload(['Alias=matriz', 'ChaveAcesso=' + CHAVE_TESTE,
+    'TipoEvento=ciencia', 'Justificativa=texto que nao cabe aqui']));
+  Assert.AreEqual('', LComando.Justificativa);
 end;
 
 procedure TDFeManifestacaoTests.InterpretarComando_OperacaoNaoRealizadaSemJustificativa_Levanta;
@@ -194,7 +212,7 @@ begin
   Assert.WillRaise(
     procedure
     begin
-      InterpretarComando(MontarPayload(['Alias=matriz', 'ChaveAcesso=' + CHAVE_TESTE, 'TipoEvento=desconhecimento', 'Justificativa=curta demais']));
+      InterpretarComando(MontarPayload(['Alias=matriz', 'ChaveAcesso=' + CHAVE_TESTE, 'TipoEvento=operacaonaorealizada', 'Justificativa=curta demais']));
     end,
     Exception);
 end;

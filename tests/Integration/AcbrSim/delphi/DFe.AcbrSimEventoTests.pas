@@ -62,7 +62,9 @@ type
     [Test] procedure OsQuatroTiposDeManifestacao_RegistramSemViolacoes;
     [Test] procedure Assinatura_ECriptograficamenteValida_ETampering_Invalida;
     [Test] procedure Duplicidade_ViraManifestacaoRejeitada573;
-    [Test] procedure ChaveInexistente_ViraManifestacaoRejeitada494;
+    [Test] procedure ChaveInexistente_RegistraNaoVinculado136;
+    [Test] procedure AutorDivergenteDoDestinatario_ViraManifestacaoRejeitada575;
+    [Test] procedure CienciaAposConfirmacao_ViraManifestacaoRejeitada655;
     [Test] procedure EventoRejeitadoForcado_ViraManifestacaoRejeitada;
     [Test] procedure LoteRejeitado_ViraManifestacaoRejeitadaComRetEnvEvento;
     [Test] procedure ServicoIndisponivel108_ViraManifestacaoRejeitada;
@@ -244,22 +246,29 @@ begin
   AssertSemViolacoes;
 end;
 
+{ Ordem: a ciencia vem PRIMEIRO -- depois de uma manifestacao final a NT
+  rejeita a ciencia (H06, 655; ver CienciaAposConfirmacao_...). Desconhecimento
+  e' enviado COM justificativa de proposito: o client deve DESCARTA-LA (a NT,
+  HP20, so' admite xJust em Operacao nao Realizada) e o adaptador acusaria
+  violacao se ela fosse no envelope. }
 procedure TDFeAcbrSimEventoTests.OsQuatroTiposDeManifestacao_RegistramSemViolacoes;
 var
   LManif: IDFeManifestador;
 begin
   PublicarNFeDoDestinatario;
   LManif := Manifestador(NovoClient);
-  Assert.AreEqual(DFE_EVENTO_MANIFESTACAO_CONFIRMACAO,
-    LManif.EnviarEvento(Certificado, Comando(DFE_EVENTO_MANIFESTACAO_CONFIRMACAO)).TipoEvento);
   Assert.AreEqual(DFE_EVENTO_MANIFESTACAO_CIENCIA,
     LManif.EnviarEvento(Certificado, Comando(DFE_EVENTO_MANIFESTACAO_CIENCIA)).TipoEvento);
+  Assert.AreEqual(DFE_EVENTO_MANIFESTACAO_CONFIRMACAO,
+    LManif.EnviarEvento(Certificado, Comando(DFE_EVENTO_MANIFESTACAO_CONFIRMACAO)).TipoEvento);
   Assert.AreEqual(DFE_EVENTO_MANIFESTACAO_DESCONHECIMENTO,
     LManif.EnviarEvento(Certificado, Comando(DFE_EVENTO_MANIFESTACAO_DESCONHECIMENTO,
       'Desconhecemos esta operacao comercial')).TipoEvento);
+  Assert.IsTrue(Pos('<xJust>', FTransmissor.UltimoEnvelope) = 0, 'desconhecimento nao leva xJust');
   Assert.AreEqual(DFE_EVENTO_MANIFESTACAO_OPERACAO_NAO_REALIZADA,
     LManif.EnviarEvento(Certificado, Comando(DFE_EVENTO_MANIFESTACAO_OPERACAO_NAO_REALIZADA,
       'Mercadoria nao foi entregue no prazo')).TipoEvento);
+  Assert.IsTrue(Pos('<xJust>', FTransmissor.UltimoEnvelope) > 0, 'operacao nao realizada leva xJust');
   Assert.AreEqual(4, FSim.EventosRegistrados);
   Assert.AreEqual(4, FTransmissor.Requisicoes);
   AssertSemViolacoes;
@@ -301,14 +310,48 @@ begin
   Assert.AreEqual(1, FSim.EventosRegistrados);
 end;
 
-procedure TDFeAcbrSimEventoTests.ChaveInexistente_ViraManifestacaoRejeitada494;
+{ NT 2012/002, 4.9.9: evento para NF-e que a SEFAZ ainda nao conhece e'
+  REGISTRADO (136, "registrado, mas nao vinculado"), nao rejeitado -- entao sai
+  com o TipoEvento do comando e o procEventoNFe. (A versao anterior do
+  simulador rejeitava com 494, sem base na NT.) }
+procedure TDFeAcbrSimEventoTests.ChaveInexistente_RegistraNaoVinculado136;
 var
   LEv: TDFeEventoNormalizado;
 begin
   LEv := Manifestador(NovoClient).EnviarEvento(Certificado, Comando(DFE_EVENTO_MANIFESTACAO_CIENCIA));
+  Assert.AreEqual(DFE_EVENTO_MANIFESTACAO_CIENCIA, LEv.TipoEvento);
+  Assert.IsTrue(Pos('<cStat>136</cStat>', LEv.XmlPayload) > 0, 'payload traz o cStat 136');
+  Assert.IsTrue(Pos('<procEventoNFe', LEv.XmlPayload) > 0, 'payload e o procEventoNFe');
+  Assert.AreEqual(1, FSim.EventosRegistrados);
+  AssertSemViolacoes;
+end;
+
+{ G09: a NF-e existe mas e' de OUTRO destinatario -> 575. }
+procedure TDFeAcbrSimEventoTests.AutorDivergenteDoDestinatario_ViraManifestacaoRejeitada575;
+var
+  LEv: TDFeEventoNormalizado;
+begin
+  FSim.PublicarDocumento('11444777000161', 'RS', DFE_SIM_SCHEMA_RESNFE, XmlResNFe(FChave));
+  LEv := Manifestador(NovoClient).EnviarEvento(Certificado, Comando(DFE_EVENTO_MANIFESTACAO_CIENCIA));
   Assert.AreEqual(DFE_EVENTO_MANIFESTACAO_REJEITADA, LEv.TipoEvento);
-  Assert.IsTrue(Pos('<cStat>494</cStat>', LEv.XmlPayload) > 0);
+  Assert.IsTrue(Pos('<cStat>575</cStat>', LEv.XmlPayload) > 0);
   Assert.AreEqual(0, FSim.EventosRegistrados);
+end;
+
+{ H06: ciencia depois da manifestacao final do destinatario -> 655. }
+procedure TDFeAcbrSimEventoTests.CienciaAposConfirmacao_ViraManifestacaoRejeitada655;
+var
+  LManif: IDFeManifestador;
+  LEv: TDFeEventoNormalizado;
+begin
+  PublicarNFeDoDestinatario;
+  LManif := Manifestador(NovoClient);
+  Assert.AreEqual(DFE_EVENTO_MANIFESTACAO_CONFIRMACAO,
+    LManif.EnviarEvento(Certificado, Comando(DFE_EVENTO_MANIFESTACAO_CONFIRMACAO)).TipoEvento);
+  LEv := LManif.EnviarEvento(Certificado, Comando(DFE_EVENTO_MANIFESTACAO_CIENCIA));
+  Assert.AreEqual(DFE_EVENTO_MANIFESTACAO_REJEITADA, LEv.TipoEvento);
+  Assert.IsTrue(Pos('<cStat>655</cStat>', LEv.XmlPayload) > 0);
+  Assert.AreEqual(1, FSim.EventosRegistrados);
 end;
 
 procedure TDFeAcbrSimEventoTests.EventoRejeitadoForcado_ViraManifestacaoRejeitada;

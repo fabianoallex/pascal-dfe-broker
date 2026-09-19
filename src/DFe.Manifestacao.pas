@@ -51,8 +51,11 @@ const
   { Tipos de evento de manifestacao conhecidos (NFe) -- mesmo vocabulario
     de DFe.Provider.NFe.NomeTipoEventoNFe, para o resultado de uma
     manifestacao sair na mesma routing-key do evento equivalente vindo da
-    distribuicao. Desconhecimento e Operacao nao Realizada exigem
-    Justificativa (xJust, 15 a 255 caracteres -- ver ACBrNFe.EnvEvento). }
+    distribuicao. SO' a Operacao nao Realizada tem Justificativa (xJust, 15 a
+    255 caracteres): a NT 2012/002 v1.02, campo HP20 e regra H01 (rejeicao
+    595), manda informa-la SOMENTE nesse evento -- nao no desconhecimento.
+    Corrigido em 2026-09-18 ao conferir a NT (antes exigia tambem no
+    desconhecimento). }
   DFE_EVENTO_MANIFESTACAO_CONFIRMACAO = 'confirmacao';
   DFE_EVENTO_MANIFESTACAO_CIENCIA = 'ciencia';
   DFE_EVENTO_MANIFESTACAO_DESCONHECIMENTO = 'desconhecimento';
@@ -79,14 +82,17 @@ type
     Alias: string;          // qual certificado/unidade deve manifestar (ver TDFeOrquestrador.ObterUnidadePorAlias)
     ChaveAcesso: string;
     TipoEvento: string;     // 'confirmacao' | 'ciencia' | 'desconhecimento' | 'operacaonaorealizada'
-    Justificativa: string;  // obrigatorio para os dois tipos acima, ver DFE_EVENTO_MANIFESTACAO_*
+    Justificativa: string;  // so' operacaonaorealizada (obrigatoria); nos demais e' ignorada
   end;
 
 { Interpreta o corpo de uma mensagem de comando (formato chave=valor, uma
   por linha -- mesmo estilo do arquivo de config). Levanta excecao se
   faltar Alias, ChaveAcesso ou TipoEvento; se TipoEvento nao for um dos
-  quatro conhecidos; se ChaveAcesso nao tiver 44 digitos; ou se o TipoEvento
-  exigir Justificativa e ela vier vazia ou fora de 15..255 caracteres --
+  quatro conhecidos; se ChaveAcesso nao tiver 44 digitos; ou se for
+  operacaonaorealizada e a Justificativa vier vazia ou fora de 15..255
+  caracteres. Nos outros tres tipos a Justificativa, se vier, e' DESCARTADA
+  (a NT nao a aceita ali; descartar em vez de recusar mantem compativel quem
+  ja mandava, pois a versao anterior a exigia no desconhecimento) --
   falha alto e cedo, antes de tentar falar com a SEFAZ (que rejeitaria o
   evento, ou o ACBr levantaria uma excecao generica de validacao de
   schema, dificil de distinguir de falha de comunicacao). }
@@ -209,8 +215,9 @@ begin
     if not CharInSet(Result.ChaveAcesso[I], ['0'..'9']) then
       raise Exception.Create('Comando de manifestacao com "ChaveAcesso" fora do formato de 44 digitos');
 
-  if (Result.TipoEvento = DFE_EVENTO_MANIFESTACAO_DESCONHECIMENTO)
-    or (Result.TipoEvento = DFE_EVENTO_MANIFESTACAO_OPERACAO_NAO_REALIZADA) then
+  if Result.TipoEvento <> DFE_EVENTO_MANIFESTACAO_OPERACAO_NAO_REALIZADA then
+    Result.Justificativa := ''
+  else
   begin
     if Result.Justificativa = '' then
       raise Exception.CreateFmt('Comando de manifestacao "%s" exige "Justificativa"', [Result.TipoEvento]);
