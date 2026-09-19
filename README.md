@@ -2,7 +2,7 @@
 
 [![Linux (FPC)](https://github.com/fabianoallex/pascal-dfe-broker/actions/workflows/linux.yml/badge.svg)](https://github.com/fabianoallex/pascal-dfe-broker/actions/workflows/linux.yml)
 
-> ⚠️ **Estado (setembro/2026): funciona de ponta a ponta contra um simulador da SEFAZ, mas nunca foi executado contra a SEFAZ real** — o autor não tem certificado digital ICP-Brasil. Testado em Delphi (Win32/Win64) e FPC (Windows e Linux/Docker); o host console sobe e para limpo nos dois compiladores. Não use em produção sem validar com o seu certificado (em homologação primeiro) e, se puder, [conte o que encontrou](https://github.com/fabianoallex/pascal-dfe-broker/issues). Decisões de design ficam registradas em [`CLAUDE.md`](CLAUDE.md) e [`docs/architecture.md`](docs/architecture.md).
+> ⚠️ **Estado (setembro/2026): funciona de ponta a ponta contra um simulador da SEFAZ, mas nunca foi executado contra a SEFAZ real** — o autor não tem certificado digital ICP-Brasil. Testado em Delphi (Win32/Win64) e FPC (Windows e Linux/Docker); o host console sobe e para limpo nos dois compiladores. Não use em produção sem validar com o seu certificado (em homologação primeiro) e, se puder, [conte o que encontrou](https://github.com/fabianoallex/pascal-dfe-broker/issues/1). Decisões de design ficam registradas em [`CLAUDE.md`](CLAUDE.md) e [`docs/architecture.md`](docs/architecture.md).
 
 Ferramenta open source para consulta e distribuição de Documentos Fiscais Eletrônicos brasileiros (NFe na v1; CTe, MDFe e demais DFe planejados) via serviço de **Distribuição de DFe** da SEFAZ, publicando os documentos e eventos recebidos em filas AMQP configuráveis pelo usuário — sem exigir infraestrutura de mensageria externa para funcionar.
 
