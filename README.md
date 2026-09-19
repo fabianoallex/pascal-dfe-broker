@@ -52,6 +52,12 @@ git submodule update --init vendor/pascal-amqp-faa
 - **Ver funcionando sem certificado / consumir os documentos:** `tools/demo/DFeDemo` e os exemplos em Python em [`exemplos/consumidor/`](exemplos/consumidor/README.md).
 - **Testes:** ver "Como recompilar/rodar os testes" no [`CLAUDE.md`](CLAUDE.md); em Linux, `tools/docker/testar-linux.sh`.
 
+## Antes de usar com o certificado de uma empresa
+
+- **Outro sistema já consulta a Distribuição de DFe desse CNPJ?** (ERP, contador, outro serviço.) A NT 2014.002 (seção 3.11.4, p. 14) diz que aplicações diferentes consultando o **mesmo CNPJ** devem seguir a mesma sequência de NSU, senão a consulta vira **uso indevido** e o **CNPJ** (não o certificado) fica bloqueado por **1 hora** — para todos que consultam. O bloqueio é automático e temporário, mas pode derrubar o sistema de quem já usa. Combine antes; em dúvida, use **homologação** ou um CNPJ que ninguém consulta.
+- **Manifestação do destinatário é um ato fiscal**: registra evento na NF-e da empresa (ciência, confirmação, *desconhecimento*, *operação não realizada*). O padrão é `ManifestacaoAutomatica=false`; **não a use em produção sem o aval de quem responde pelo fiscal**.
+- O certificado é a identidade digital (e assinatura com valor legal) da empresa: tenha autorização para usá-lo, guarde o `.pfx` e a senha como segredo (`SenhaEnv`, nunca no repositório) e leia a política interna.
+
 ## Licença
 
 Este projeto é licenciado sob [MIT](LICENSE). Os componentes ACBr usados como dependência são licenciados sob **LGPLv3** — a integração é feita preservando a separação de licenciamento (o projeto não incorpora código-fonte ACBr sob a licença MIT deste repositório).

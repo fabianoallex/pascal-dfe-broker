@@ -52,6 +52,12 @@ git submodule update --init vendor/pascal-amqp-faa
 - **See it working without a certificate / consume the documents:** `tools/demo/DFeDemo` and the Python examples in [`exemplos/consumidor/`](exemplos/consumidor/README.md) (Portuguese).
 - **Tests:** see "Como recompilar/rodar os testes" in [`CLAUDE.md`](CLAUDE.md) (Portuguese); on Linux, `tools/docker/testar-linux.sh`.
 
+## Before using a company's certificate
+
+- **Does another system already query DFe Distribution for that CNPJ?** (ERP, accountant, another service.) Technical Note NT 2014.002 (section 3.11.4, p. 14) says different applications querying the **same CNPJ** must follow the same NSU sequence, otherwise the query counts as **misuse** and the **CNPJ** (not the certificate) is blocked for **1 hour** — for everyone querying it. The block is automatic and temporary, but it can take down a system somebody else relies on. Coordinate first; when in doubt, use **homologation** or a CNPJ nobody queries.
+- **Recipient manifestation is a fiscal act**: it records an event on the company's NF-e. The default is `ManifestacaoAutomatica=false`; **do not enable it in production without sign-off from whoever is accountable for tax matters**.
+- The certificate is the company's digital identity (and a legally binding signature): make sure you are authorised to use it, keep the `.pfx` and its password secret, and check internal policy.
+
 ## License
 
 This project is licensed under [MIT](LICENSE). The ACBr components used as a dependency are licensed under **LGPLv3** — the integration preserves that licensing separation (no ACBr source is incorporated under this repository's MIT license).
