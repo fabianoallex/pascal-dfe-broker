@@ -49,6 +49,7 @@ git submodule update --init vendor/pascal-amqp-faa
 - **FPC/Lazarus:** `lazbuild hosts/console/DFeBrokerConsole.lpi`
 - **Delphi:** open `PascalDfeBroker.groupproj` and build `DFeBrokerConsole` (Win64).
 - **Run:** `DFeBrokerConsole --config dfe.ini` (template in `hosts/console/dfe.exemplo.ini`); `--verificar-ambiente` only checks OpenSSL, libxml2 and XSDs ([`docs/dependencias-runtime.md`](docs/dependencias-runtime.md)).
+- **See it working without a certificate / consume the documents:** `tools/demo/DFeDemo` and the Python examples in [`exemplos/consumidor/`](exemplos/consumidor/README.md) (Portuguese).
 - **Tests:** see "Como recompilar/rodar os testes" in [`CLAUDE.md`](CLAUDE.md) (Portuguese); on Linux, `tools/docker/testar-linux.sh`.
 
 ## License

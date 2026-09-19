@@ -58,3 +58,6 @@ hosts/servico/logs/
 hosts/servico/broker/
 hosts/servico/cursores.dat
 hosts/console/logs/
+
+# saidas do demo
+tools/demo/*.exe
