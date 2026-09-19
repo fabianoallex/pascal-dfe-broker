@@ -26,6 +26,7 @@ uses
   DFe.Simulador.Soap in '..\..\src\DFe.Simulador.Soap.pas',
   DFe.XmlTexto in '..\..\src\DFe.XmlTexto.pas',
   DFe.Ambiente in '..\..\src\DFe.Ambiente.pas',
+  DFe.Fuso in '..\..\src\DFe.Fuso.pas',
   DFe.TestDoubles in 'DFe.TestDoubles.pas',
   DFe.RoutingKeyTests in 'DFe.RoutingKeyTests.pas',
   DFe.TypesTests in 'DFe.TypesTests.pas',
@@ -43,7 +44,8 @@ uses
   DFe.SimuladorSoapTests in 'DFe.SimuladorSoapTests.pas',
   DFe.SimuladorEventoTests in 'DFe.SimuladorEventoTests.pas',
   DFe.XmlTextoTests in 'DFe.XmlTextoTests.pas',
-  DFe.AmbienteTests in 'DFe.AmbienteTests.pas';
+  DFe.AmbienteTests in 'DFe.AmbienteTests.pas',
+  DFe.FusoTests in 'DFe.FusoTests.pas';
 
 var
   runner: ITestRunner;

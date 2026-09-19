@@ -36,6 +36,8 @@ uses
   DFe.Client.ACBrNFe,
   DFe.Ambiente,
   DFe.Ambiente.ACBr,
+  DFe.Fuso,
+  DFe.XmlTexto,
   DFe.AcbrSimPastas,
   DFe.TestDoubles;
 
@@ -76,7 +78,8 @@ type
     procedure ErroHttp500_ViraComunicacaoFalhou;
     procedure CorpoIlegivelComHttp200_ViraRespostaInvalida;
     procedure CertificadoVencido_ViraCertificadoInvalidoSemChamarATransmissao;
-    procedure JustificativaAcentuada_AcbrRemoveOsAcentosSilenciosamente;
+    procedure JustificativaAcentuada_PreservaOsAcentos_AssinaturaEXsdValidos;
+    procedure DhEvento_SaiComHoraDeBrasiliaEFusoMenos03;
     procedure FimAFim_CienciaAutomatica_PublicaDocumentoEEventoDeCiencia;
     procedure VerificacaoDeAmbiente_DestaMaquina_Manifestacao_EstaCompleta;
     procedure PastaMinimaDeXsds_BastaParaEnviarEvento;
@@ -463,28 +466,54 @@ begin
   AssertEquals(0, FTransmissor.Requisicoes);
 end;
 
-{ ACHADO (Fase 4): o ACBr REMOVE os acentos do texto livre do evento antes
-  de enviar (Geral.RetirarAcentos, padrao True) -- a justificativa 'nao' com
-  til chega a SEFAZ como 'nao'. Nao ha erro nem aviso. O XSD da SEFAZ ate'
-  aceita Latin-1 em xJust, mas o ACBr optou por nao arriscar encoding. Este
-  teste FIXA o comportamento real; se um dia o client passar a preservar os
-  acentos (decisao a tomar, ver docs/simulador-sefaz.md), ele deve mudar
-  junto. }
-procedure TDFeAcbrSimEventoTests.JustificativaAcentuada_AcbrRemoveOsAcentosSilenciosamente;
+{ ACHADO (Fase 4): por padrao o ACBr REMOVE os acentos do texto livre do
+  evento (Geral.RetirarAcentos = True) -- 'nao' com til chegava a SEFAZ como
+  'nao', sem erro nem aviso. DECISAO (2026-09-19): o client liga
+  RetirarAcentos := False, e a justificativa segue com os acentos. O XSD
+  (TMotivo) aceita U+0020..U+00FF; este teste prova, com o ACBr de verdade:
+  (1) o xJust chega inteiro, com acento; (2) a validacao contra o XSD passa
+  (o EnviarEvento nao levanta); (3) a assinatura ainda confere -- o acento
+  entra no digest, entao um encoding inconsistente a quebraria. }
+procedure TDFeAcbrSimEventoTests.JustificativaAcentuada_PreservaOsAcentos_AssinaturaEXsdValidos;
 var
-  LJust, LSemAcento: string;
+  LJust, LMsg: string;
+  LOk: Boolean;
   LEv: TDFeEventoNormalizado;
 begin
   LJust := JustificativaComTil;
-  LSemAcento := 'Mercadoria nao foi entregue no prazo combinado';
   PublicarNFeDoDestinatario;
   LEv := Manifestador(NovoClient).EnviarEvento(Certificado,
     Comando(DFE_EVENTO_MANIFESTACAO_OPERACAO_NAO_REALIZADA, LJust));
   AssertEquals(DFE_EVENTO_MANIFESTACAO_OPERACAO_NAO_REALIZADA, LEv.TipoEvento);
-  AssertEquals('xJust sai sem acentos (chegou: ' + HexDe(ExtrairTag(FTransmissor.UltimoEnvelope, 'xJust')) + ')',
-    LSemAcento, ExtrairTag(FTransmissor.UltimoEnvelope, 'xJust'));
-  AssertTrue('o texto original com acento NAO esta no envelope',
-    Pos(LJust, FTransmissor.UltimoEnvelope) = 0);
+  // TextoDoAcbr: no Delphi o envelope e' UTF-8 embutido em String; no FPC e' a identidade
+  AssertEquals('xJust com o acento (chegou: ' + HexDe(ExtrairTag(FTransmissor.UltimoEnvelope, 'xJust')) + ')',
+    LJust, TextoDoAcbr(ExtrairTag(FTransmissor.UltimoEnvelope, 'xJust')));
+  LOk := AssinaturaValida(FTransmissor.UltimoEnvelope, LMsg);
+  AssertTrue('assinatura confere com o acento no digest (' + LMsg + ')', LOk);
+  AssertSemViolacoes;
+end;
+
+{ ACHADO (2026-09-19, medido): no FPC 3.2.2 em Linux `Now` devolve UTC (ignora
+  TZ e /etc/localtime) e o ACBr escrevia dhEvento com "+00:00"; no Windows usa o
+  fuso do sistema. A NT 2012/002 (HP13) lista so' -02:00/-03:00/-04:00. O client
+  agora escreve a hora de Brasilia com -03:00, seja qual for o fuso do sistema
+  (DFe.Fuso). O teste compara o horario ESCRITO com o de Brasilia calculado a
+  partir de UTC -- vale em qualquer maquina. }
+procedure TDFeAcbrSimEventoTests.DhEvento_SaiComHoraDeBrasiliaEFusoMenos03;
+var
+  LDh, LSufixo: string;
+  LEscrito, LEsperado: TDateTime;
+begin
+  PublicarNFeDoDestinatario;
+  Manifestador(NovoClient).EnviarEvento(Certificado, Comando(DFE_EVENTO_MANIFESTACAO_CIENCIA));
+  LDh := ExtrairTag(FTransmissor.UltimoEnvelope, 'dhEvento');
+  LSufixo := Copy(LDh, Length(LDh) - 5, 6);
+  AssertEquals('dhEvento com sufixo -03:00 (chegou: ' + LDh + ')', DFE_FUSO_BRASILIA, LSufixo);
+  LEscrito := EncodeDate(StrToInt(Copy(LDh, 1, 4)), StrToInt(Copy(LDh, 6, 2)), StrToInt(Copy(LDh, 9, 2))) +
+    EncodeTime(StrToInt(Copy(LDh, 12, 2)), StrToInt(Copy(LDh, 15, 2)), StrToInt(Copy(LDh, 18, 2)), 0);
+  LEsperado := AgoraDeBrasilia;
+  AssertTrue('hora escrita (' + LDh + ') e a de Brasilia diferem mais de 2 min',
+    Abs(LEscrito - LEsperado) < 2 / 1440);
   AssertSemViolacoes;
 end;
 

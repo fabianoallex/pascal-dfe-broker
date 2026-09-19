@@ -233,6 +233,7 @@ A declaração `<?xml version="1.0" encoding="UTF-8"?>` que o ACBr acrescenta pe
 **Limites conhecidos.**
 - Depende de a página ANSI do sistema ser a mesma na ida e na volta (é, dentro do mesmo processo); bytes sem mapeamento na página (ex.: `8D` em Windows-1252) sobrevivem, comprovado pelo teste com `Í` (`C3 8D`).
 - **Não verificado em Delphi:** acentos no `RetInfEvento.XML` (o simulador só devolve ASCII no `retEvento`) e o payload de rejeição de manifestação (`RetWS`, texto bruto da resposta, que **não** passa por `TextoDoAcbr`). Verificar com um documento real ou estendendo o simulador.
+- **Acentos no que o broker ENVIA (2026-09-19):** `Geral.RetirarAcentos := False` no client, então a justificativa da Operação não Realizada segue com os acentos. No FPC ela é UTF-8 em `String` e no Delphi é `UnicodeString`; o texto que vai ao ACBr é o nativo (o ACBr, no Delphi, o codifica em UTF-8 na montagem do XML — a assinatura conferindo no teste FPC prova a consistência do lado FPC; **no Delphi falta o usuário rodar o teste**). Só U+0020..U+00FF é aceito (`TextoAceitoPeloXsdDeMotivo`); comprimento em caracteres (`TamanhoEmCaracteres`).
 - Campos textuais que o ACBr já entrega em Unicode de verdade (`xMotivo`, via `ACBrStr`) não são convertidos.
 
 ## Estrutura de projeto/pacote e framework de teste — decidido

@@ -45,6 +45,7 @@ uses
   DFe.Provider,
   DFe.Publicador,
   DFe.RoutingKey,
+  DFe.XmlTexto,
   DFe.Orquestrador;
 
 const
@@ -191,7 +192,7 @@ begin
     Result.Alias := LLinhas.Values['Alias'];
     Result.ChaveAcesso := LLinhas.Values['ChaveAcesso'];
     Result.TipoEvento := LowerCase(LLinhas.Values['TipoEvento']);
-    Result.Justificativa := LLinhas.Values['Justificativa'];
+    Result.Justificativa := Trim(LLinhas.Values['Justificativa']); // o XSD nao aceita espaco nas pontas
   finally
     LLinhas.Free;
   end;
@@ -221,10 +222,17 @@ begin
   begin
     if Result.Justificativa = '' then
       raise Exception.CreateFmt('Comando de manifestacao "%s" exige "Justificativa"', [Result.TipoEvento]);
-    if (Length(Result.Justificativa) < DFE_MANIFESTACAO_JUSTIFICATIVA_MIN)
-      or (Length(Result.Justificativa) > DFE_MANIFESTACAO_JUSTIFICATIVA_MAX) then
+    // caracteres, nao bytes: no FPC a String e' UTF-8 e um acento ocupa 2 bytes
+    if (TamanhoEmCaracteres(Result.Justificativa) < DFE_MANIFESTACAO_JUSTIFICATIVA_MIN)
+      or (TamanhoEmCaracteres(Result.Justificativa) > DFE_MANIFESTACAO_JUSTIFICATIVA_MAX) then
       raise Exception.CreateFmt('"Justificativa" de "%s" deve ter de %d a %d caracteres',
         [Result.TipoEvento, DFE_MANIFESTACAO_JUSTIFICATIVA_MIN, DFE_MANIFESTACAO_JUSTIFICATIVA_MAX]);
+    // o XSD (TMotivo) so' aceita U+0020..U+00FF; os acentos sao preservados (ver DFe.Client.ACBrNFe),
+    // entao o que o XSD rejeitaria (aspas curvas, travessao, emoji, quebra de linha) recusa-se aqui
+    if not TextoAceitoPeloXsdDeMotivo(Result.Justificativa) then
+      raise Exception.CreateFmt('"Justificativa" de "%s" tem caractere que o schema da NFe nao aceita ' +
+        '(so'' letras/acentos do Latin-1, sem quebra de linha, tab, aspas curvas, travessao ou emoji)',
+        [Result.TipoEvento]);
   end;
 end;
 

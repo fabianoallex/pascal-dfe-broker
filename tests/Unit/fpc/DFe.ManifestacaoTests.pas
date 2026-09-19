@@ -12,6 +12,7 @@ uses
   DFe.Publicador,
   DFe.Orquestrador,
   DFe.Manifestacao,
+  DFe.XmlTexto,
   DFe.TestDoubles;
 
 type
@@ -41,6 +42,10 @@ type
     procedure InterpretarComando_ChaveAcessoFora44Digitos_Levanta;
     procedure InterpretarComando_JustificativaCurta_Levanta;
     procedure InterpretarComando_JustificativaValida_NaoLevanta;
+    procedure InterpretarComando_JustificativaAcentuada_ContaCaracteresNaoBytes;
+    procedure InterpretarComando_JustificativaComAspasCurvas_Levanta;
+    procedure InterpretarComando_JustificativaComQuebraDeLinha_Levanta;
+    procedure InterpretarComando_JustificativaComEspacosNasPontas_EAparada;
     procedure CStatEventoRegistrado_135_136_155_Registrado;
     procedure CStatEventoRegistrado_RejeicoesELote_NaoRegistrado;
 
@@ -61,6 +66,19 @@ implementation
 
 const
   CHAVE_TESTE = '35260112345678000199550010000000011000000010';
+  // Letras acentuadas no texto NATIVO do compilador (ver DFe.XmlTexto): FPC = bytes
+  // UTF-8, Delphi = o caractere. E' o que faz o mesmo teste valer nos dois.
+  {$IFDEF FPC}
+  CH_CCEDILHA = #$C3#$A7;
+  CH_ATIL = #$C3#$A3;
+  ASPAS_ESQ = #$E2#$80#$9C;
+  ASPAS_DIR = #$E2#$80#$9D;
+  {$ELSE}
+  CH_CCEDILHA = #$00E7;
+  CH_ATIL = #$00E3;
+  ASPAS_ESQ = #$201C;
+  ASPAS_DIR = #$201D;
+  {$ENDIF}
 
 // CertificadoTeste/EventoTeste vem de DFe.TestDoubles.
 
@@ -211,6 +229,46 @@ var
 begin
   LComando := InterpretarComando(MontarPayload(['Alias=matriz', 'ChaveAcesso=' + CHAVE_TESTE, 'TipoEvento=operacaonaorealizada', 'Justificativa=Fornecedor nao reconhecido pela empresa']));
   AssertEquals('operacaonaorealizada', LComando.TipoEvento);
+end;
+
+procedure TDFeManifestacaoTests.InterpretarComando_JustificativaAcentuada_ContaCaracteresNaoBytes;
+var
+  LComando: TDFeComandoManifestacao;
+  LJust: string;
+begin
+  // 14 caracteres, mas 16 bytes em UTF-8 no FPC (2 acentos): tem que ser RECUSADA
+  LJust := 'Opera' + CH_CCEDILHA + CH_ATIL + 'o errad';
+  AssertEquals(14, TamanhoEmCaracteres(LJust));
+  FPayload := MontarPayload(['Alias=matriz', 'ChaveAcesso=' + CHAVE_TESTE, 'TipoEvento=operacaonaorealizada', 'Justificativa=' + LJust]);
+  AssertException(Exception, DoInterpretarPayload);
+  // 15 caracteres (17 bytes no FPC): aceita e preserva os acentos
+  LJust := 'Opera' + CH_CCEDILHA + CH_ATIL + 'o errada';
+  LComando := InterpretarComando(MontarPayload(['Alias=matriz', 'ChaveAcesso=' + CHAVE_TESTE, 'TipoEvento=operacaonaorealizada', 'Justificativa=' + LJust]));
+  AssertEquals(LJust, LComando.Justificativa);
+end;
+
+procedure TDFeManifestacaoTests.InterpretarComando_JustificativaComAspasCurvas_Levanta;
+begin
+  FPayload := MontarPayload(['Alias=matriz', 'ChaveAcesso=' + CHAVE_TESTE, 'TipoEvento=operacaonaorealizada',
+    'Justificativa=Recusado pelo ' + ASPAS_ESQ + 'gerente' + ASPAS_DIR + ' da loja']);
+  AssertException(Exception, DoInterpretarPayload);
+end;
+
+procedure TDFeManifestacaoTests.InterpretarComando_JustificativaComQuebraDeLinha_Levanta;
+begin
+  // o comando e' "chave=valor" por linha; um #9 (tab) no valor tambem nao passa no XSD
+  FPayload := MontarPayload(['Alias=matriz', 'ChaveAcesso=' + CHAVE_TESTE, 'TipoEvento=operacaonaorealizada',
+    'Justificativa=Fornecedor' + #9 + 'nao reconhecido pela empresa']);
+  AssertException(Exception, DoInterpretarPayload);
+end;
+
+procedure TDFeManifestacaoTests.InterpretarComando_JustificativaComEspacosNasPontas_EAparada;
+var
+  LComando: TDFeComandoManifestacao;
+begin
+  LComando := InterpretarComando(MontarPayload(['Alias=matriz', 'ChaveAcesso=' + CHAVE_TESTE, 'TipoEvento=operacaonaorealizada',
+    'Justificativa=   Fornecedor nao reconhecido pela empresa   ']));
+  AssertEquals('Fornecedor nao reconhecido pela empresa', LComando.Justificativa);
 end;
 
 procedure TDFeManifestacaoTests.CStatEventoRegistrado_135_136_155_Registrado;

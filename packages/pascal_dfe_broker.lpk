@@ -97,6 +97,10 @@
         <Filename Value="..\src\DFe.Ambiente.pas"/>
         <UnitName Value="DFe.Ambiente"/>
       </Item>
+      <Item>
+        <Filename Value="..\src\DFe.Fuso.pas"/>
+        <UnitName Value="DFe.Fuso"/>
+      </Item>
     </Files>
     <RequiredPkgs>
       <Item>

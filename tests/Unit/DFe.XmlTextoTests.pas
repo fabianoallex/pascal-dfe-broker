@@ -24,6 +24,10 @@ type
     [Test] procedure Mojibake_ExigeMesmoAConversao;
     [Test] procedure TextoUnicodeDeVerdade_NaoEUtf8Valido_FicaIntacto;
     [Test] procedure XmlCompleto_ComAcentos_VoltaIgual;
+    [Test] procedure Tamanho_ContaCaracteres;
+    [Test] procedure Motivo_AceitaAcentosLatin1;
+    [Test] procedure Motivo_RecusaForaDeLatin1;
+    [Test] procedure Motivo_RecusaControle;
   end;
 
 implementation
@@ -78,6 +82,36 @@ const
   XML = '<?xml version="1.0" encoding="UTF-8"?><resNFe><xNome>' + TEXTO_ACENTUADO + '</xNome></resNFe>';
 begin
   Assert.AreEqual(XML, TextoDoAcbr(ComoOAcbrEntrega(XML)));
+end;
+
+procedure TDFeXmlTextoTests.Tamanho_ContaCaracteres;
+begin
+  Assert.AreEqual(0, TamanhoEmCaracteres(''));
+  Assert.AreEqual(3, TamanhoEmCaracteres('abc'));
+  Assert.AreEqual(3, TamanhoEmCaracteres('n' + #$00E3 + 'o'));
+  Assert.AreEqual(1, TamanhoEmCaracteres(#$2014));
+end;
+
+procedure TDFeXmlTextoTests.Motivo_AceitaAcentosLatin1;
+begin
+  Assert.IsTrue(TextoAceitoPeloXsdDeMotivo(''));
+  Assert.IsTrue(TextoAceitoPeloXsdDeMotivo('Opera' + #$00E7 + #$00E3 + 'o n' + #$00E3 + 'o realizada'));
+  Assert.IsTrue(TextoAceitoPeloXsdDeMotivo(#$00FF)); // limite
+  Assert.IsTrue(TextoAceitoPeloXsdDeMotivo(#$00A0));
+end;
+
+procedure TDFeXmlTextoTests.Motivo_RecusaForaDeLatin1;
+begin
+  Assert.IsFalse(TextoAceitoPeloXsdDeMotivo(#$2014));       // travessao
+  Assert.IsFalse(TextoAceitoPeloXsdDeMotivo(#$201C + 'x')); // aspas curvas
+  Assert.IsFalse(TextoAceitoPeloXsdDeMotivo(#$0100));       // logo acima do limite
+  Assert.IsFalse(TextoAceitoPeloXsdDeMotivo(#$D83D#$DE00)); // emoji (par substituto)
+end;
+
+procedure TDFeXmlTextoTests.Motivo_RecusaControle;
+begin
+  Assert.IsFalse(TextoAceitoPeloXsdDeMotivo('a' + #10 + 'b'));
+  Assert.IsFalse(TextoAceitoPeloXsdDeMotivo('a' + #9 + 'b'));
 end;
 
 initialization

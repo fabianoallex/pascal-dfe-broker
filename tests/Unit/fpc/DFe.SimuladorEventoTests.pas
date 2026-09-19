@@ -55,7 +55,7 @@ type
     FChave: string;
     function Requisicao(const ATpEvento: string = '210210'; const ADesc: string = 'Ciencia da Operacao';
       const AOrgao: string = '91'; const ANSeq: Integer = 1; const AComAssinatura: Boolean = True;
-      const AXJust: string = ''): string;
+      const AXJust: string = ''; const ADhEvento: string = '2026-09-18T18:44:03-03:00'): string;
     function Transmitir(const AEnvelope: string;
       const AURL: string = 'https://hom1.nfe.fazenda.gov.br/NFeRecepcaoEvento4/NFeRecepcaoEvento4.asmx'): TDFeRespostaTransmissao;
     procedure PublicarNFeDoDestinatario;
@@ -78,6 +78,10 @@ type
     procedure Violacao_ReferenceUriDiferenteDoId;
     procedure Violacao_TipoDeEventoQueNaoEManifestacao;
     procedure Violacao_DhEventoForaDoFormato;
+    procedure Violacao_DhEventoComFusoForaDaNT;
+    procedure DhEventoComFusosDaNT_NaoViola;
+    procedure XJust_AcentuadoContaCaracteresNaoBytes;
+    procedure XJust_ComAspasCurvas_EViolacao;
     procedure Violacao_UrlESoapActionDeEvento;
   end;
 
@@ -85,6 +89,16 @@ implementation
 
 const
   CNPJ_DEST = '11222333000181';
+  // acentos no texto NATIVO do compilador (FPC: bytes UTF-8; Delphi: o caractere)
+  {$IFDEF FPC}
+  CH_CCEDILHA = #$C3#$A7;
+  CH_ATIL = #$C3#$A3;
+  ASPAS_ESQ = #$E2#$80#$9C;
+  {$ELSE}
+  CH_CCEDILHA = #$00E7;
+  CH_ATIL = #$00E3;
+  ASPAS_ESQ = #$201C;
+  {$ENDIF}
 
 function ChaveDoTeste: string;
 begin
@@ -368,7 +382,7 @@ end;
   valores ficticios -- a validade criptografica e' assunto do teste de
   integracao). }
 function TDFeSimuladorEventoSoapTests.Requisicao(const ATpEvento, ADesc, AOrgao: string;
-  const ANSeq: Integer; const AComAssinatura: Boolean; const AXJust: string): string;
+  const ANSeq: Integer; const AComAssinatura: Boolean; const AXJust, ADhEvento: string): string;
 var
   LId, LAssinatura, LDet: string;
 begin
@@ -391,7 +405,7 @@ begin
     '<envEvento xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.00"><idLote>1</idLote>' +
     '<evento xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.00"><infEvento Id="' + LId + '">' +
     '<cOrgao>' + AOrgao + '</cOrgao><tpAmb>2</tpAmb><CNPJ>' + CNPJ_DEST + '</CNPJ>' +
-    '<chNFe>' + FChave + '</chNFe><dhEvento>2026-09-18T18:44:03-03:00</dhEvento>' +
+    '<chNFe>' + FChave + '</chNFe><dhEvento>' + ADhEvento + '</dhEvento>' +
     '<tpEvento>' + ATpEvento + '</tpEvento><nSeqEvento>' + IntToStr(ANSeq) + '</nSeqEvento>' +
     '<verEvento>1.00</verEvento><detEvento versao="1.00">' + LDet + '</detEvento></infEvento>' +
     LAssinatura + '</evento></envEvento></nfeDadosMsg></soap12:Body></soap12:Envelope>';
@@ -534,6 +548,37 @@ procedure TDFeSimuladorEventoSoapTests.Violacao_DhEventoForaDoFormato;
 begin
   Transmitir(StringReplace(Requisicao, '2026-09-18T18:44:03-03:00', '18/09/2026 18:44', []));
   AssertTrue(Pos('dhEvento', FTransmissor.TodasViolacoes) > 0);
+end;
+
+procedure TDFeSimuladorEventoSoapTests.Violacao_DhEventoComFusoForaDaNT;
+begin
+  // o que o ACBr escreve quando o relogio do sistema e' UTC (FPC/Linux)
+  Transmitir(Requisicao('210210', 'Ciencia da Operacao', '91', 1, True, '', '2026-09-18T21:44:03+00:00'));
+  AssertTrue(Pos('fuso fora da lista da NT', FTransmissor.TodasViolacoes) > 0);
+  AssertEquals(1, FTransmissor.QuantidadeViolacoes);
+end;
+
+procedure TDFeSimuladorEventoSoapTests.DhEventoComFusosDaNT_NaoViola;
+begin
+  Transmitir(Requisicao('210210', 'Ciencia da Operacao', '91', 1, True, '', '2026-09-18T18:44:03-03:00'));
+  Transmitir(Requisicao('210210', 'Ciencia da Operacao', '91', 1, True, '', '2026-09-18T17:44:03-04:00'));
+  Transmitir(Requisicao('210210', 'Ciencia da Operacao', '91', 1, True, '', '2026-09-18T19:44:03-02:00'));
+  AssertEquals(0, FTransmissor.QuantidadeViolacoes);
+end;
+
+procedure TDFeSimuladorEventoSoapTests.XJust_AcentuadoContaCaracteresNaoBytes;
+begin
+  // 14 caracteres (16 bytes no FPC): curto demais
+  Transmitir(Requisicao('210240', 'Operacao nao Realizada', '91', 1, True,
+    'Opera' + CH_CCEDILHA + CH_ATIL + 'o errad'));
+  AssertTrue(Pos('15 a 255', FTransmissor.TodasViolacoes) > 0);
+end;
+
+procedure TDFeSimuladorEventoSoapTests.XJust_ComAspasCurvas_EViolacao;
+begin
+  Transmitir(Requisicao('210240', 'Operacao nao Realizada', '91', 1, True,
+    'Recusado pelo ' + ASPAS_ESQ + 'gerente da loja'));
+  AssertTrue(Pos('U+0020..U+00FF', FTransmissor.TodasViolacoes) > 0);
 end;
 
 procedure TDFeSimuladorEventoSoapTests.Violacao_UrlESoapActionDeEvento;

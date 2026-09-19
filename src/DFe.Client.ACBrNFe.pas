@@ -52,11 +52,13 @@ uses
   ACBrNFe.EnvEvento,
   ACBrNFe.EventoClass,
   ACBrUtil.Base,
+  ACBrUtil.DateTime,
   StrUtils,
   DFe.Types,
   DFe.Errors,
   DFe.Transmissor,
   DFe.XmlTexto,
+  DFe.Fuso,
   DFe.Ambiente,
   DFe.Ambiente.ACBr,
   DFe.Provider,
@@ -280,6 +282,19 @@ begin
   FACBrNFe.Configuracoes.Geral.Salvar := False;
   FACBrNFe.Configuracoes.Arquivos.Salvar := False;
 
+  { Acentos do texto livre do evento (xJust): o ACBr os REMOVE por padrao
+    (RetirarAcentos = True), em silencio -- o motivo que o operador digitou
+    nao e' o que a SEFAZ recebe. O XSD (TMotivo) aceita U+0020..U+00FF, e
+    InterpretarComando recusa o que ficaria fora disso; a assinatura confere
+    com o acento (teste de integracao). }
+  FACBrNFe.Configuracoes.Geral.RetirarAcentos := False;
+
+  { Fuso do dhEvento fixo em Brasilia (-03:00), independente do sistema: ver
+    DFe.Fuso. ModoDeteccao ANTES de TimeZoneStr (fora de tzManual o ACBr
+    zera a string). }
+  FACBrNFe.Configuracoes.WebServices.TimeZoneConf.ModoDeteccao := tzManual;
+  FACBrNFe.Configuracoes.WebServices.TimeZoneConf.TimeZoneStr := DFE_FUSO_BRASILIA;
+
   { OpenSSL/LibXml2 em vez de WinCrypt/CAPICOM/MSXml -- unica combinacao
     que funciona nos dois compiladores/plataformas (ver decisao 2 em
     CLAUDE.md, dual-compiler desde o inicio). xsLibXml2 e NAO xsXmlSec: o
@@ -440,7 +455,7 @@ begin
     infEvento.cOrgao := ORGAO_AMBIENTE_NACIONAL;
     infEvento.CNPJ := ACertificado.CnpjCpf;
     infEvento.chNFe := AComando.ChaveAcesso;
-    infEvento.dhEvento := Now;
+    infEvento.dhEvento := AgoraDeBrasilia; // hora de parede de Brasilia; o sufixo -03:00 vem do TimeZoneConf
     infEvento.tpEvento := TipoEventoACBr(AComando.TipoEvento);
     infEvento.nSeqEvento := 1;
     { xJust so' existe em Operacao nao Realizada: a NT 2012/002 (HP20) manda

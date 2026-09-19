@@ -19,6 +19,10 @@ type
     procedure Ascii_Inalterado;
     procedure BytesUtf8_PassamSemConversao;
     procedure Vazio_Inalterado;
+    procedure Tamanho_ContaCaracteresNaoBytes;
+    procedure Motivo_AceitaAcentosLatin1;
+    procedure Motivo_RecusaForaDeLatin1;
+    procedure Motivo_RecusaControleEUtf8Truncado;
   end;
 
 implementation
@@ -40,6 +44,41 @@ end;
 procedure TDFeXmlTextoTests.Vazio_Inalterado;
 begin
   AssertEquals('', TextoDoAcbr(''));
+end;
+
+procedure TDFeXmlTextoTests.Tamanho_ContaCaracteresNaoBytes;
+begin
+  AssertEquals(0, TamanhoEmCaracteres(''));
+  AssertEquals(3, TamanhoEmCaracteres('abc'));
+  // a-til (C3 A3): n + a-til + o = 4 bytes, 3 caracteres
+  AssertEquals(3, TamanhoEmCaracteres('n' + #$C3#$A3 + 'o'));
+  // travessao U+2014 = E2 80 94: 3 bytes, 1 caractere
+  AssertEquals(1, TamanhoEmCaracteres(#$E2#$80#$94));
+end;
+
+procedure TDFeXmlTextoTests.Motivo_AceitaAcentosLatin1;
+begin
+  AssertTrue(TextoAceitoPeloXsdDeMotivo(''));
+  AssertTrue(TextoAceitoPeloXsdDeMotivo('Operacao nao realizada'));
+  AssertTrue(TextoAceitoPeloXsdDeMotivo('Opera' + #$C3#$A7 + #$C3#$A3 + 'o n' + #$C3#$A3 + 'o realizada'));
+  AssertTrue(TextoAceitoPeloXsdDeMotivo(#$C3#$BF)); // U+00FF, o limite
+  AssertTrue(TextoAceitoPeloXsdDeMotivo(#$C2#$A0)); // U+00A0
+end;
+
+procedure TDFeXmlTextoTests.Motivo_RecusaForaDeLatin1;
+begin
+  AssertFalse(TextoAceitoPeloXsdDeMotivo(#$E2#$80#$94));       // travessao U+2014
+  AssertFalse(TextoAceitoPeloXsdDeMotivo(#$E2#$80#$9C + 'x')); // aspas curvas
+  AssertFalse(TextoAceitoPeloXsdDeMotivo(#$C4#$80));           // U+0100, logo acima do limite
+  AssertFalse(TextoAceitoPeloXsdDeMotivo(#$F0#$9F#$98#$80));   // emoji
+end;
+
+procedure TDFeXmlTextoTests.Motivo_RecusaControleEUtf8Truncado;
+begin
+  AssertFalse(TextoAceitoPeloXsdDeMotivo('a' + #10 + 'b'));
+  AssertFalse(TextoAceitoPeloXsdDeMotivo('a' + #9 + 'b'));
+  AssertFalse(TextoAceitoPeloXsdDeMotivo('a' + #$C3));  // lead sem continuacao
+  AssertFalse(TextoAceitoPeloXsdDeMotivo(#$C3 + 'a'));  // continuacao invalida
 end;
 
 initialization

@@ -29,6 +29,20 @@ interface
   a entrada intacta em vez de corromper. }
 function TextoDoAcbr(const ATextoDoAcbr: string): string;
 
+{ Numero de CARACTERES (nao de bytes) do texto nativo do compilador. No FPC a
+  String carrega bytes UTF-8, entao Length superconta acentos ('nao' com til =
+  4 bytes, 3 caracteres) e um limite como o "15 a 255 caracteres" do xJust
+  seria medido errado. No Delphi e' Length. }
+function TamanhoEmCaracteres(const ATexto: string): Integer;
+
+{ True se TODOS os caracteres estao em U+0020..U+00FF -- o que o tipo TMotivo do
+  XSD (xJust) aceita ("[ -U+00FF]"). Fora disso (aspas curvas, travessao, emoji,
+  quebra de linha, tab) o XSD REJEITA o evento; como o broker mantem os acentos
+  (Geral.RetirarAcentos = False, ver DFe.Client.ACBrNFe), a recusa precisa vir
+  antes, com mensagem clara. No FPC, decodifica o UTF-8 (so' ASCII imprimivel e
+  as sequencias C2/C3 cabem). }
+function TextoAceitoPeloXsdDeMotivo(const ATexto: string): Boolean;
+
 implementation
 
 {$IFNDEF FPC}
@@ -62,6 +76,56 @@ begin
   if Pos(#$FFFD, Result) > 0 then // U+FFFD no proprio texto: nao era o formato do ACBr
     Result := ATextoDoAcbr;
   {$ENDIF}
+end;
+
+function TamanhoEmCaracteres(const ATexto: string): Integer;
+{$IFDEF FPC}
+var
+  I: Integer;
+{$ENDIF}
+begin
+  {$IFDEF FPC}
+  Result := 0;
+  for I := 1 to Length(ATexto) do
+    if (Ord(ATexto[I]) and $C0) <> $80 then // nao e' byte de continuacao
+      Inc(Result);
+  {$ELSE}
+  Result := Length(ATexto);
+  {$ENDIF}
+end;
+
+function TextoAceitoPeloXsdDeMotivo(const ATexto: string): Boolean;
+var
+  I, B: Integer;
+begin
+  Result := False;
+  {$IFDEF FPC}
+  I := 1;
+  while I <= Length(ATexto) do
+  begin
+    B := Ord(ATexto[I]);
+    if B < $20 then
+      Exit
+    else if B < $80 then
+      Inc(I)
+    else if (B = $C2) or (B = $C3) then // U+0080..U+00FF em 2 bytes
+    begin
+      if (I + 1 > Length(ATexto)) or ((Ord(ATexto[I + 1]) and $C0) <> $80) then
+        Exit;
+      Inc(I, 2);
+    end
+    else
+      Exit;
+  end;
+  {$ELSE}
+  for I := 1 to Length(ATexto) do
+  begin
+    B := Ord(ATexto[I]);
+    if (B < $20) or (B > $FF) then
+      Exit;
+  end;
+  {$ENDIF}
+  Result := True;
 end;
 
 end.

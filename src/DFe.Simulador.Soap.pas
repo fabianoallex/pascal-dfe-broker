@@ -36,7 +36,8 @@ uses
   StrUtils,
   DFe.Transmissor,
   DFe.Simulador,
-  DFe.Simulador.Codec;
+  DFe.Simulador.Codec,
+  DFe.XmlTexto;
 
 type
   TDFeSimuladorTransmissor = class(TInterfacedObject, IDFeTransmissor)
@@ -354,6 +355,14 @@ begin
       Result := False;
 end;
 
+function FusoDaNT(const ADhEvento: string): Boolean;
+var
+  LFuso: string;
+begin
+  LFuso := Copy(ADhEvento, Length(ADhEvento) - 5, 6);
+  Result := (LFuso = '-02:00') or (LFuso = '-03:00') or (LFuso = '-04:00');
+end;
+
 function DhEventoValido(const S: string): Boolean;
 begin
   // 2026-09-18T18:44:03-03:00
@@ -437,6 +446,12 @@ begin
     Violar('verEvento deveria ser 1.00');
   if not DhEventoValido(ExtrairTag(AEnvelope, 'dhEvento')) then
     Violar('dhEvento fora do formato AAAA-MM-DDThh:mm:ss+-hh:mm: "' +
+      ExtrairTag(AEnvelope, 'dhEvento') + '"')
+  else if not FusoDaNT(ExtrairTag(AEnvelope, 'dhEvento')) then
+    // O XSD (TDateTimeUTC) aceitaria +-hh:00 qualquer; a NT 2012/002 (HP13) so' lista
+    // -02:00/-03:00/-04:00. "+00:00" (UTC) e' o que o ACBr escreve num sistema cujo
+    // relogio e' UTC (FPC/Linux) -- a SEFAZ real pode recusar; nao verificado.
+    Violar('dhEvento com fuso fora da lista da NT 2012/002 (-02:00, -03:00, -04:00): "' +
       ExtrairTag(AEnvelope, 'dhEvento') + '"');
 
   // descEvento coerente com o tpEvento (o ACBr manda sem acento)
@@ -444,15 +459,19 @@ begin
     Violar('descEvento "' + ExtrairTag(AEnvelope, 'descEvento') + '" nao bate com tpEvento ' + ATpEvento);
 
   // xJust (NT 2012/002, HP20): "deve ser informado SOMENTE no evento de Operacao
-  // nao Realizada" (210240), com 15 a 255 caracteres (o ACBr ja remove acentos,
-  // entao bytes = caracteres); nos demais tipos nao pode ir.
-  LXJust := ExtrairTag(AEnvelope, 'xJust');
+  // nao Realizada" (210240), com 15 a 255 CARACTERES (nao bytes: o client preserva
+  // os acentos, e no FPC um acento sao 2 bytes); o tipo TMotivo do XSD so' admite
+  // U+0020..U+00FF. Nos demais tipos nao pode ir. TextoDoAcbr: o envelope e' o que
+  // o ACBr entregou (no Delphi, UTF-8 embutido em String).
+  LXJust := TextoDoAcbr(ExtrairTag(AEnvelope, 'xJust'));
   if ATpEvento = '210240' then
   begin
     if LXJust = '' then
       Violar('210240 (Operacao nao Realizada) exige xJust (rejeicao 595 na SEFAZ)')
-    else if (Length(LXJust) < 15) or (Length(LXJust) > 255) then
-      Violar('xJust deve ter de 15 a 255 caracteres, tem ' + IntToStr(Length(LXJust)));
+    else if (TamanhoEmCaracteres(LXJust) < 15) or (TamanhoEmCaracteres(LXJust) > 255) then
+      Violar('xJust deve ter de 15 a 255 caracteres, tem ' + IntToStr(TamanhoEmCaracteres(LXJust)))
+    else if not TextoAceitoPeloXsdDeMotivo(LXJust) then
+      Violar('xJust tem caractere fora de U+0020..U+00FF (o XSD TMotivo rejeita)');
   end
   else if LXJust <> '' then
     Violar('xJust so'' pode ser informado em 210240 (Operacao nao Realizada), veio em ' + ATpEvento);
