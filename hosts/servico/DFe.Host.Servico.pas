@@ -29,7 +29,7 @@ unit DFe.Host.Servico;
 interface
 
 uses
-  Winapi.Windows, System.SysUtils, System.Classes, Vcl.SvcMgr,
+  Winapi.Windows, System.SysUtils, System.Classes, System.IniFiles, Vcl.SvcMgr,
   DFe.Ambiente,
   DFe.Host.ACBr,
   DFe.Host.Aplicacao,
@@ -56,6 +56,7 @@ type
     FApp: TDFeAplicacao;
     FExecutor: TDFeExecutorThread;
     function CaminhoConfig: string;
+    function RetencaoDoLog(const AConfig: string): Integer;
     procedure Liberar;
   public
     function GetServiceController: TServiceController; override;
@@ -117,6 +118,25 @@ begin
   Result := ExpandFileName(Result);
 end;
 
+{ [dfe] LogRetencaoDias= (padrao 30; 0 = nunca apagar). Le' o INI aqui, sem depender
+  de DFe.Config: o servico precisa do log ANTES de a config ser validada. }
+function TDFeBrokerService.RetencaoDoLog(const AConfig: string): Integer;
+var
+  LIni: TMemIniFile;
+begin
+  Result := 30;
+  try
+    LIni := TMemIniFile.Create(AConfig);
+    try
+      Result := LIni.ReadInteger('dfe', 'LogRetencaoDias', 30);
+    finally
+      LIni.Free;
+    end;
+  except
+    // INI ilegivel: o motivo aparece depois, na validacao da config; aqui so' o padrao
+  end;
+end;
+
 procedure TDFeBrokerService.Liberar;
 begin
   FreeAndNil(FExecutor);
@@ -132,7 +152,7 @@ var
 begin
   Started := False;
   LConfig := CaminhoConfig;
-  FLog := TDFeLogArquivo.Create(ExtractFilePath(LConfig) + 'logs');
+  FLog := TDFeLogArquivo.Create(ExtractFilePath(LConfig) + 'logs', 'dfe', RetencaoDoLog(LConfig));
   try
     FLog.Registrar('INFO', 'Servico iniciando. Config: ' + LConfig);
     if not FileExists(LConfig) then

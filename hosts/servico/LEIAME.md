@@ -40,7 +40,7 @@ Alternativa sem `sc`: `DFeBrokerServico.exe /install` (usa `dfe.ini` ao lado do 
 
 | O quê | Onde |
 |---|---|
-| Log | `<pasta do dfe.ini>\logs\dfe-aaaammdd.log` (um por dia, hora de Brasília, UTF-8; **não há retenção** — apague os antigos) |
+| Log | `<pasta do dfe.ini>\logs\dfe-aaaammdd.log` (um por dia, hora de Brasília, UTF-8; **mantém 30 dias** e apaga os mais antigos uma vez por dia — ajuste com `LogRetencaoDias=` no `[dfe]` do `dfe.ini`, `0` = nunca apagar; só apaga arquivos que casam exatamente com `dfe-aaaammdd.log`) |
 | Falha de subida | **Visualizador de Eventos → Windows Logs → Application**, origem `DFeBrokerService`, nível Erro: `pascal-dfe-broker nao iniciou: ...`. O Windows pode mostrar "a descrição da ID do evento 0 não pôde ser encontrada" — é normal (a origem não tem DLL de mensagens); o texto do erro vem logo abaixo, em "os seguintes dados foram incluídos". Detalhes no log acima. Um evento "o processo do serviço não pôde se conectar ao controlador" só significa que o `.exe` foi executado direto, fora do SCM |
 | Parar | `sc.exe stop DFeBrokerService` — espera o tick em andamento terminar (até 60 s) |
 | Broker AMQP | `BindAddress:Porta` do `[broker]` do `dfe.ini` (padrão `127.0.0.1:5672`); com `0.0.0.0` **troque `Usuario`/`Senha`** e libere a porta no firewall |

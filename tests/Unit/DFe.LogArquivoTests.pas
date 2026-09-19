@@ -29,6 +29,7 @@ type
     FPasta: string;
     FLog: TDFeLogArquivoTestavel;
     function LerBytes(const ACaminho: string): TBytes;
+    procedure CriarArquivo(const ANome: string);
     function LerArquivo(const ACaminho: string): string;
   public
     [Setup] procedure Setup;
@@ -40,6 +41,10 @@ type
     [Test] procedure Registrar_AcentoSaiEmUtf8;
     [Test] procedure Registrar_CriaAPastaSeNaoExiste;
     [Test] procedure Registrar_NaoConseguindoEscrever_NaoLevanta;
+    [Test] procedure Retencao_ApagaOsArquivosComNDiasOuMais;
+    [Test] procedure Retencao_Zero_NaoApagaNada;
+    [Test] procedure Retencao_NaoMexeEmArquivosQueNaoSaoDoLog;
+    [Test] procedure Retencao_SoLimpaUmaVezPorDia;
   end;
 
 implementation
@@ -76,6 +81,12 @@ end;
 function TDFeLogArquivoTests.LerArquivo(const ACaminho: string): string;
 begin
   Result := TEncoding.UTF8.GetString(LerBytes(ACaminho));
+end;
+
+procedure TDFeLogArquivoTests.CriarArquivo(const ANome: string);
+begin
+  ForceDirectories(FPasta);
+  TFile.WriteAllText(FPasta + ANome, '');
 end;
 
 procedure TDFeLogArquivoTests.Registrar_CriaOArquivoDoDiaComALinhaFormatada;
@@ -150,6 +161,70 @@ begin
     LLog.Free;
   end;
   Assert.IsTrue(True);
+end;
+
+procedure TDFeLogArquivoTests.Retencao_ApagaOsArquivosComNDiasOuMais;
+begin
+  // hoje = 19/09; "3 dias" = 19, 18 e 17; o de 16 (3 dias antes) sai
+  FLog.RetencaoDias := 3;
+  CriarArquivo('dfe-20260919.log');
+  CriarArquivo('dfe-20260918.log');
+  CriarArquivo('dfe-20260917.log');
+  CriarArquivo('dfe-20260916.log');
+  CriarArquivo('dfe-20250101.log');
+
+  FLog.Registrar('INFO', 'gatilho da limpeza');
+
+  Assert.IsTrue(FileExists(FPasta + 'dfe-20260919.log'), 'dfe-20260919.log existe');
+  Assert.IsTrue(FileExists(FPasta + 'dfe-20260918.log'), 'dfe-20260918.log existe');
+  Assert.IsTrue(FileExists(FPasta + 'dfe-20260917.log'), 'dfe-20260917.log existe');
+  Assert.IsFalse(FileExists(FPasta + 'dfe-20260916.log'), 'dfe-20260916.log apagado');
+  Assert.IsFalse(FileExists(FPasta + 'dfe-20250101.log'), 'dfe-20250101.log apagado');
+end;
+
+procedure TDFeLogArquivoTests.Retencao_Zero_NaoApagaNada;
+begin
+  CriarArquivo('dfe-20200101.log');
+
+  FLog.Registrar('INFO', 'gatilho');
+
+  Assert.IsTrue(FileExists(FPasta + 'dfe-20200101.log'), 'dfe-20200101.log existe');
+end;
+
+procedure TDFeLogArquivoTests.Retencao_NaoMexeEmArquivosQueNaoSaoDoLog;
+begin
+  FLog.RetencaoDias := 1;
+  CriarArquivo('outro.log');
+  CriarArquivo('dfe-antigo.log');        // nao tem 8 digitos
+  CriarArquivo('dfe-2020010A.log');      // 8 caracteres, mas nao so' digitos
+  CriarArquivo('dfe-20200101.txt');      // extensao diferente
+  CriarArquivo('x-20200101.log');        // outro prefixo
+  CriarArquivo('dfe-20261399.log');      // 8 digitos, mas nao e' uma data
+
+  FLog.Registrar('INFO', 'gatilho');
+
+  Assert.IsTrue(FileExists(FPasta + 'outro.log'), 'outro.log existe');
+  Assert.IsTrue(FileExists(FPasta + 'dfe-antigo.log'), 'dfe-antigo.log existe');
+  Assert.IsTrue(FileExists(FPasta + 'dfe-2020010A.log'), 'dfe-2020010A.log existe');
+  Assert.IsTrue(FileExists(FPasta + 'dfe-20200101.txt'), 'dfe-20200101.txt existe');
+  Assert.IsTrue(FileExists(FPasta + 'x-20200101.log'), 'x-20200101.log existe');
+  Assert.IsTrue(FileExists(FPasta + 'dfe-20261399.log'), 'dfe-20261399.log existe');
+end;
+
+procedure TDFeLogArquivoTests.Retencao_SoLimpaUmaVezPorDia;
+begin
+  FLog.RetencaoDias := 2;
+  FLog.Registrar('INFO', 'primeira do dia'); // limpa
+  CriarArquivo('dfe-20200101.log');          // aparece DEPOIS da limpeza do dia
+
+  FLog.Registrar('INFO', 'segunda do dia');  // mesmo dia: nao varre de novo
+
+  Assert.IsTrue(FileExists(FPasta + 'dfe-20200101.log'), 'dfe-20200101.log existe');
+
+  FLog.Instante := EncodeDate(2026, 9, 20) + EncodeTime(0, 0, 1, 0);
+  FLog.Registrar('INFO', 'dia seguinte');    // dia novo: varre
+
+  Assert.IsFalse(FileExists(FPasta + 'dfe-20200101.log'), 'dfe-20200101.log apagado');
 end;
 
 initialization

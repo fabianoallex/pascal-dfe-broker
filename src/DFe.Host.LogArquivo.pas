@@ -18,7 +18,12 @@ unit DFe.Host.LogArquivo;
   Registrar NUNCA levanta excecao: falhar ao escrever o log (disco cheio, pasta
   sem permissao) nao pode derrubar quem esta sendo logado. Chamado de threads
   diferentes (tick do host e pool do cliente AMQP); serializado por lock.
-  Retencao (apagar logs antigos) nao e' feita aqui. }
+  RETENCAO: com RetencaoDias > 0, os arquivos '<prefixo>-aaaammdd.log' mais antigos
+  que isso sao APAGADOS, uma vez por dia (na primeira escrita do dia). Conta-se pela
+  DATA NO NOME do arquivo (nao pela data de modificacao: deterministico e
+  testavel), e '3' significa "hoje e os 2 dias anteriores". So' apaga arquivos que
+  casam exatamente com o padrao do log -- nunca outro arquivo da pasta. 0 (padrao)
+  = nao apaga nada. }
 
 interface
 
@@ -30,19 +35,26 @@ type
   private
     FDiretorio: string;
     FPrefixo: string;
+    FRetencaoDias: Integer;
+    FUltimaLimpeza: Integer; // Trunc(data) da ultima limpeza; 0 = nunca
     FLock: TCriticalSection;
+    procedure LimparAntigos(const AHoje: TDateTime);
   protected
     { Injetavel para teste: o instante (em hora de Brasilia) que vai na linha e
       no nome do arquivo. }
     function Agora: TDateTime; virtual;
   public
-    constructor Create(const ADiretorio: string; const APrefixo: string = 'dfe');
+    constructor Create(const ADiretorio: string; const APrefixo: string = 'dfe';
+      const ARetencaoDias: Integer = 0);
     destructor Destroy; override;
 
     procedure Registrar(const ANivel, AMensagem: string);
 
     { Caminho do arquivo do dia corrente. }
     function CaminhoDoDia: string;
+
+    { Quantos dias de log manter (0 = todos). Ver o comentario de topo. }
+    property RetencaoDias: Integer read FRetencaoDias write FRetencaoDias;
   end;
 
 implementation
@@ -50,11 +62,13 @@ implementation
 uses
   DFe.Fuso;
 
-constructor TDFeLogArquivo.Create(const ADiretorio, APrefixo: string);
+constructor TDFeLogArquivo.Create(const ADiretorio, APrefixo: string;
+  const ARetencaoDias: Integer);
 begin
   inherited Create;
   FDiretorio := IncludeTrailingPathDelimiter(ADiretorio);
   FPrefixo := APrefixo;
+  FRetencaoDias := ARetencaoDias;
   FLock := TCriticalSection.Create;
 end;
 
@@ -72,6 +86,46 @@ end;
 function TDFeLogArquivo.CaminhoDoDia: string;
 begin
   Result := FDiretorio + FPrefixo + '-' + FormatDateTime('yyyymmdd', Agora) + '.log';
+end;
+
+procedure TDFeLogArquivo.LimparAntigos(const AHoje: TDateTime);
+var
+  LBusca: TSearchRec;
+  LDigitos: string;
+  LData: TDateTime;
+  LAno, LMes, LDia, I: Integer;
+  LSoDigitos: Boolean;
+begin
+  if (FRetencaoDias <= 0) or (FUltimaLimpeza = Trunc(AHoje)) then
+    Exit;
+  FUltimaLimpeza := Trunc(AHoje);
+
+  // '<prefixo>-' + 8 digitos + '.log': o padrao do coringa e' so' um filtro grosso;
+  // o nome e' conferido abaixo, digito a digito, antes de apagar qualquer coisa.
+  if FindFirst(FDiretorio + FPrefixo + '-????????.log', faAnyFile, LBusca) = 0 then
+  try
+    repeat
+      if (LBusca.Attr and faDirectory) <> 0 then
+        Continue;
+      LDigitos := Copy(LBusca.Name, Length(FPrefixo) + 2, 8);
+      LSoDigitos := Length(LDigitos) = 8;
+      for I := 1 to Length(LDigitos) do
+        if not ((LDigitos[I] >= '0') and (LDigitos[I] <= '9')) then
+          LSoDigitos := False;
+      if not LSoDigitos then
+        Continue;
+      LAno := StrToInt(Copy(LDigitos, 1, 4));
+      LMes := StrToInt(Copy(LDigitos, 5, 2));
+      LDia := StrToInt(Copy(LDigitos, 7, 2));
+      if not TryEncodeDate(LAno, LMes, LDia, LData) then
+        Continue;
+      // "N dias" = hoje e os N-1 anteriores; apaga quem tem N dias ou mais
+      if Trunc(AHoje) - Trunc(LData) >= FRetencaoDias then
+        DeleteFile(FDiretorio + LBusca.Name);
+    until FindNext(LBusca) <> 0;
+  finally
+    FindClose(LBusca);
+  end;
 end;
 
 procedure TDFeLogArquivo.Registrar(const ANivel, AMensagem: string);
@@ -112,6 +166,7 @@ begin
       finally
         LArquivo.Free;
       end;
+      LimparAntigos(LAgora);
     except
       // logar nunca derruba quem esta sendo logado
     end;
