@@ -34,6 +34,9 @@ uses
   DFe.Simulador.Soap,
   DFe.Simulador.Fixtures,
   DFe.Client.ACBrNFe,
+  DFe.Ambiente,
+  DFe.Ambiente.ACBr,
+  DFe.AcbrSimPastas,
   DFe.TestDoubles;
 
 type
@@ -43,12 +46,13 @@ type
     FSim: TDFeSimuladorSefaz;
     FTransmissor: TDFeSimuladorTransmissor;
     FTransmissorIntf: IDFeTransmissor;
+    FPastas: TPastasTemporarias;
     FChave: string;
     function DiretorioBase: string;
     function DiretorioSchemas: string;
     function Certificado: TDFeCertificado;
     procedure ExigirAmbiente;
-    function NovoClient(const APfx: string = 'valido.pfx'): IDFeDistribuicaoClient;
+    function NovoClient(const APfx: string = 'valido.pfx'; const APathSchemas: string = ''): IDFeDistribuicaoClient;
     function Manifestador(const AClient: IDFeDistribuicaoClient): IDFeManifestador;
     function Comando(const ATipo: string; const AJustificativa: string = ''): TDFeComandoManifestacao;
     procedure PublicarNFeDoDestinatario;
@@ -74,6 +78,9 @@ type
     procedure CertificadoVencido_ViraCertificadoInvalidoSemChamarATransmissao;
     procedure JustificativaAcentuada_AcbrRemoveOsAcentosSilenciosamente;
     procedure FimAFim_CienciaAutomatica_PublicaDocumentoEEventoDeCiencia;
+    procedure VerificacaoDeAmbiente_DestaMaquina_Manifestacao_EstaCompleta;
+    procedure PastaMinimaDeXsds_BastaParaEnviarEvento;
+    procedure SemXsdsDeEvento_EnviarEvento_LevantaAmbienteIndisponivel;
   end;
 
 implementation
@@ -129,6 +136,7 @@ begin
   FSim := TDFeSimuladorSefaz.Create(FRelogio.ObterAgora);
   FTransmissor := TDFeSimuladorTransmissor.Create(FSim);
   FTransmissorIntf := FTransmissor;
+  FPastas := TPastasTemporarias.Create;
   FChave := ChaveNFeSintetica(DFE_SIM_CNPJ_EMITENTE, 1);
 end;
 
@@ -138,6 +146,7 @@ begin
   FTransmissor := nil;
   FSim.Free;
   FRelogio.Free;
+  FPastas.Free;
 end;
 
 function TDFeAcbrSimEventoTests.DiretorioBase: string;
@@ -168,14 +177,17 @@ begin
     Ignore('libxml2 nativa nao encontrada (libxml2.dll x64 no PATH) -- ver docs/simulador-sefaz.md, "Sonda da Fase 4"');
 end;
 
-function TDFeAcbrSimEventoTests.NovoClient(const APfx: string): IDFeDistribuicaoClient;
+function TDFeAcbrSimEventoTests.NovoClient(const APfx, APathSchemas: string): IDFeDistribuicaoClient;
 var
   LCred: TDFeCredencialCertificado;
 begin
   ExigirAmbiente;
   LCred.ArquivoPFX := DiretorioBase + 'cert-teste' + PathDelim + APfx;
   LCred.Senha := SENHA_CERT;
-  LCred.PathSchemas := DiretorioSchemas;
+  if APathSchemas <> '' then
+    LCred.PathSchemas := APathSchemas
+  else
+    LCred.PathSchemas := DiretorioSchemas;
   Result := TDFeDistribuicaoClientACBrNFe.Create(LCred, taHomologacao, FTransmissorIntf);
 end;
 
@@ -517,6 +529,67 @@ begin
     LProcessador.Free;
     LOrq.Free;
   end;
+end;
+
+procedure TDFeAcbrSimEventoTests.VerificacaoDeAmbiente_DestaMaquina_Manifestacao_EstaCompleta;
+var
+  R: TDFeRelatorioAmbiente;
+begin
+  ExigirAmbiente;
+  R := VerificarAmbienteACBr(DiretorioSchemas, [uaDistribuicao, uaManifestacao]);
+  AssertTrue('ambiente da manifestacao deveria estar completo:' + sLineBreak + FormatarRelatorio(R),
+    AmbienteCompleto(R));
+end;
+
+{ Prova que DFE_XSDS_MANIFESTACAO (DFe.Ambiente.ACBr) e' SUFICIENTE: numa pasta
+  so' com esses arquivos o EnviarEvento dos QUATRO tipos monta, assina, valida
+  contra o XSD e registra (cada tipo valida um e2102xx diferente). Se o ACBr
+  passar a exigir outro, este teste quebra -- foi ele que mostrou que a
+  primeira versao da lista (5 arquivos) estava incompleta. }
+procedure TDFeAcbrSimEventoTests.PastaMinimaDeXsds_BastaParaEnviarEvento;
+var
+  LPasta: string;
+  I: Integer;
+  LManif: IDFeManifestador;
+begin
+  ExigirAmbiente;
+  LPasta := FPastas.Nova;
+  for I := Low(DFE_XSDS_MANIFESTACAO) to High(DFE_XSDS_MANIFESTACAO) do
+    CopiarArquivo(DiretorioSchemas + DFE_XSDS_MANIFESTACAO[I], LPasta + DFE_XSDS_MANIFESTACAO[I]);
+
+  PublicarNFeDoDestinatario;
+  LManif := Manifestador(NovoClient('valido.pfx', LPasta));
+  AssertEquals(DFE_EVENTO_MANIFESTACAO_CIENCIA,
+    LManif.EnviarEvento(Certificado, Comando(DFE_EVENTO_MANIFESTACAO_CIENCIA)).TipoEvento);
+  AssertEquals(DFE_EVENTO_MANIFESTACAO_CONFIRMACAO,
+    LManif.EnviarEvento(Certificado, Comando(DFE_EVENTO_MANIFESTACAO_CONFIRMACAO)).TipoEvento);
+  AssertEquals(DFE_EVENTO_MANIFESTACAO_DESCONHECIMENTO,
+    LManif.EnviarEvento(Certificado, Comando(DFE_EVENTO_MANIFESTACAO_DESCONHECIMENTO)).TipoEvento);
+  AssertEquals(DFE_EVENTO_MANIFESTACAO_OPERACAO_NAO_REALIZADA,
+    LManif.EnviarEvento(Certificado, Comando(DFE_EVENTO_MANIFESTACAO_OPERACAO_NAO_REALIZADA,
+      'Mercadoria nao foi entregue no prazo')).TipoEvento);
+  AssertEquals(4, FSim.EventosRegistrados);
+  AssertSemViolacoes;
+end;
+
+procedure TDFeAcbrSimEventoTests.SemXsdsDeEvento_EnviarEvento_LevantaAmbienteIndisponivel;
+var
+  LManif: IDFeManifestador;
+  LPasta: string;
+begin
+  ExigirAmbiente;
+  LPasta := FPastas.Nova;
+  CriarArquivoVazio(LPasta + 'distDFeInt_v1.01.xsd'); // basta para a distribuicao, nao para o evento
+  PublicarNFeDoDestinatario;
+  LManif := Manifestador(NovoClient('valido.pfx', LPasta));
+  try
+    LManif.EnviarEvento(Certificado, Comando(DFE_EVENTO_MANIFESTACAO_CIENCIA));
+    Fail('esperava EDFeAmbienteIndisponivel');
+  except
+    on E: EDFeAmbienteIndisponivel do
+      AssertTrue('diz o que falta: ' + E.Message, Pos('faltam: envEvento_v1.00.xsd', E.Message) > 0);
+  end;
+  AssertEquals(0, FTransmissor.Requisicoes);
 end;
 
 initialization

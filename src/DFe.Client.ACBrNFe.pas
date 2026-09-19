@@ -57,6 +57,8 @@ uses
   DFe.Errors,
   DFe.Transmissor,
   DFe.XmlTexto,
+  DFe.Ambiente,
+  DFe.Ambiente.ACBr,
   DFe.Provider,
   DFe.Provider.NFe,
   DFe.Manifestacao;
@@ -107,7 +109,16 @@ type
       caminho HTTP proprio dele faz isso), entao TratarFalhaDeChamada usa
       este valor para distinguir resposta ilegivel de falha de comunicacao. }
     FHttpDoTransmissor: Integer;
+    { Usos para os quais o ambiente de execucao ja foi verificado E estava
+      completo (so' o sucesso e' guardado: falha e' reverificada, para o
+      operador consertar o servidor sem reiniciar o processo). }
+    FAmbienteVerificado: TDFeUsosAmbiente;
     function CodigoHttpDaUltimaChamada: Integer;
+    { Confere OpenSSL / libxml2 / XSDs ANTES de tocar no certificado ou na rede
+      e levanta EDFeAmbienteIndisponivel (DFe.Errors) com o que falta e como
+      corrigir. Sem isto, DLL ausente saia como "certificado invalido" (a
+      unidade era PAUSADA) ou "falha de comunicacao" (parecia transitorio). }
+    procedure ExigirAmbiente(const AUso: TDFeUsoAmbiente);
     procedure AoTransmitir(const Dados, URL, SoapAction, MimeType: string;
       var Resposta: string; var HTTPResultCode: Integer;
       var InternalErrorCode: Integer);
@@ -308,6 +319,18 @@ begin
   InternalErrorCode := LResposta.InternalErrorCode;
 end;
 
+procedure TDFeDistribuicaoClientACBrNFe.ExigirAmbiente(const AUso: TDFeUsoAmbiente);
+var
+  LRelatorio: TDFeRelatorioAmbiente;
+begin
+  if AUso in FAmbienteVerificado then
+    Exit;
+  LRelatorio := VerificarAmbienteACBr(FACBrNFe.Configuracoes.Arquivos.PathSchemas, [AUso]);
+  if not AmbienteCompleto(LRelatorio) then
+    raise EDFeAmbienteIndisponivel.Create(MensagemAmbienteIncompleto(LRelatorio));
+  Include(FAmbienteVerificado, AUso);
+end;
+
 function TDFeDistribuicaoClientACBrNFe.CodigoHttpDaUltimaChamada: Integer;
 begin
   if Assigned(FTransmissor) then
@@ -343,6 +366,7 @@ function TDFeDistribuicaoClientACBrNFe.Consultar(const ACertificado: TDFeCertifi
 var
   LDistribuicao: TDistribuicaoDFe;
 begin
+  ExigirAmbiente(uaDistribuicao);
   GarantirCertificadoValido(ACertificado.CnpjCpf);
   FHttpDoTransmissor := 0;
 
@@ -366,6 +390,15 @@ begin
     on E: Exception do
       TratarFalhaDeChamada(E, LDistribuicao.retDistDFeInt.cStat);
   end;
+
+  { cStat = 0: o ACBr NAO conseguiu interpretar a resposta (LerXml engole o
+    erro -- ex.: libxml2 ausente, XML fora do formato) mas a chamada nao
+    levantou nada. Um retDistDFeInt de verdade sempre traz cStat. Sem esta
+    recusa o lote "sem cStat" chegava ao orquestrador como cStat desconhecido
+    e a unidade ficava sem consultar de verdade, em silencio. }
+  if LDistribuicao.retDistDFeInt.cStat = 0 then
+    raise EDFeRespostaInvalida.Create(
+      'Resposta da SEFAZ sem cStat interpretavel (o ACBr nao conseguiu ler o retDistDFeInt)');
 
   ConferirLoteCompleto(LDistribuicao.retDistDFeInt, LDistribuicao.RetWS);
   Result := MontarLoteBruto(LDistribuicao.retDistDFeInt);
@@ -392,6 +425,7 @@ var
   LEnvio: TNFeEnvEvento;
   LRetorno: TRetInfEvento;
 begin
+  ExigirAmbiente(uaManifestacao);
   GarantirCertificadoValido(ACertificado.CnpjCpf);
   FHttpDoTransmissor := 0;
 

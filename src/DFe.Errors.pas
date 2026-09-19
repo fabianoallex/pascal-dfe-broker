@@ -39,6 +39,17 @@ type
     orquestrador loga e pula o ciclo -- o cursor de NSU NAO avanca. }
   EDFeRespostaInvalida = class(EDFeError);
 
+  { O ambiente de EXECUCAO esta incompleto: falta uma biblioteca nativa (DLL/.so
+    de OpenSSL ou libxml2) ou os XSDs oficiais -- ver DFe.Ambiente e
+    docs/dependencias-runtime.md. NAO e' certificado (nao vira
+    EDFeCertificadoInvalido, que pausaria a unidade) nem rede (nao vira
+    EDFeComunicacaoFalhou, que parece transitorio): exige intervencao humana no
+    SERVIDOR, mas, resolvido o ambiente, a proxima tentativa funciona sozinha --
+    por isso o orquestrador registra o erro e reagenda, sem pausar. Antes de
+    existir este tipo, DLL ausente saia como certificado invalido (e a unidade
+    era pausada) ou como falha de comunicacao. }
+  EDFeAmbienteIndisponivel = class(EDFeError);
+
 implementation
 
 end.

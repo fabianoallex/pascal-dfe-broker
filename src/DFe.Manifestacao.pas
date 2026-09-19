@@ -284,6 +284,11 @@ begin
       RegistrarErro(AComando, 'Resposta invalida: ' + E.Message);
       Exit;
     end;
+    on E: EDFeAmbienteIndisponivel do
+    begin
+      RegistrarErro(AComando, 'Ambiente de execucao incompleto: ' + E.Message);
+      Exit;
+    end;
     // qualquer outra excecao (bug, falha inesperada) propaga -- nao e' um
     // caso modelado, mesmo criterio de DFe.Orquestrador.
   end;

@@ -45,6 +45,7 @@ type
     [Test] procedure ProcessarComando_CertificadoInvalido_RegistraErroNaoPropaga;
     [Test] procedure ProcessarComando_ComunicacaoFalhou_RegistraErroNaoPropaga;
     [Test] procedure ProcessarComando_RespostaInvalida_RegistraErroNaoPropaga;
+    [Test] procedure ProcessarComando_AmbienteIndisponivel_RegistraErroNaoPropaga;
     [Test] procedure ProcessarTodos_DrenaFonteAteVazia;
 
     [Test] procedure AutoManifestador_UnidadeAutomatica_ProcessaComandoCiencia;
@@ -350,6 +351,28 @@ var
 begin
   LClient := TDFeClientManifestadorFake.Create;
   LClient.ExcecaoAEnviar := EDFeRespostaInvalida;
+  LUnidade := TDFeUnidadeTrabalho.Create(TDFeProviderFake.Create('nfe'), LClient, CertificadoTeste, TDFeCursorStoreFake.Create);
+  FOrquestrador.AdicionarUnidade(LUnidade);
+
+  LProcessador := TDFeManifestacaoProcessadorTestavel.Create(FOrquestrador, FPublicador);
+  try
+    LProcessador.ProcessarComando(ComandoTeste);
+
+    Assert.AreEqual(1, LProcessador.QuantidadeErros);
+    Assert.AreEqual(0, FPublicador.Quantidade);
+  finally
+    LProcessador.Free;
+  end;
+end;
+
+procedure TDFeManifestacaoTests.ProcessarComando_AmbienteIndisponivel_RegistraErroNaoPropaga;
+var
+  LProcessador: TDFeManifestacaoProcessadorTestavel;
+  LClient: TDFeClientManifestadorFake;
+  LUnidade: TDFeUnidadeTrabalho;
+begin
+  LClient := TDFeClientManifestadorFake.Create;
+  LClient.ExcecaoAEnviar := EDFeAmbienteIndisponivel;
   LUnidade := TDFeUnidadeTrabalho.Create(TDFeProviderFake.Create('nfe'), LClient, CertificadoTeste, TDFeCursorStoreFake.Create);
   FOrquestrador.AdicionarUnidade(LUnidade);
 

@@ -28,6 +28,8 @@ uses
   DUnitX.Loggers.Xml.NUnit,
   DUnitX.TestFramework,
   DFe.TestDoubles in '..\..\..\Unit\DFe.TestDoubles.pas',
+  DFe.AcbrSimPastas in '..\DFe.AcbrSimPastas.pas',
+  DFe.AcbrSimFixo in '..\DFe.AcbrSimFixo.pas',
   DFe.AcbrSimTests in 'DFe.AcbrSimTests.pas',
   DFe.AcbrSimEventoTests in 'DFe.AcbrSimEventoTests.pas';
 

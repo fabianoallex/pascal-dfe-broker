@@ -33,6 +33,7 @@ type
     procedure ComunicacaoFalhou_ReagendaSemPausarNemAvancarCursor;
     procedure CertificadoInvalido_Pausa;
     procedure RespostaInvalida_NaoPausaERegistraErro;
+    procedure AmbienteIndisponivel_RegistraErroReagendaEMantemUnidadeAtiva;
     procedure MultiplosLotes_ContinuaAteAlcancarMaxNSU;
     procedure UnidadeComExcecaoNaoModelada_NaoDerrubaOutrasUnidades;
     procedure DecodificarLevanta_ReagendaSemAvancarCursorNemRepetirConsulta;
@@ -203,6 +204,27 @@ begin
 
   AssertFalse(LUnidade.Pausada);
   AssertTrue(FOrquestrador.QuantidadeErros > 0);
+end;
+
+{ Servidor sem DLL/XSD (DFe.Ambiente): erro para o operador, mas a unidade NAO
+  e' pausada -- consertado o ambiente, a proxima tentativa funciona sozinha
+  (ao contrario de EDFeCertificadoInvalido, que pausa). }
+procedure TDFeOrquestradorTests.AmbienteIndisponivel_RegistraErroReagendaEMantemUnidadeAtiva;
+var
+  LClient: TDFeDistribuicaoClientFake;
+  LUnidade: TDFeUnidadeTrabalho;
+begin
+  LClient := TDFeDistribuicaoClientFake.Create;
+  LClient.AdicionarExcecao(EDFeAmbienteIndisponivel);
+  LUnidade := TDFeUnidadeTrabalho.Create(TDFeProviderFake.Create('nfe'), LClient, CertificadoTeste, FCursorStore);
+  FOrquestrador.AdicionarUnidade(LUnidade);
+
+  FOrquestrador.ExecutarCiclo;
+
+  AssertFalse(LUnidade.Pausada);
+  AssertEquals(1, FOrquestrador.QuantidadeErros);
+  AssertTrue(LUnidade.ProximaConsultaEm > FOrquestrador.AgoraSimulado);
+  AssertEquals(Int64(0), FCursorStore.ObterUltimoNSU(NAMESPACE_TESTE));
 end;
 
 procedure TDFeOrquestradorTests.MultiplosLotes_ContinuaAteAlcancarMaxNSU;

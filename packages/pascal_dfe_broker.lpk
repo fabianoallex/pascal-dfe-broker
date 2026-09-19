@@ -93,6 +93,10 @@
         <Filename Value="..\src\DFe.XmlTexto.pas"/>
         <UnitName Value="DFe.XmlTexto"/>
       </Item>
+      <Item>
+        <Filename Value="..\src\DFe.Ambiente.pas"/>
+        <UnitName Value="DFe.Ambiente"/>
+      </Item>
     </Files>
     <RequiredPkgs>
       <Item>

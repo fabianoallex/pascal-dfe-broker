@@ -31,7 +31,8 @@ uses
   DFe.SimuladorClientTests,
   DFe.SimuladorSoapTests,
   DFe.SimuladorEventoTests,
-  DFe.XmlTextoTests;
+  DFe.XmlTextoTests,
+  DFe.AmbienteTests;
 
 var
   ConsoleApp: TTestRunner;

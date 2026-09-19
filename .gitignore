@@ -47,3 +47,4 @@ tests/Integration/AcbrSim/Docs/
 
 # resultado XML do DUnitX
 dunitx-results.xml
+tests/Integration/AcbrSim/tmp-amb-*/

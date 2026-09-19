@@ -59,6 +59,8 @@
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
         <DCCReference Include="..\..\..\Unit\DFe.TestDoubles.pas"/>
+        <DCCReference Include="..\DFe.AcbrSimPastas.pas"/>
+        <DCCReference Include="..\DFe.AcbrSimFixo.pas"/>
         <DCCReference Include="DFe.AcbrSimTests.pas"/>
         <DCCReference Include="DFe.AcbrSimEventoTests.pas"/>
         <BuildConfiguration Include="Base">

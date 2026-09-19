@@ -24,6 +24,10 @@ uses
   DFe.Simulador.Soap,
   DFe.Simulador.Fixtures,
   DFe.Client.ACBrNFe,
+  DFe.Ambiente,
+  DFe.Ambiente.ACBr,
+  DFe.AcbrSimPastas,
+  DFe.AcbrSimFixo,
   DFe.TestDoubles;
 
 type
@@ -34,9 +38,10 @@ type
     FSim: TDFeSimuladorSefaz;
     FTransmissor: TDFeSimuladorTransmissor;
     FTransmissorIntf: IDFeTransmissor;
+    FPastas: TPastasTemporarias;
     function DiretorioBase: string;
     function Certificado: TDFeCertificado;
-    function NovoClient(const APfx: string = 'valido.pfx'): IDFeDistribuicaoClient;
+    function NovoClient(const APfx: string = 'valido.pfx'; const APathSchemas: string = ''): IDFeDistribuicaoClient;
     procedure PublicarNFe(const ANumero: Integer; const AXNome: string = DFE_SIM_XNOME_EMITENTE);
     procedure AssertSemViolacoes;
     procedure PublicarLoteQueOAcbrTrunca;
@@ -61,6 +66,12 @@ type
     [Test] procedure CnpjDivergenteDoCertificado_ViraCertificadoInvalido;
     [Test] procedure FimAFim_OrquestradorProviderNFeEPublicador;
     [Test] procedure FimAFim_AcentosChegamAoPayloadPublicado;
+    [Test] procedure RespostaSemCStat_ViraRespostaInvalidaEmVezDeLoteVazio;
+    [Test] procedure SemSchemas_Consultar_LevantaAmbienteIndisponivelSemChamarATransmissao;
+    [Test] procedure AmbienteConsertado_ProximaChamadaFuncionaSemReiniciar;
+    [Test] procedure VerificacaoDeAmbiente_DestaMaquina_Distribuicao_EstaCompleta;
+    [Test] procedure VerificacaoDeAmbiente_PastaInexistenteOuVazia_Reprova;
+    [Test] procedure VerificacaoDeAmbiente_UmXsdBastaParaDistribuicaoMasNaoParaManifestacao;
   end;
 
 implementation
@@ -126,6 +137,7 @@ begin
   FSim := TDFeSimuladorSefaz.Create(FRelogio.ObterAgora);
   FTransmissor := TDFeSimuladorTransmissor.Create(FSim);
   FTransmissorIntf := FTransmissor;
+  FPastas := TPastasTemporarias.Create;
 end;
 
 procedure TDFeAcbrSimTests.TearDown;
@@ -134,6 +146,7 @@ begin
   FTransmissor := nil;
   FSim.Free;
   FRelogio.Free;
+  FPastas.Free;
 end;
 
 function TDFeAcbrSimTests.DiretorioBase: string;
@@ -148,13 +161,16 @@ begin
   Result.UF := 'RS';
 end;
 
-function TDFeAcbrSimTests.NovoClient(const APfx: string): IDFeDistribuicaoClient;
+function TDFeAcbrSimTests.NovoClient(const APfx, APathSchemas: string): IDFeDistribuicaoClient;
 var
   LCred: TDFeCredencialCertificado;
 begin
   LCred.ArquivoPFX := DiretorioBase + 'cert-teste' + PathDelim + APfx;
   LCred.Senha := SENHA_CERT;
-  LCred.PathSchemas := DiretorioBase + 'Schemas' + PathDelim;
+  if APathSchemas <> '' then
+    LCred.PathSchemas := APathSchemas
+  else
+    LCred.PathSchemas := DiretorioBase + 'Schemas' + PathDelim;
   Assert.IsTrue(FileExists(LCred.ArquivoPFX), 'certificado de teste nao encontrado: ' + LCred.ArquivoPFX);
   Result := TDFeDistribuicaoClientACBrNFe.Create(LCred, taHomologacao, FTransmissorIntf);
 end;
@@ -492,6 +508,102 @@ begin
   finally
     LOrq.Free;
   end;
+end;
+
+{ O ACBr engole o erro de leitura da resposta (LerXml devolve False e ninguem
+  olha): sem libxml2, ou com XML fora do formato, o lote saia com cStat = 0.
+  Aqui simulamos o segundo caso (retDistDFeInt sem cStat); o client deve recusar. }
+procedure TDFeAcbrSimTests.RespostaSemCStat_ViraRespostaInvalidaEmVezDeLoteVazio;
+var
+  LClient: IDFeDistribuicaoClient;
+begin
+  FTransmissorIntf := TDFeTransmissorFixo.Create(EnvelopeDistribuicaoSemCStat);
+  LClient := NovoClient;
+  try
+    LClient.Consultar(Certificado, 0);
+    Assert.Fail('esperava EDFeRespostaInvalida: cStat 0 nao e'' um lote valido');
+  except
+    on E: EDFeRespostaInvalida do
+      Assert.IsTrue(Pos('cStat', E.Message) > 0, 'a mensagem cita o cStat: ' + E.Message);
+  end;
+end;
+
+{ Sem XSDs o ACBr falharia dentro de InicializarServico; o client agora barra ANTES,
+  com EDFeAmbienteIndisponivel dizendo o que falta -- nao "comunicacao falhou". }
+procedure TDFeAcbrSimTests.SemSchemas_Consultar_LevantaAmbienteIndisponivelSemChamarATransmissao;
+var
+  LClient: IDFeDistribuicaoClient;
+begin
+  LClient := NovoClient('valido.pfx', FPastas.Nova); // pasta vazia
+  try
+    LClient.Consultar(Certificado, 0);
+    Assert.Fail('esperava EDFeAmbienteIndisponivel');
+  except
+    on E: EDFeAmbienteIndisponivel do
+      Assert.IsTrue(Pos('nenhum .xsd', E.Message) > 0, 'a mensagem diz o que falta: ' + E.Message);
+  end;
+  Assert.AreEqual(0, FTransmissor.Requisicoes);
+end;
+
+{ O erro de ambiente NAO e' guardado: o operador conserta o servidor e a MESMA
+  instancia volta a funcionar, sem reiniciar o processo. }
+procedure TDFeAcbrSimTests.AmbienteConsertado_ProximaChamadaFuncionaSemReiniciar;
+var
+  LClient: IDFeDistribuicaoClient;
+  LPasta: string;
+begin
+  LPasta := FPastas.Nova;
+  LClient := NovoClient('valido.pfx', LPasta);
+  try
+    LClient.Consultar(Certificado, 0);
+    Assert.Fail('esperava EDFeAmbienteIndisponivel');
+  except
+    on EDFeAmbienteIndisponivel do ;
+  end;
+
+  CriarArquivoVazio(LPasta + 'distDFeInt_v1.01.xsd'); // "o operador conserta o servidor"
+
+  Assert.AreEqual(137, LClient.Consultar(Certificado, 0).CStat);
+end;
+
+procedure TDFeAcbrSimTests.VerificacaoDeAmbiente_DestaMaquina_Distribuicao_EstaCompleta;
+var
+  R: TDFeRelatorioAmbiente;
+begin
+  R := VerificarAmbienteACBr(DiretorioBase + 'Schemas', [uaDistribuicao]);
+  Assert.IsTrue(AmbienteCompleto(R), 'ambiente da distribuicao deveria estar completo:' + sLineBreak + FormatarRelatorio(R));
+  Assert.IsTrue(Pos('OpenSSL', FormatarRelatorio(R)) > 0, 'o relatorio cita o OpenSSL carregado');
+end;
+
+procedure TDFeAcbrSimTests.VerificacaoDeAmbiente_PastaInexistenteOuVazia_Reprova;
+var
+  R: TDFeRelatorioAmbiente;
+begin
+  R := VerificarAmbienteACBr(FPastas.CaminhoInexistente, [uaDistribuicao]);
+  Assert.IsFalse(AmbienteCompleto(R));
+  Assert.IsTrue(Pos('pasta inexistente', FormatarRelatorio(R)) > 0, 'pasta inexistente');
+
+  R := VerificarAmbienteACBr(FPastas.Nova, [uaDistribuicao]);
+  Assert.IsFalse(AmbienteCompleto(R));
+  Assert.IsTrue(Pos('nenhum .xsd', FormatarRelatorio(R)) > 0, 'pasta vazia');
+end;
+
+{ A distribuicao so' exige ALGUM .xsd (Fase 0, achado 3); a manifestacao exige o
+  fecho de XSDs do evento -- e a falta deles e' dita pelo nome. }
+procedure TDFeAcbrSimTests.VerificacaoDeAmbiente_UmXsdBastaParaDistribuicaoMasNaoParaManifestacao;
+var
+  R: TDFeRelatorioAmbiente;
+  LPasta: string;
+begin
+  LPasta := FPastas.Nova;
+  CriarArquivoVazio(LPasta + 'distDFeInt_v1.01.xsd');
+
+  R := VerificarAmbienteACBr(LPasta, [uaDistribuicao]);
+  Assert.IsTrue(AmbienteCompleto(R), 'distribuicao com 1 xsd:' + sLineBreak + FormatarRelatorio(R));
+
+  R := VerificarAmbienteACBr(LPasta, [uaDistribuicao, uaManifestacao]);
+  Assert.IsFalse(AmbienteCompleto(R));
+  Assert.IsTrue(Pos('faltam: envEvento_v1.00.xsd', FormatarRelatorio(R)) > 0, 'diz quais XSDs faltam:' + sLineBreak + FormatarRelatorio(R));
 end;
 
 initialization

@@ -326,6 +326,14 @@ begin
         RegistrarErro(AUnidade, 'Resposta invalida, ciclo ignorado: ' + E.Message);
         LFalhouChamada := True;
       end;
+      on E: EDFeAmbienteIndisponivel do
+      begin
+        { Servidor sem DLL/XSD (DFe.Ambiente). Erro para o operador, nao
+          transitorio de rede; mas NAO pausa a unidade: consertado o ambiente,
+          a proxima tentativa (em IntervaloBase) funciona sozinha. }
+        RegistrarErro(AUnidade, 'Ambiente de execucao incompleto (unidade continua agendada): ' + E.Message);
+        LFalhouChamada := True;
+      end;
       // qualquer outra excecao (bug, falha inesperada) propaga -- nao e'
       // um caso modelado. Nao e' engolida em silencio (ExecutarCiclo loga
       // via RegistrarErro) nem derruba as outras unidades (isolamento por
