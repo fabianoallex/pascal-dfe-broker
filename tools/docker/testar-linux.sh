@@ -78,7 +78,7 @@ timeout 300 ./AcbrSimTests --all --format=plain > /out/resultado.txt 2>&1; RCI=$
 echo "saida da integracao=$RCI (0 = tudo passou; 124 = estourou o tempo)"
 grep -E "Number of|Time:" /out/resultado.txt | head -6 || true
 grep -A2 "Message:" /out/resultado.txt | head -4 | cut -c1-400 || true
-RCA=0; RCH=0
+RCA=0; RCH=0; RCD=0
 if [ ! -d /proj/vendor/pascal-amqp-faa/src ]; then
   echo; echo "=== integracao AMQP embutido e host console: PULADA (vendor/pascal-amqp-faa nao inicializado: git submodule update --init vendor/pascal-amqp-faa) ==="
 else
@@ -116,9 +116,26 @@ else
   cut -c1-220 /out/host.txt
   echo "saida do host apos SIGTERM=$RCH (0 = parada limpa)"
   if ! grep -q "Encerrando" /out/host.txt; then RCH=1; fi
+
+  echo; echo "=== demo (tools/demo/DFeDemo): compila, publica NFes sinteticas, recebe SIGTERM ==="
+  DLPI=/proj/tools/demo/DFeDemo.lpi
+  dconv() { tr ";" "\n" | sed "s#\\\\#/#g"; }
+  DUNITS=$(grep -o "OtherUnitFiles Value=\"[^\"]*\"" $DLPI | sed "s/.*Value=\"//; s/\"\$//" | dconv | sed "s#^#-Fu#" | tr "\n" " ")
+  DINCS=$(grep -o "IncludeFiles Value=\"[^\"]*\"" $DLPI | sed "s/.*Value=\"//; s/\"\$//" | dconv | sed "s#^#-Fi#" | tr "\n" " ")
+  mkdir -p /out/demo
+  cd /proj/tools/demo
+  fpc -Mdelphi -Sh $DUNITS $DINCS -FU/out/demo -FE/out/demo -oDFeDemo DFeDemo.dpr 2>&1 | grep -E "Fatal|Error:|lines compiled"
+  /out/demo/DFeDemo --porta 25693 --intervalo 1 > /out/demo.txt 2>&1 &
+  DPID=$!
+  sleep 5
+  kill -TERM $DPID
+  wait $DPID; RCD=$?
+  cut -c1-160 /out/demo.txt
+  echo "saida do demo apos SIGTERM=$RCD (0 = parada limpa)"
+  if ! grep -q "publicado  nfe.documento" /out/demo.txt || ! grep -q "Encerrando" /out/demo.txt; then RCD=1; fi
 fi
 
 # codigo de saida do script = falha se QUALQUER suite falhou
-if [ "$RCP" -ne 0 ] || [ "$RCI" -ne 0 ] || [ "$RCA" -ne 0 ] || [ "$RCH" -ne 0 ]; then exit 1; fi
+if [ "$RCP" -ne 0 ] || [ "$RCI" -ne 0 ] || [ "$RCA" -ne 0 ] || [ "$RCH" -ne 0 ] || [ "$RCD" -ne 0 ]; then exit 1; fi
 exit 0
 '

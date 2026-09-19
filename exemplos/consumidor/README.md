@@ -30,7 +30,7 @@ Com o host de verdade (`hosts/console` ou o serviço) é igual: aponte `--host/-
 ## O contrato
 
 - **Exchange** `dfe`, tipo **topic**, durável.
-- **Routing-key** `<tipo>.<categoria>.<uf>.<cnpj>`, por exemplo `nfe.documento.sp.12345678000199` ou `nfe.evento.cancelamento.sp.12345678000199`. `<cnpj>` é o do **certificado que consultou**, não necessariamente o emitente ou destinatário. Os padrões usam `*` (uma palavra) e `#` (várias): `nfe.evento.#`, `nfe.documento.sp.*`, `#.12345678000199` só casa o último segmento, então prefira `nfe.#`.
+- **Routing-key** `<tipo>.<categoria>.<uf>.<cnpj>`, por exemplo `nfe.documento.sp.12345678000199` ou `nfe.evento.cancelamento.sp.12345678000199`. `<cnpj>` é o do **certificado que consultou**, não necessariamente o emitente ou destinatário. Os padrões usam `*` (uma palavra) e `#` (várias): `nfe.evento.#` (todos os eventos), `nfe.documento.sp.*` (documentos de SP, de qualquer CNPJ), `#.12345678000199` (tudo de um CNPJ), `nfe.#` (tudo de NFe).
 - **Corpo**: o XML do item, **UTF-8**, `content-type: application/xml`, mensagem persistente.
 - **Sem uma fila ligada, o broker descarta** (é pub/sub). Por isso há dois jeitos de consumir:
 

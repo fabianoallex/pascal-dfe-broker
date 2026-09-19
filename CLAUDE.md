@@ -10,6 +10,8 @@ Ferramenta open source para consulta e distribuição de Documentos Fiscais Elet
 
 **CI (2026-09-19): `.github/workflows/linux.yml`** roda no GitHub Actions (`ubuntu-latest`) o `tools/docker/testar-linux.sh` (pura 250, ACBr×simulador 44, AMQP 18, host + SIGTERM) e, em job separado, `tools/docker/testar-systemd.sh` (15 verificações); ~2 min cada, **verde**. Os submódulos entram sem `--recurse-submodules` (`git submodule update --init vendor/pascal-amqp-faa` + `tools/init-acbr-submodule.sh`). **O Delphi NÃO roda no CI** (só pela IDE). Achado: em runner de CI o contêiner (root) deixa arquivos que o usuário comum não apaga — os scripts agora limpam de dentro de um contêiner. Os `.sh` precisam do bit de execução no índice (`git update-index --chmod=+x`), porque o Windows não o guarda.
 
+**Demo e exemplos de consumidor (2026-09-19):** `tools/demo/DFeDemo` (FPC, `lazbuild tools/demo/DFeDemo.lpi`; **sem `.dproj`**) sobe o broker embutido e publica NFes/eventos sintéticos pelo caminho real (simulador → provider NFe → `MontarRoutingKey` → `TDFePublicadorAMQP`); `exemplos/consumidor/python/consumir.py` e `manifestar.py` (pika) + `exemplos/consumidor/README.md` (contrato, filas própria × nomeada, dedup pela chave, manifestação). **Testados com o `pika` (cliente de terceiros) contra o broker embutido**: consumo nos dois modos, comando válido chegando ao processador do host, entrada inválida recusada pelo script e descartada pelo host. O demo compila e roda no Linux dentro do `testar-linux.sh` (e portanto no CI). Não testado: outras linguagens além de Python.
+
 **Como recompilar/rodar os testes:**
 - **FPC** (linha de comando funciona nesta máquina):
   ```

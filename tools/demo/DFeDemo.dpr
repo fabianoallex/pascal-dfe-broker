@@ -131,6 +131,7 @@ begin
       APublicador.Publicar(MontarRoutingKey(LEventos[I]), LEventos[I].XmlPayload);
       WriteLn(FormatDateTime('hh:nn:ss', Now), '  publicado  ', MontarRoutingKey(LEventos[I]),
         '  chave=', LEventos[I].ChaveAcesso);
+      Flush(Output); // saida redirecionada (pipe/arquivo) fica em buffer no FPC
     end;
     LClient := nil; // solta o client antes do simulador (ver TDFeSimuladorClient)
   finally
@@ -185,6 +186,7 @@ begin
     WriteLn('filas: documentos (nfe.documento.#), eventos (nfe.evento.#); exchange "dfe" (topic)');
     WriteLn('publicando uma NFe a cada ', GIntervalo, ' s. Ctrl+C para parar.');
     WriteLn;
+    Flush(Output);
 
     GNumero := 0;
     while not GParada.Pedida do
@@ -199,6 +201,7 @@ begin
       end;
     end;
     WriteLn('Encerrando.');
+    Flush(Output);
   finally
     GPublicador := nil;
     GBroker.Stop;
