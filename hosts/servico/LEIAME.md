@@ -7,7 +7,16 @@ Host do pascal-dfe-broker como Serviço Windows. **Delphi-only** (Win64) — um 
 ## Antes de instalar
 
 1. **Rode o console com a mesma config** e confira que o relatório de ambiente sai todo `[OK]` (`DFeBrokerConsole.exe --config C:\dfe\dfe.ini --verificar-ambiente`).
-2. **DLLs ao lado do executável.** O serviço **não** enxerga o PATH do *seu usuário* — só o do sistema. Copie para a pasta do `DFeBrokerServico.exe` o par `libssl-3-x64.dll` + `libcrypto-3-x64.dll` **do mesmo pacote** e a `libxml2.dll` x64 (ver `docs/dependencias-runtime.md`).
+2. **DLLs ao lado do executável.** O serviço **não** enxerga o PATH do *seu usuário* — só o do sistema. Copie para a pasta do `DFeBrokerServico.exe` (64 bits, como o executável) estes 4 arquivos, **todos da mesma pasta**:
+
+   ```powershell
+   $pg = 'C:\Program Files\PostgreSQL\18\bin'   # se você tem o PostgreSQL 18 instalado
+   Copy-Item "$pg\libssl-3-x64.dll", "$pg\libcrypto-3-x64.dll", "$pg\libxml2.dll", "$pg\zlib1.dll" C:\dfe\
+   ```
+
+   Verificado (2026-09-19): numa pasta só com o `.exe` do console e essas 4 DLLs, **com o PATH reduzido ao do Windows**, o relatório de ambiente carrega OpenSSL 3.5.4 e libxml2 sem depender de mais nada. **Não misture origens**: `libssl` e `libcrypto` têm de ser da mesma versão (numa máquina de teste o PATH trouxe a `libssl` 3.5.4 do PostgreSQL com a `libcrypto` 3.4.0 do Tesseract-OCR — funciona por sorte, e não deve ser usado). Sem o PostgreSQL: o Git for Windows tem o par OpenSSL em `C:\Program Files\Git\mingw64\bin` (3.2.4), e a libxml2 x64 precisa vir de outra fonte (`docs/dependencias-runtime.md`, "Como obter"). Confirme com `DFeBrokerConsole.exe --config <ini> --verificar-ambiente` rodado **a partir dessa pasta**.
+   
+   **XSDs:** copie `vendor\ACBr\Exemplos\ACBrDFe\Schemas\NFe\*` para uma pasta (por exemplo `C:\dfe\Schemas\`) e ponha `PathSchemas=Schemas` no `[dfe]` do `dfe.ini`.
 3. **Caminhos absolutos.** O diretório corrente de um serviço é `C:\Windows\System32`. `ArquivoPFX`, `PathSchemas`, `CursorPath` e `DataDir` relativos valem em relação à **pasta do `dfe.ini`** (regra do projeto), então isso já funciona — mas passe `--config` **absoluto**.
 4. **Senha do certificado:** prefira `SenhaEnv=NOME` no INI e defina `NOME` como variável de ambiente **do sistema** (`setx NOME "senha" /M`, PowerShell como administrador); reinicie o serviço depois. O arquivo de config não deve guardar segredo.
 
