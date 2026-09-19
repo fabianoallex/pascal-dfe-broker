@@ -29,7 +29,14 @@ if ! docker image inspect dfe-linux-teste >/dev/null 2>&1; then
   docker build -f tools/docker/Dockerfile.linux-teste -t dfe-linux-teste tools/docker
 fi
 
-SAIDA="$(mktemp -d)"; trap 'rm -rf "$SAIDA"' EXIT
+SAIDA="$(mktemp -d)"
+# O conteiner roda como root: o que ele gera em $SAIDA pertence a root, e o usuario
+# comum de um runner de CI nao consegue apagar. Apaga de dentro de um conteiner.
+limpar() {
+  docker run --rm -v "${SAIDA_MONTAGEM:-$SAIDA}:/out" --entrypoint sh dfe-linux-teste     -c 'rm -rf /out/* /out/.[!.]* 2>/dev/null' >/dev/null 2>&1 || true
+  rm -rf "$SAIDA" 2>/dev/null || true
+}
+trap limpar EXIT
 SAIDA_MONTAGEM="$(cd "$SAIDA" && (pwd -W 2>/dev/null || pwd))"
 
 docker run --rm \

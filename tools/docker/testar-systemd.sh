@@ -26,7 +26,14 @@ fi
 SAIDA="$(mktemp -d)"
 SAIDA_MONTAGEM="$(cd "$SAIDA" && (pwd -W 2>/dev/null || pwd))"
 CT="dfe-systemd-$$"
-trap 'docker rm -f "$CT" >/dev/null 2>&1 || true; rm -rf "$SAIDA"' EXIT
+# O conteiner roda como root: o que ele gera em $SAIDA pertence a root, e o usuario
+# comum de um runner de CI nao consegue apagar. Apaga de dentro de um conteiner.
+limpar() {
+  docker rm -f "$CT" >/dev/null 2>&1 || true
+  docker run --rm -v "${SAIDA_MONTAGEM:-$SAIDA}:/out" --entrypoint sh dfe-linux-teste     -c 'rm -rf /out/* /out/.[!.]* 2>/dev/null' >/dev/null 2>&1 || true
+  rm -rf "$SAIDA" 2>/dev/null || true
+}
+trap limpar EXIT
 
 echo ">> compilando o host (FPC, Linux)..."
 docker run --rm -v "$RAIZ:/proj:ro" -v "$SAIDA_MONTAGEM:/out" \
