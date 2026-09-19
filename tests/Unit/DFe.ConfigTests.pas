@@ -42,6 +42,15 @@ type
 
     [Test] procedure ConfigWatcher_Create_FazCargaInicial;
     [Test] procedure ConfigWatcher_VerificarRecarregar_SoRecarregaSeDataMudou;
+
+    [Test] procedure CarregarConfigBroker_SemSecao_UsaPadroes;
+    [Test] procedure CarregarConfigBroker_LeModoExternoEParametros;
+    [Test] procedure CarregarConfigBroker_DataDirVazioExplicito_FicaVazio;
+    [Test] procedure CarregarConfigBroker_ModoDesconhecido_Levanta;
+    [Test] procedure CarregarConfigBroker_PortaInvalida_Levanta;
+    [Test] procedure CarregarConfigBroker_LeFilasComVariosPadroes;
+    [Test] procedure CarregarConfigBroker_FilaSemRoutingKey_Levanta;
+    [Test] procedure CarregarConfigBroker_FilaComNomeReservado_Levanta;
   end;
 
 implementation
@@ -435,6 +444,113 @@ begin
     LOrquestrador.Free;
     LFactory.Free;
   end;
+end;
+
+procedure TDFeConfigTests.CarregarConfigBroker_SemSecao_UsaPadroes;
+var
+  LConfig: TDFeConfigBroker;
+begin
+  EscreverArquivo(['[dfe]']);
+
+  LConfig := CarregarConfigBroker(FCaminho);
+
+  Assert.AreEqual(Ord(mbEmbutido), Ord(LConfig.Modo));
+  Assert.AreEqual('127.0.0.1', LConfig.BindAddress);
+  Assert.AreEqual(5672, LConfig.Porta);
+  Assert.AreEqual('guest', LConfig.Usuario);
+  Assert.AreEqual('/', LConfig.VirtualHost);
+  Assert.AreEqual('broker', LConfig.DataDir);
+  Assert.AreEqual(0, Integer(Length(LConfig.Filas)));
+end;
+
+procedure TDFeConfigTests.CarregarConfigBroker_LeModoExternoEParametros;
+var
+  LConfig: TDFeConfigBroker;
+begin
+  EscreverArquivo(['[broker]', 'Modo=Externo', 'Host=rabbit.local', 'Porta=5673', 'Usuario=dfe', 'Senha=segredo', 'VirtualHost=fiscal']);
+
+  LConfig := CarregarConfigBroker(FCaminho);
+
+  Assert.AreEqual(Ord(mbExterno), Ord(LConfig.Modo));
+  Assert.AreEqual('rabbit.local', LConfig.Host);
+  Assert.AreEqual(5673, LConfig.Porta);
+  Assert.AreEqual('dfe', LConfig.Usuario);
+  Assert.AreEqual('segredo', LConfig.Senha);
+  Assert.AreEqual('fiscal', LConfig.VirtualHost);
+end;
+
+procedure TDFeConfigTests.CarregarConfigBroker_DataDirVazioExplicito_FicaVazio;
+var
+  LConfig: TDFeConfigBroker;
+begin
+  EscreverArquivo(['[broker]', 'DataDir=']);
+
+  LConfig := CarregarConfigBroker(FCaminho);
+
+  Assert.AreEqual('', LConfig.DataDir);
+end;
+
+procedure TDFeConfigTests.CarregarConfigBroker_ModoDesconhecido_Levanta;
+begin
+  EscreverArquivo(['[broker]', 'Modo=nuvem']);
+  Assert.WillRaise(
+    procedure
+    begin
+      CarregarConfigBroker(FCaminho);
+    end,
+    Exception);
+end;
+
+procedure TDFeConfigTests.CarregarConfigBroker_PortaInvalida_Levanta;
+begin
+  EscreverArquivo(['[broker]', 'Porta=70000']);
+  Assert.WillRaise(
+    procedure
+    begin
+      CarregarConfigBroker(FCaminho);
+    end,
+    Exception);
+end;
+
+procedure TDFeConfigTests.CarregarConfigBroker_LeFilasComVariosPadroes;
+var
+  LConfig: TDFeConfigBroker;
+begin
+  EscreverArquivo([
+    '[fila:fiscal]', 'RoutingKey=nfe.documento.#, nfe.evento.#',
+    '[fila:so-ciencia]', 'RoutingKey=nfe.evento.ciencia.#']);
+
+  LConfig := CarregarConfigBroker(FCaminho);
+
+  Assert.AreEqual(2, Integer(Length(LConfig.Filas)));
+  Assert.AreEqual('fiscal', LConfig.Filas[0].Nome);
+  Assert.AreEqual(2, Integer(Length(LConfig.Filas[0].Padroes)));
+  Assert.AreEqual('nfe.documento.#', LConfig.Filas[0].Padroes[0]);
+  Assert.AreEqual('nfe.evento.#', LConfig.Filas[0].Padroes[1]);
+  Assert.AreEqual('so-ciencia', LConfig.Filas[1].Nome);
+  Assert.AreEqual(1, Integer(Length(LConfig.Filas[1].Padroes)));
+end;
+
+procedure TDFeConfigTests.CarregarConfigBroker_FilaSemRoutingKey_Levanta;
+begin
+  EscreverArquivo(['[fila:x]']);
+  Assert.WillRaise(
+    procedure
+    begin
+      CarregarConfigBroker(FCaminho);
+    end,
+    Exception);
+end;
+
+procedure TDFeConfigTests.CarregarConfigBroker_FilaComNomeReservado_Levanta;
+begin
+  EscreverArquivo(['[fila:dfe.comandos]', 'RoutingKey=#']);
+  Assert.WillRaise(
+    procedure
+    begin
+      CarregarConfigBroker(FCaminho);
+    end,
+    Exception);
 end;
 
 initialization

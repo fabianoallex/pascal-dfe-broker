@@ -12,6 +12,12 @@
         <Projects Include="tests\Integration\AcbrSim\delphi\AcbrSimDelphiTests.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="tests\Integration\AmqpBroker\delphi\AmqpBrokerDelphiTests.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="hosts\console\DFeBrokerConsole.dproj">
+            <Dependencies/>
+        </Projects>
     </ItemGroup>
     <ProjectExtensions>
         <Borland.Personality>Default.Personality.12</Borland.Personality>
@@ -47,14 +53,32 @@
     <Target Name="AcbrSimDelphiTests:Make">
         <MSBuild Projects="tests\Integration\AcbrSim\delphi\AcbrSimDelphiTests.dproj" Targets="Make"/>
     </Target>
+    <Target Name="AmqpBrokerDelphiTests">
+        <MSBuild Projects="tests\Integration\AmqpBroker\delphi\AmqpBrokerDelphiTests.dproj"/>
+    </Target>
+    <Target Name="AmqpBrokerDelphiTests:Clean">
+        <MSBuild Projects="tests\Integration\AmqpBroker\delphi\AmqpBrokerDelphiTests.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="AmqpBrokerDelphiTests:Make">
+        <MSBuild Projects="tests\Integration\AmqpBroker\delphi\AmqpBrokerDelphiTests.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="DFeBrokerConsole">
+        <MSBuild Projects="hosts\console\DFeBrokerConsole.dproj"/>
+    </Target>
+    <Target Name="DFeBrokerConsole:Clean">
+        <MSBuild Projects="hosts\console\DFeBrokerConsole.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="DFeBrokerConsole:Make">
+        <MSBuild Projects="hosts\console\DFeBrokerConsole.dproj" Targets="Make"/>
+    </Target>
     <Target Name="Build">
-        <CallTarget Targets="DFe_UnitTests;AcbrClientSmoke;AcbrSimDelphiTests"/>
+        <CallTarget Targets="DFe_UnitTests;AcbrClientSmoke;AcbrSimDelphiTests;AmqpBrokerDelphiTests;DFeBrokerConsole"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="DFe_UnitTests:Clean;AcbrClientSmoke:Clean;AcbrSimDelphiTests:Clean"/>
+        <CallTarget Targets="DFe_UnitTests:Clean;AcbrClientSmoke:Clean;AcbrSimDelphiTests:Clean;AmqpBrokerDelphiTests:Clean;DFeBrokerConsole:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="DFe_UnitTests:Make;AcbrClientSmoke:Make;AcbrSimDelphiTests:Make"/>
+        <CallTarget Targets="DFe_UnitTests:Make;AcbrClientSmoke:Make;AcbrSimDelphiTests:Make;AmqpBrokerDelphiTests:Make;DFeBrokerConsole:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

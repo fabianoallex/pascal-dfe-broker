@@ -24,6 +24,19 @@
     Ativo=true                  ; opcional, default true
     ManifestacaoAutomatica=false ; opcional, default false -- ver DFe.Manifestacao
 
+    [broker]                     ; tudo opcional -- ver CarregarConfigBroker
+    Modo=embutido                ; ou 'externo' (RabbitMQ etc.)
+    BindAddress=127.0.0.1        ; embutido: onde escuta
+    Host=127.0.0.1               ; externo: onde conecta
+    Porta=5672
+    Usuario=guest
+    Senha=guest
+    VirtualHost=/
+    DataDir=broker               ; embutido: WAL; vazio = transiente
+
+    [fila:fiscal]                ; fila declarada pelo host, ligada a exchange 'dfe'
+    RoutingKey=nfe.documento.#,nfe.evento.#
+
   Cada secao 'certificado:<alias>' vira uma TDFeUnidadeTrabalho. Campos de
   certificado digital "de verdade" (caminho do .pfx, senha) ficam FORA
   deste arquivo de proposito -- pertencem a implementacao real de
@@ -87,6 +100,34 @@ type
     Certificados: TDFeConfigCertificadoArray;
   end;
 
+  TDFeModoBroker = (mbEmbutido, mbExterno);
+
+  { Uma fila que o proprio host declara e liga a exchange 'dfe' na subida (ver
+    [fila:<nome>] no formato acima). Sem isto, o que for publicado antes de um
+    consumidor declarar a sua fila e' DESCARTADO pelo broker (pub/sub) -- e o
+    cursor de NSU ja' teria avancado. }
+  TDFeConfigFila = record
+    Nome: string;
+    Padroes: array of string; // routing-keys/padroes topic, ex. 'nfe.documento.#'
+  end;
+
+  TDFeConfigBroker = record
+    Modo: TDFeModoBroker;
+    { Embutido: onde o broker escuta (BindAddress:Porta). Externo: onde o
+      cliente conecta (Host:Porta). }
+    Host: string;
+    BindAddress: string;
+    Porta: Integer;
+    Usuario: string;
+    Senha: string;
+    VirtualHost: string;
+    { So' embutido: pasta do WAL do broker. Vazia = broker TRANSIENTE (o que
+      estiver em fila se perde ao reiniciar). Relativa = relativa ao arquivo
+      de config, resolvida por quem hospeda. }
+    DataDir: string;
+    Filas: array of TDFeConfigFila;
+  end;
+
   { Fabrica de IDFeDistribuicaoClient para um certificado -- quem monta o
     orquestrador de verdade passa aqui a implementacao real (componentes
     ACBr); testes passam uma fabrica que devolve fakes. 'of object' (metodo
@@ -103,6 +144,14 @@ type
   cedo, na inicializacao do host, em vez de criar uma unidade de trabalho
   quebrada (ou duas competindo pelo mesmo CNPJ) em silencio. }
 function CarregarConfig(const ACaminho: string): TDFeConfig;
+
+{ Le a secao [broker] e as secoes [fila:<nome>] do MESMO arquivo. Separada de
+  CarregarConfig porque o que o orquestrador precisa (certificados, cursor) e o
+  que o host precisa (broker, filas) mudam por motivos diferentes -- so' o
+  primeiro e' recarregado a quente (ver TDFeConfigWatcher). Levanta excecao para
+  Modo desconhecido, Porta fora de 0..65535, fila sem RoutingKey ou com o nome
+  reservado da fila de comandos. }
+function CarregarConfigBroker(const ACaminho: string): TDFeConfigBroker;
 
 { Reconcilia a config com um TDFeOrquestrador ja em execucao, sem recriar
   nem remover unidades existentes:
@@ -253,6 +302,86 @@ begin
             [Result.Certificados[I].Alias, Result.Certificados[J].Alias,
              Result.Certificados[I].ProviderIdentificador, Result.Certificados[I].Certificado.CnpjCpf, Result.Certificados[I].Certificado.UF]);
       end;
+    end;
+  finally
+    LIni.Free;
+  end;
+end;
+
+function CarregarConfigBroker(const ACaminho: string): TDFeConfigBroker;
+const
+  SECAO_BROKER = 'broker';
+  PREFIXO_FILA = 'fila:';
+  FILA_RESERVADA = 'dfe.comandos'; // fila de comandos de manifestacao (DFe.ComandoFonte.AMQP)
+var
+  LIni: TMemIniFile;
+  LSecoes, LPadroes: TStringList;
+  LModo: string;
+  I, J, LIndice: Integer;
+  LNomeSecao, LNomeFila: string;
+begin
+  LIni := TMemIniFile.Create(ACaminho);
+  try
+    LModo := LowerCase(Trim(LIni.ReadString(SECAO_BROKER, 'Modo', 'embutido')));
+    if LModo = 'embutido' then
+      Result.Modo := mbEmbutido
+    else if LModo = 'externo' then
+      Result.Modo := mbExterno
+    else
+      raise Exception.CreateFmt('Config: [broker] Modo="%s" desconhecido (use "embutido" ou "externo")', [LModo]);
+
+    Result.Host := LIni.ReadString(SECAO_BROKER, 'Host', '127.0.0.1');
+    Result.BindAddress := LIni.ReadString(SECAO_BROKER, 'BindAddress', '127.0.0.1');
+    Result.Porta := LIni.ReadInteger(SECAO_BROKER, 'Porta', 5672);
+    Result.Usuario := LIni.ReadString(SECAO_BROKER, 'Usuario', 'guest');
+    Result.Senha := LIni.ReadString(SECAO_BROKER, 'Senha', 'guest');
+    Result.VirtualHost := LIni.ReadString(SECAO_BROKER, 'VirtualHost', '/');
+    // padrao DURAVEL: com o cursor ja' avancado, uma fila transiente perderia
+    // documento num restart. Desligar e' explicito: "DataDir=" (vazio).
+    Result.DataDir := LIni.ReadString(SECAO_BROKER, 'DataDir', 'broker');
+
+    if (Result.Porta < 0) or (Result.Porta > 65535) then
+      raise Exception.CreateFmt('Config: [broker] Porta=%d fora de 0..65535', [Result.Porta]);
+
+    SetLength(Result.Filas, 0);
+    LSecoes := TStringList.Create;
+    LPadroes := TStringList.Create;
+    try
+      LIni.ReadSections(LSecoes);
+      for I := 0 to LSecoes.Count - 1 do
+      begin
+        LNomeSecao := LSecoes[I];
+        if Pos(PREFIXO_FILA, LowerCase(LNomeSecao)) <> 1 then
+          Continue;
+
+        LNomeFila := Copy(LNomeSecao, Length(PREFIXO_FILA) + 1, MaxInt);
+        if LNomeFila = '' then
+          raise Exception.CreateFmt('Config: secao "%s" sem nome de fila', [LNomeSecao]);
+        if SameText(LNomeFila, FILA_RESERVADA) then
+          raise Exception.CreateFmt('Config: a fila "%s" e'' reservada (comandos de manifestacao)', [FILA_RESERVADA]);
+
+        LPadroes.Clear;
+        LPadroes.Delimiter := ',';
+        LPadroes.StrictDelimiter := True;
+        LPadroes.DelimitedText := LIni.ReadString(LNomeSecao, 'RoutingKey', '');
+
+        LIndice := Length(Result.Filas);
+        SetLength(Result.Filas, LIndice + 1);
+        Result.Filas[LIndice].Nome := LNomeFila;
+        SetLength(Result.Filas[LIndice].Padroes, 0);
+        for J := 0 to LPadroes.Count - 1 do
+          if Trim(LPadroes[J]) <> '' then
+          begin
+            SetLength(Result.Filas[LIndice].Padroes, Length(Result.Filas[LIndice].Padroes) + 1);
+            Result.Filas[LIndice].Padroes[High(Result.Filas[LIndice].Padroes)] := Trim(LPadroes[J]);
+          end;
+
+        if Length(Result.Filas[LIndice].Padroes) = 0 then
+          raise Exception.CreateFmt('Config: secao "%s" sem "RoutingKey"', [LNomeSecao]);
+      end;
+    finally
+      LPadroes.Free;
+      LSecoes.Free;
     end;
   finally
     LIni.Free;

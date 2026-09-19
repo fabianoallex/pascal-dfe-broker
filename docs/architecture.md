@@ -115,7 +115,20 @@ Broker AMQP roda **embutido** no processo (reusa o submódulo server do pascal-a
 - **`TDFeHostLoop`** encapsula só a cadência (chama `TDFeOrquestrador.ExecutarCiclo` a cada `DFE_HOST_TICK_SEGUNDOS_PADRAO` = 60s, configurável) — nenhum dos dois hosts reimplementa esse laço. 60s de tick não gera nenhuma consulta extra a SEFAZ: o orquestrador só age de verdade quando `ProximaConsultaEm` permite (cadência real de 1h por unidade); o tick do host só decide com que atraso máximo o processo reage a uma janela que acabou de abrir.
 - Consequência direta no orquestrador: como um host roda desassistido por longos períodos, `TDFeOrquestrador.ExecutarCiclo` agora isola cada unidade de trabalho num `try/except` — uma exceção não modelada numa unidade (bug, falha inesperada) é logada via `RegistrarErro` e não derruba o processamento das demais unidades/certificados, nem o processo inteiro.
 
-Ainda **não escritos**: os `.dpr`/`.lpr` dos dois hosts em si (dependem da integração real com ACBrLib e da inicialização do broker embutido, que ainda não existem) — o que existe agora é a mecânica de loop (`DFe.Host.Loop.pas`), testável isoladamente sem nenhuma dessas dependências.
+**Escrito (2026-09-19): o host console** — ver "Host console e aplicação" abaixo. **Ainda não escrito: o Serviço Windows**, que deve ser só `TDFeAplicacao` + timer/thread do serviço (nada de montagem nova).
+
+### Host console e aplicação
+
+`hosts/console/DFeBrokerConsole.dpr` (mesmo fonte Delphi/FPC) é só: argumentos (`--config`, `--verificar-ambiente`), verificação do ambiente (`VerificarAmbienteACBr`, recusa iniciar se faltar algo obrigatório), tratador de Ctrl+C/SIGTERM (`DFe.Host.Sinais`) e log em stdout. **Toda a montagem está em `TDFeAplicacao`** (`src/DFe.Host.Aplicacao.pas`), que não linka ACBr — a fábrica de clients é injetada (`DFe.Host.ACBr` no host real; o simulador nos testes). Ordem da subida: config → broker (embutido: `TAMQPServer` com `DataDir`/autenticador; externo: só os parâmetros de conexão) → declaração da exchange `dfe` e das filas `[fila:*]` → publicador → cursor → orquestrador + recarga a quente → manifestação (automática e manual) → fonte de comandos → loop.
+
+```
+[dfe]                       ; Ambiente, CursorPath, PathSchemas, IntervaloBaseSegundos, TickSegundos
+[broker]                    ; Modo=embutido|externo, BindAddress|Host, Porta, Usuario, Senha, VirtualHost, DataDir
+[fila:<nome>]               ; RoutingKey=padrao1,padrao2 -- fila declarada pelo host e ligada a exchange dfe
+[certificado:<alias>]       ; Provider, CnpjCpf, UF, Ativo, ManifestacaoAutomatica + (host) ArquivoPFX, Senha|SenhaEnv
+```
+
+Cada tick faz, na mesma thread e cada etapa isolada: recarga da config → `ExecutarCiclo` → comandos de manifestação pendentes. Decisões e porquês (publisher confirms síncronos, conexão sob demanda, ack ao enfileirar o comando, durabilidade por padrão, caminhos relativos à pasta da config, filas declaradas pelo host) estão na decisão 19 do `CLAUDE.md`. Testes: `tests/Integration/AmqpBroker` (17, broker embutido real + simulador da SEFAZ) e, no Linux, `tools/docker/testar-linux.sh` (compila o host, sobe e derruba com SIGTERM).
 
 ## Integração com ACBr — decidido: componentes clássicos (revertido de ACBrLib)
 
@@ -318,4 +331,4 @@ Cenário motivador: a manifestação (Confirmação/Ciência/Desconhecimento/Ope
 
 **Testado de verdade (2026-09-18): 68/68 nos dois compiladores** (FPC via `lazbuild`, Delphi via a IDE) — 16 testes novos em `DFe.ManifestacaoTests` (parsing/validação de comando, sucesso/erro do processador incluindo as 3 exceções de `DFe.Errors`, drenagem de fila, disparo/não-disparo do auto-manifestador conforme o flag), 0 erros, 0 falhas, 0 vazamento de memória. Dublês novos em `DFe.TestDoubles.pas`: `TDFeProviderManifestadorFake` (implementa `IDFeProvider` **e** `IDFeManifestador`, ao contrário do `TDFeProviderFake` existente, que representa "provider sem suporte a manifestação") e `TDFeComandoFonteFake` (fila FIFO pré-carregada).
 
-**Ainda não escrita**: a implementação real de `IDFeComandoFonte` (consumidor AMQP de comando manual) — depende do broker embutido estar de fato ligado a um host, que por sua vez depende dos `.dpr`/`.lpr` dos hosts (ver "Modelo de execução"), ainda não escritos.
+**Escrita (2026-09-19)**: a implementação real de `IDFeComandoFonte` é `TDFeComandoFonteAMQP` (`src/DFe.ComandoFonte.AMQP.pas`). Quem quer manifestar publica na exchange `dfe` com routing-key **`comando.manifestacao`** o corpo `chave=valor` descrito acima; a fila é `dfe.comandos` (durável). A callback do consumidor só interpreta e enfileira em memória — o envio à SEFAZ acontece na thread do tick (ver "Host console e aplicação"). Comando ilegível é descartado (nack sem requeue) e vai ao log.

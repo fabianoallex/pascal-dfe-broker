@@ -35,7 +35,7 @@ Tudo abaixo passou despercebido no Windows e só apareceu rodando no Linux — u
 
 1. Instalar o runtime: `apt install libssl3 libxml2` **e** o nome que o ACBr procura: `libxml2-dev` ou `ln -s libxml2.so.2 libxml2.so` (na pasta das bibliotecas).
 2. Compilar com o backend `nogui` (item 1) e chamar `VerificarAmbienteACBr` na inicialização (ver `docs/dependencias-runtime.md`).
-3. Sob systemd, o console é o host de produção (decisão 9 do `CLAUDE.md`, "sem daemonização própria"). O host ainda **não existe**; quando existir, valide aqui de novo.
+3. Sob systemd, o console é o host de produção (decisão 9 do `CLAUDE.md`, "sem daemonização própria"). **O host existe** (`hosts/console/DFeBrokerConsole.dpr`, decisão 19) e foi validado neste contêiner: compila com o backend `nogui`, imprime o relatório de ambiente, sobe o broker embutido e sai com código 0 ao receber `SIGTERM` (`tools/docker/testar-linux.sh`). **Não validado**: sob systemd de verdade, com usuário não-root, e com certificado (não há). O log usa hora de Brasília com sufixo `-03:00` (item 5: `Now` é UTC aqui).
 
 ## Limites
 

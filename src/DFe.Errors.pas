@@ -50,6 +50,13 @@ type
     era pausada) ou como falha de comunicacao. }
   EDFeAmbienteIndisponivel = class(EDFeError);
 
+  { A mensagem NAO chegou ao broker (ou o broker nao a confirmou): conexao
+    caida, publish recusado (nack), timeout de confirmacao. Levantada por
+    IDFePublicador.Publicar. O orquestrador NAO avanca o cursor de NSU ate
+    publicar tudo -- entao o lote inteiro e' refeito no proximo ciclo
+    (entrega pelo menos uma vez). }
+  EDFePublicacaoFalhou = class(EDFeError);
+
 implementation
 
 end.

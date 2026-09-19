@@ -23,6 +23,7 @@ type
     FFactoryParaRecarregar: TDFeClientFactoryFake;
     procedure EscreverArquivo(const ALinhas: array of string);
     procedure DoCarregarConfig;
+    procedure DoCarregarConfigBroker;
     procedure DoRecarregarConfig;
   protected
     procedure SetUp; override;
@@ -47,6 +48,15 @@ type
 
     procedure ConfigWatcher_Create_FazCargaInicial;
     procedure ConfigWatcher_VerificarRecarregar_SoRecarregaSeDataMudou;
+
+    procedure CarregarConfigBroker_SemSecao_UsaPadroes;
+    procedure CarregarConfigBroker_LeModoExternoEParametros;
+    procedure CarregarConfigBroker_DataDirVazioExplicito_FicaVazio;
+    procedure CarregarConfigBroker_ModoDesconhecido_Levanta;
+    procedure CarregarConfigBroker_PortaInvalida_Levanta;
+    procedure CarregarConfigBroker_LeFilasComVariosPadroes;
+    procedure CarregarConfigBroker_FilaSemRoutingKey_Levanta;
+    procedure CarregarConfigBroker_FilaComNomeReservado_Levanta;
   end;
 
 implementation
@@ -84,6 +94,11 @@ end;
 procedure TDFeConfigTests.DoCarregarConfig;
 begin
   CarregarConfig(FCaminho);
+end;
+
+procedure TDFeConfigTests.DoCarregarConfigBroker;
+begin
+  CarregarConfigBroker(FCaminho);
 end;
 
 procedure TDFeConfigTests.DoRecarregarConfig;
@@ -408,6 +423,93 @@ begin
     LOrquestrador.Free;
     LFactory.Free;
   end;
+end;
+
+procedure TDFeConfigTests.CarregarConfigBroker_SemSecao_UsaPadroes;
+var
+  LConfig: TDFeConfigBroker;
+begin
+  EscreverArquivo(['[dfe]']);
+
+  LConfig := CarregarConfigBroker(FCaminho);
+
+  AssertEquals(Ord(mbEmbutido), Ord(LConfig.Modo));
+  AssertEquals('127.0.0.1', LConfig.BindAddress);
+  AssertEquals(5672, LConfig.Porta);
+  AssertEquals('guest', LConfig.Usuario);
+  AssertEquals('/', LConfig.VirtualHost);
+  AssertEquals('broker', LConfig.DataDir);
+  AssertEquals(0, Length(LConfig.Filas));
+end;
+
+procedure TDFeConfigTests.CarregarConfigBroker_LeModoExternoEParametros;
+var
+  LConfig: TDFeConfigBroker;
+begin
+  EscreverArquivo(['[broker]', 'Modo=Externo', 'Host=rabbit.local', 'Porta=5673', 'Usuario=dfe', 'Senha=segredo', 'VirtualHost=fiscal']);
+
+  LConfig := CarregarConfigBroker(FCaminho);
+
+  AssertEquals(Ord(mbExterno), Ord(LConfig.Modo));
+  AssertEquals('rabbit.local', LConfig.Host);
+  AssertEquals(5673, LConfig.Porta);
+  AssertEquals('dfe', LConfig.Usuario);
+  AssertEquals('segredo', LConfig.Senha);
+  AssertEquals('fiscal', LConfig.VirtualHost);
+end;
+
+procedure TDFeConfigTests.CarregarConfigBroker_DataDirVazioExplicito_FicaVazio;
+var
+  LConfig: TDFeConfigBroker;
+begin
+  EscreverArquivo(['[broker]', 'DataDir=']);
+
+  LConfig := CarregarConfigBroker(FCaminho);
+
+  AssertEquals('', LConfig.DataDir);
+end;
+
+procedure TDFeConfigTests.CarregarConfigBroker_ModoDesconhecido_Levanta;
+begin
+  EscreverArquivo(['[broker]', 'Modo=nuvem']);
+  AssertException(Exception, DoCarregarConfigBroker);
+end;
+
+procedure TDFeConfigTests.CarregarConfigBroker_PortaInvalida_Levanta;
+begin
+  EscreverArquivo(['[broker]', 'Porta=70000']);
+  AssertException(Exception, DoCarregarConfigBroker);
+end;
+
+procedure TDFeConfigTests.CarregarConfigBroker_LeFilasComVariosPadroes;
+var
+  LConfig: TDFeConfigBroker;
+begin
+  EscreverArquivo([
+    '[fila:fiscal]', 'RoutingKey=nfe.documento.#, nfe.evento.#',
+    '[fila:so-ciencia]', 'RoutingKey=nfe.evento.ciencia.#']);
+
+  LConfig := CarregarConfigBroker(FCaminho);
+
+  AssertEquals(2, Length(LConfig.Filas));
+  AssertEquals('fiscal', LConfig.Filas[0].Nome);
+  AssertEquals(2, Length(LConfig.Filas[0].Padroes));
+  AssertEquals('nfe.documento.#', LConfig.Filas[0].Padroes[0]);
+  AssertEquals('nfe.evento.#', LConfig.Filas[0].Padroes[1]);
+  AssertEquals('so-ciencia', LConfig.Filas[1].Nome);
+  AssertEquals(1, Length(LConfig.Filas[1].Padroes));
+end;
+
+procedure TDFeConfigTests.CarregarConfigBroker_FilaSemRoutingKey_Levanta;
+begin
+  EscreverArquivo(['[fila:x]']);
+  AssertException(Exception, DoCarregarConfigBroker);
+end;
+
+procedure TDFeConfigTests.CarregarConfigBroker_FilaComNomeReservado_Levanta;
+begin
+  EscreverArquivo(['[fila:dfe.comandos]', 'RoutingKey=#']);
+  AssertException(Exception, DoCarregarConfigBroker);
 end;
 
 initialization

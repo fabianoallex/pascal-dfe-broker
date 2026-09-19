@@ -48,3 +48,8 @@ tests/Integration/AcbrSim/Docs/
 # resultado XML do DUnitX
 dunitx-results.xml
 tests/Integration/AcbrSim/tmp-amb-*/
+
+# config local e estado de execucao do host console (pode ter senha; WAL do broker embutido)
+hosts/console/dfe.ini
+hosts/console/broker/
+hosts/console/cursores.dat

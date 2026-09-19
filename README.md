@@ -1,6 +1,6 @@
 # DFe Broker
 
-> ⚠️ Projeto em fase de concepção (setembro/2026). Ainda não há código funcional — este README descreve a visão e a arquitetura planejada. Decisões de design ficam registradas em [`CLAUDE.md`](CLAUDE.md) e [`docs/architecture.md`](docs/architecture.md).
+> ⚠️ **Estado (setembro/2026): funciona de ponta a ponta contra um simulador da SEFAZ, mas nunca foi executado contra a SEFAZ real** — o autor não tem certificado digital ICP-Brasil. Testado em Delphi (Win32/Win64) e FPC (Windows e Linux/Docker); o host console sobe e para limpo nos dois compiladores. Não use em produção sem validar com o seu certificado (em homologação primeiro) e, se puder, [conte o que encontrou](https://github.com/fabianoallex/pascal-dfe-broker/issues). Decisões de design ficam registradas em [`CLAUDE.md`](CLAUDE.md) e [`docs/architecture.md`](docs/architecture.md).
 
 Ferramenta open source para consulta e distribuição de Documentos Fiscais Eletrônicos brasileiros (NFe na v1; CTe, MDFe e demais DFe planejados) via serviço de **Distribuição de DFe** da SEFAZ, publicando os documentos e eventos recebidos em filas AMQP configuráveis pelo usuário — sem exigir infraestrutura de mensageria externa para funcionar.
 
@@ -34,6 +34,15 @@ Este projeto segue as seguintes versões das Notas Técnicas oficiais de Distrib
 | NT 2015/002 (MDF-e) | 1.00b, março/2016 | 2026-09-17 |
 
 Se a versão vigente no [Portal Nacional da NF-e](https://www.nfe.fazenda.gov.br/portal) for mais recente que a listada aqui, esta tabela e `docs/referencias/` estão desatualizados — trate como um bug e abra uma issue.
+
+## Como compilar e rodar
+
+Precisa do repositório irmão [pascal-amqp-faa](https://github.com/fabianoallex/pascal-amqp-faa) **ao lado** deste (`../pascal-amqp-faa`) e do submódulo do ACBr (`./tools/init-acbr-submodule.sh`, clone parcial de ~70 MB).
+
+- **FPC/Lazarus:** `lazbuild hosts/console/DFeBrokerConsole.lpi`
+- **Delphi:** abrir `PascalDfeBroker.groupproj` e compilar `DFeBrokerConsole` (Win64).
+- **Executar:** `DFeBrokerConsole --config dfe.ini` (modelo em `hosts/console/dfe.exemplo.ini`); `--verificar-ambiente` só confere OpenSSL, libxml2 e XSDs ([`docs/dependencias-runtime.md`](docs/dependencias-runtime.md)).
+- **Testes:** ver "Como recompilar/rodar os testes" no [`CLAUDE.md`](CLAUDE.md); em Linux, `tools/docker/testar-linux.sh`.
 
 ## Licença
 

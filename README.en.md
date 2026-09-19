@@ -1,6 +1,6 @@
 # DFe Broker
 
-> ⚠️ Project in the design/conception stage (September 2026). There is no functional code yet — this README describes the intended vision and architecture. Design decisions are tracked in [`CLAUDE.md`](CLAUDE.md) and [`docs/architecture.md`](docs/architecture.md). Portuguese is the primary language for this project (see [`README.md`](README.md)); this file is a mirror for non-Portuguese-speaking contributors.
+> ⚠️ **Status (September 2026): works end to end against a SEFAZ simulator, but has never been run against the real SEFAZ** — the author has no ICP-Brasil digital certificate. Tested on Delphi (Win32/Win64) and FPC (Windows and Linux/Docker); the console host starts and stops cleanly on both compilers. Do not use in production without validating with your own certificate (homologation first) and, if you can, [report what you find](https://github.com/fabianoallex/pascal-dfe-broker/issues). Design decisions are tracked in [`CLAUDE.md`](CLAUDE.md) and [`docs/architecture.md`](docs/architecture.md). Portuguese is the primary language for this project (see [`README.md`](README.md)); this file is a mirror for non-Portuguese-speaking contributors.
 
 Open source tool to query and distribute Brazilian electronic fiscal documents (NFe in v1; CTe, MDFe and other DFe types planned) through SEFAZ's **DFe Distribution** web service, publishing the received documents and events to user-configurable AMQP queues — with no external messaging infrastructure required to run it.
 
@@ -34,6 +34,15 @@ This project follows these versions of the official DFe Distribution Technical N
 | NT 2015/002 (MDF-e) | 1.00b, March 2016 | 2026-09-17 |
 
 If the current version on the [Portal Nacional da NF-e](https://www.nfe.fazenda.gov.br/portal) is newer than what's listed here, this table and `docs/referencias/` are out of date — treat that as a bug and open an issue.
+
+## Building and running
+
+Requires the sibling repository [pascal-amqp-faa](https://github.com/fabianoallex/pascal-amqp-faa) **next to** this one (`../pascal-amqp-faa`) and the ACBr submodule (`./tools/init-acbr-submodule.sh`, ~70 MB partial clone).
+
+- **FPC/Lazarus:** `lazbuild hosts/console/DFeBrokerConsole.lpi`
+- **Delphi:** open `PascalDfeBroker.groupproj` and build `DFeBrokerConsole` (Win64).
+- **Run:** `DFeBrokerConsole --config dfe.ini` (template in `hosts/console/dfe.exemplo.ini`); `--verificar-ambiente` only checks OpenSSL, libxml2 and XSDs ([`docs/dependencias-runtime.md`](docs/dependencias-runtime.md)).
+- **Tests:** see "Como recompilar/rodar os testes" in [`CLAUDE.md`](CLAUDE.md) (Portuguese); on Linux, `tools/docker/testar-linux.sh`.
 
 ## License
 

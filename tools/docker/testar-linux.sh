@@ -28,11 +28,19 @@ if ! docker image inspect dfe-linux-teste >/dev/null 2>&1; then
   docker build -f tools/docker/Dockerfile.linux-teste -t dfe-linux-teste tools/docker
 fi
 
+# Repositorio irmao (broker AMQP embutido): montado em /pascal-amqp-faa, o mesmo lugar relativo
+# que ele tem em relacao ao repo (../pascal-amqp-faa) -- os .lpi/.dproj usam esse caminho.
+MONTA_IRMAO=""
+if [ -d "../pascal-amqp-faa/src" ]; then
+  IRMAO="$(cd ../pascal-amqp-faa && (pwd -W 2>/dev/null || pwd))"
+  MONTA_IRMAO="-v $IRMAO:/pascal-amqp-faa:ro"
+fi
+
 SAIDA="$(mktemp -d)"; trap 'rm -rf "$SAIDA"' EXIT
 SAIDA_MONTAGEM="$(cd "$SAIDA" && (pwd -W 2>/dev/null || pwd))"
 
 docker run --rm \
-  -v "$RAIZ:/proj:ro" -v "$SAIDA_MONTAGEM:/out" \
+  -v "$RAIZ:/proj:ro" -v "$SAIDA_MONTAGEM:/out" $MONTA_IRMAO \
   -e SEM_LINK="$SEM_LINK" -e SO_PURA="$SO_PURA" \
   --entrypoint bash dfe-linux-teste -c '
 set -uo pipefail
@@ -70,7 +78,47 @@ timeout 300 ./AcbrSimTests --all --format=plain > /out/resultado.txt 2>&1; RCI=$
 echo "saida da integracao=$RCI (0 = tudo passou; 124 = estourou o tempo)"
 grep -E "Number of|Time:" /out/resultado.txt | head -6 || true
 grep -A2 "Message:" /out/resultado.txt | head -4 | cut -c1-400 || true
+RCA=0; RCH=0
+if [ ! -d /pascal-amqp-faa/src ]; then
+  echo; echo "=== integracao AMQP embutido e host console: PULADA (../pascal-amqp-faa nao encontrado) ==="
+else
+  echo; echo "=== integracao AMQP embutido (broker in-process, sem ACBr) ==="
+  mkdir -p /out/amqp
+  cd /proj/tests/Integration/AmqpBroker
+  fpc -Mdelphi -Sh -Fu/proj/src -Fu/pascal-amqp-faa/src -Fu/pascal-amqp-faa/src/server -Fu/proj/tests/Unit/fpc \
+      -Fi/proj/src -Fi/pascal-amqp-faa/src -FU/out/amqp -FE/out/amqp -oAmqpBrokerTests AmqpBrokerTests.lpr 2>&1 | grep -E "Fatal|Error:|lines compiled"
+  cd /out/amqp
+  timeout 300 ./AmqpBrokerTests --all --format=plain > /out/amqp.txt 2>&1; RCA=$?
+  echo "saida da integracao AMQP=$RCA (0 = tudo passou; 124 = estourou o tempo)"
+  grep -E "Number of|Time:" /out/amqp.txt | head -6 || true
+  grep -A2 "Message:" /out/amqp.txt | head -6 | cut -c1-400 || true
+
+  echo; echo "=== host console: compila, sobe, recebe SIGTERM ==="
+  HLPI=/proj/hosts/console/DFeBrokerConsole.lpi
+  # caminhos do .lpi sao relativos a hosts/console (com barra invertida); o fpc roda la
+  hconv() { tr ";" "\n" | sed "s#\\\\#/#g"; }
+  HUNITS=$(grep -o "OtherUnitFiles Value=\"[^\"]*\"" $HLPI | sed "s/.*Value=\"//; s/\"\$//" | hconv | sed "s#^#-Fu#" | tr "\n" " ")
+  HINCS=$(grep -o "IncludeFiles Value=\"[^\"]*\"" $HLPI | sed "s/.*Value=\"//; s/\"\$//" | hconv | sed "s#^#-Fi#" | tr "\n" " ")
+  LAZ=/usr/lib/lazarus/2.2.6
+  mkdir -p /out/host /out/host-cfg
+  cd /proj/hosts/console
+  fpc -Mdelphi -Sh $HUNITS $HINCS \
+      -Fu$LAZ/lcl/units/x86_64-linux/nogui -Fu$LAZ/lcl/units/x86_64-linux \
+      -Fu$LAZ/components/lazutils/lib/x86_64-linux -dLCL -dLCLnogui \
+      -FU/out/host -FE/out/host -oDFeBrokerConsole DFeBrokerConsole.dpr 2>&1 | grep -E "Fatal|Error:|lines compiled"
+  printf "[dfe]\nPathSchemas=/proj/vendor/ACBr/Exemplos/ACBrDFe/Schemas/NFe\n[broker]\nPorta=25672\n[fila:documentos]\nRoutingKey=nfe.documento.#\n" > /out/host-cfg/dfe.ini
+  ln -sf /usr/lib/x86_64-linux-gnu/libxml2.so.2 /usr/lib/x86_64-linux-gnu/libxml2.so
+  /out/host/DFeBrokerConsole --config /out/host-cfg/dfe.ini > /out/host.txt 2>&1 &
+  HPID=$!
+  sleep 8
+  kill -TERM $HPID
+  wait $HPID; RCH=$?
+  cut -c1-220 /out/host.txt
+  echo "saida do host apos SIGTERM=$RCH (0 = parada limpa)"
+  if ! grep -q "Encerrando" /out/host.txt; then RCH=1; fi
+fi
+
 # codigo de saida do script = falha se QUALQUER suite falhou
-if [ "$RCP" -ne 0 ] || [ "$RCI" -ne 0 ]; then exit 1; fi
+if [ "$RCP" -ne 0 ] || [ "$RCI" -ne 0 ] || [ "$RCA" -ne 0 ] || [ "$RCH" -ne 0 ]; then exit 1; fi
 exit 0
 '
