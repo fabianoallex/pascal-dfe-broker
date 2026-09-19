@@ -1,0 +1,33 @@
+; pascal-dfe-broker sob systemd -- /etc/dfe-broker/dfe.ini
+; Sob systemd use caminhos ABSOLUTOS: /etc e' somente-leitura para o servico, entao o
+; cursor e o WAL do broker (que por padrao ficam ao lado do .ini) vao para /var/lib.
+; Modelo completo e comentado: hosts/console/dfe.exemplo.ini
+
+[dfe]
+Ambiente=producao
+CursorPath=/var/lib/dfe-broker/cursores.dat
+PathSchemas=/opt/dfe-broker/Schemas
+
+[broker]
+Modo=embutido
+BindAddress=127.0.0.1
+Porta=5672
+Usuario=guest
+Senha=guest
+DataDir=/var/lib/dfe-broker/broker
+
+[fila:documentos]
+RoutingKey=nfe.documento.#
+
+[fila:eventos]
+RoutingKey=nfe.evento.#
+
+[certificado:matriz]
+Provider=nfe
+CnpjCpf=12345678000199
+UF=RS
+ArquivoPFX=/etc/dfe-broker/certs/matriz.pfx
+; a senha vem de /etc/dfe-broker/dfe.env  (DFE_SENHA_MATRIZ=...), lida pelo systemd
+SenhaEnv=DFE_SENHA_MATRIZ
+Ativo=true
+ManifestacaoAutomatica=false

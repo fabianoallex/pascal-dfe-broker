@@ -1,0 +1,50 @@
+# pascal-dfe-broker sob systemd (host console, decisao 9: sem daemonizacao propria).
+# Instalacao e o porque de cada linha: hosts/console/systemd/LEIAME.md
+#
+#   /opt/dfe-broker/DFeBrokerConsole      o executavel
+#   /etc/dfe-broker/dfe.ini               a config (0640 root:dfe)
+#   /etc/dfe-broker/dfe.env               senhas dos certificados (0600 root) -- opcional
+#   /var/lib/dfe-broker/                  cursor, WAL do broker (criado pelo systemd)
+
+[Unit]
+Description=pascal-dfe-broker - Distribuicao de DFe (SEFAZ) publicada em filas AMQP
+Documentation=https://github.com/fabianoallex/pascal-dfe-broker
+After=network-online.target
+Wants=network-online.target
+# ate 5 falhas de subida em 5 min; depois o systemd desiste (evita loop eterno com config quebrada)
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=dfe
+Group=dfe
+ExecStart=/opt/dfe-broker/DFeBrokerConsole --config /etc/dfe-broker/dfe.ini
+# senhas dos .pfx via SenhaEnv= do dfe.ini (o "-" torna o arquivo opcional)
+EnvironmentFile=-/etc/dfe-broker/dfe.env
+# /var/lib/dfe-broker, dono dfe:dfe, criado e gravavel mesmo com ProtectSystem=strict
+StateDirectory=dfe-broker
+WorkingDirectory=/var/lib/dfe-broker
+SyslogIdentifier=dfe-broker
+
+# O host trata SIGTERM: termina o tick em andamento (uma consulta a SEFAZ pode
+# demorar) e sai com codigo 0.
+KillSignal=SIGTERM
+TimeoutStopSec=90
+
+# Reinicia se o processo MORRER (SIGKILL, falha nao tratada, exit 1). NAO reinicia
+# no exit 2 = ambiente incompleto (DLL/XSD ausente): reiniciar nao conserta.
+Restart=on-failure
+RestartSec=10
+RestartPreventExitStatus=2
+
+# Endurecimento: o processo so' escreve em /var/lib/dfe-broker e nao ganha privilegios.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+
+[Install]
+WantedBy=multi-user.target

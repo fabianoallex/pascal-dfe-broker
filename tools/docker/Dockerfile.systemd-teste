@@ -1,0 +1,17 @@
+# Imagem com systemd como PID 1, para validar hosts/console/systemd/dfe-broker.service
+# de verdade (usuario nao-root, StateDirectory, SIGTERM, Restart). Ver
+# tools/docker/testar-systemd.sh e docs/linux.md.
+#
+#   docker build -f tools/docker/Dockerfile.systemd-teste -t dfe-systemd-teste tools/docker
+#
+# Runtime, sem compilador: o host e' compilado a parte (imagem dfe-linux-teste).
+# libxml2.so: o link sem versao que o ACBr procura (o pacote de runtime so' traz
+# libxml2.so.2) -- e' o que "apt install libxml2-dev" faria.
+FROM debian:bookworm-slim
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends systemd systemd-sysv libssl3 libxml2 procps iproute2 \
+ && rm -rf /var/lib/apt/lists/* \
+ && ln -s /usr/lib/x86_64-linux-gnu/libxml2.so.2 /usr/lib/x86_64-linux-gnu/libxml2.so \
+ && useradd --system --no-create-home --shell /usr/sbin/nologin dfe
+STOPSIGNAL SIGRTMIN+3
+CMD ["/sbin/init"]

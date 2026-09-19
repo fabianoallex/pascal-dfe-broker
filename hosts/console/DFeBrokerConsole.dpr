@@ -70,6 +70,9 @@ begin
     // FPC/Linux `Now` e' UTC e no Windows e' local (ver DFe.Fuso, docs/linux.md).
     WriteLn(FormatDateTime('yyyy-mm-dd hh:nn:ss', AgoraDeBrasilia), DFE_FUSO_BRASILIA,
       ' [', ANivel, '] ', AMensagem);
+    // Sem isto, com a saida redirecionada (journald sob systemd, arquivo) o FPC
+    // guarda as linhas em buffer: o log sai atrasado e uma queda (SIGKILL) o perde.
+    Flush(Output);
   finally
     FLock.Leave;
   end;
