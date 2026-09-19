@@ -2,7 +2,7 @@
 
 Host do pascal-dfe-broker como Serviço Windows. **Delphi-only** (Win64) — um serviço é uma noção inerentemente Windows; em Lazarus/Windows use o host console (`hosts/console`). É o mesmo core do console (`TDFeAplicacao`): mesmo `dfe.ini`, mesmo comportamento; só muda o log (arquivo, sem console) e o ciclo de vida (Iniciar/Parar do SCM).
 
-> **Estado (2026-09-19):** verificado em Windows 11 (Delphi Win64, instalado com `/install`, LocalSystem): sobe, escuta, para e reinicia limpo, e a falha de subida aparece no log e no Event Log. **Não verificado:** reinício automático (`sc failure`), parada com tick em andamento, conta `NT SERVICE\...` e, como em todo o projeto, **certificado real / SEFAZ real** (ver `CLAUDE.md`, decisão 20). Teste primeiro com o console (`hosts/console`) usando o mesmo `dfe.ini`; só então instale o serviço.
+> **Estado (2026-09-19):** verificado em Windows 11 (Delphi Win64, instalado com `/install`, LocalSystem): sobe, escuta, para e reinicia limpo, e a falha de subida aparece no log e no Event Log. **Não verificado:** parada com tick em andamento, conta `NT SERVICE\...` e, como em todo o projeto, **certificado real / SEFAZ real** (ver `CLAUDE.md`, decisão 20). Teste primeiro com o console (`hosts/console`) usando o mesmo `dfe.ini`; só então instale o serviço.
 
 ## Antes de instalar
 
@@ -32,7 +32,7 @@ sc.exe failure DFeBrokerService reset= 86400 actions= restart/60000/restart/6000
 sc.exe start DFeBrokerService
 ```
 
-Alternativa sem `sc`: `DFeBrokerServico.exe /install` (usa `dfe.ini` ao lado do executável) e `/uninstall`.
+Alternativa sem `sc`: `DFeBrokerServico.exe /install` (usa `dfe.ini` ao lado do executável) e `/uninstall`. **`/install` não configura o reinício automático**: rode depois o `sc.exe failure ...` acima. Verificado (2026-09-19): com ele, matar o processo faz o Windows registrar "finalizado inesperadamente" e reiniciar o serviço sozinho; depois de 3 quedas dentro do prazo do `reset=` ele desiste de reiniciar (proteção contra loop).
 
 **Conta:** o padrão (LocalSystem) funciona, mas o ideal é uma conta com o mínimo: `sc.exe config DFeBrokerService obj= "NT SERVICE\DFeBrokerService"` e dar a ela **leitura** no `.pfx` e no `dfe.ini` e **escrita** na pasta do `dfe.ini` (o cursor, o WAL do broker `broker\` e `logs\` ficam lá).
 
