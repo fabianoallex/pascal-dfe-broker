@@ -46,7 +46,8 @@ type
     pascal-amqp-faa. }
   IDFeCursorStore = interface
     ['{3A1D9E4F-8C2A-4F1B-9E4F-8C2A4F1B9E4F}']
-    { Namespace tipico: '<tipo>/<cnpjCpf>/<uf>', ex.: 'nfe/12345678000199/rs'.
+    { Namespace tipico: '<tipo>/<cnpjCpf>/<uf>', ex.: 'nfe/12345678000199/rs'
+      (em homologacao, com o sufixo '/homologacao' -- ver MontarNamespaceCursor).
       Retorna 0 quando nao ha cursor gravado ainda para o namespace. }
     function ObterUltimoNSU(const ANamespace: string): Int64;
 

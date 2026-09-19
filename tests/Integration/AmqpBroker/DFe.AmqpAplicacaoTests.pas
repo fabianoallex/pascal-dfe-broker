@@ -40,7 +40,7 @@ type
     FCanal: TAMQPChannel;
     function FabricarClient(const ACertificado: TDFeConfigCertificado): IDFeDistribuicaoClient;
     procedure AoLog(const ANivel, AMensagem: string);
-    procedure EscreverConfig(const ADataDir: string);
+    procedure EscreverConfig(const ADataDir: string; const AAmbiente: string = '');
     procedure DoIniciarComModoInvalido;
     function NovaApp: TDFeAplicacao;
     procedure AbrirClienteNoBrokerDaApp;
@@ -52,6 +52,7 @@ type
   published
     procedure Tick_PublicaNasFilasDeclaradasSoPelaConfig;
     procedure Tick_CursorGravadoEmRelacaoAPastaDaConfig;
+    procedure Ambiente_Homologacao_GravaOCursorNoNamespaceDeHomologacao;
     procedure SegundoTickAntesDe1h_NaoConsultaDeNovo;
     procedure Reinicio_PreservaAMensagemEmFila_ENaoReconsultaDocumentosJaEntregues;
     procedure ConfigInvalida_IniciarLevanta_ENaoVaza;
@@ -113,7 +114,7 @@ begin
   FLogs.Add(ANivel + ' ' + AMensagem);
 end;
 
-procedure TDFeAmqpAplicacaoTests.EscreverConfig(const ADataDir: string);
+procedure TDFeAmqpAplicacaoTests.EscreverConfig(const ADataDir: string; const AAmbiente: string);
 var
   LIni: TStringList;
 begin
@@ -121,6 +122,8 @@ begin
   try
     LIni.Add('[dfe]');
     LIni.Add('CursorPath=cursores.dat');
+    if AAmbiente <> '' then
+      LIni.Add('Ambiente=' + AAmbiente);
     LIni.Add('[broker]');
     LIni.Add('Porta=0');
     LIni.Add('DataDir=' + ADataDir);
@@ -208,6 +211,27 @@ begin
 
   // 'cursores.dat' relativo => ao lado do dfe.ini, nao no diretorio corrente
   AssertTrue('cursor ao lado da config', FileExists(FPasta + 'cursores.dat'));
+end;
+
+procedure TDFeAmqpAplicacaoTests.Ambiente_Homologacao_GravaOCursorNoNamespaceDeHomologacao;
+var
+  LCursor: TStringList;
+begin
+  EscreverConfig('', 'homologacao');
+  PublicarNFes(2);
+
+  FApp := NovaApp;
+  FApp.Iniciar;
+  FApp.ExecutarTick;
+
+  LCursor := TStringList.Create;
+  try
+    LCursor.LoadFromFile(FPasta + 'cursores.dat');
+    AssertTrue('cursor de homologacao gravado', LCursor.Values['nfe/' + CNPJ + '/rs/homologacao'] <> '');
+    AssertEquals('producao intocada', '', LCursor.Values['nfe/' + CNPJ + '/rs']);
+  finally
+    LCursor.Free;
+  end;
 end;
 
 procedure TDFeAmqpAplicacaoTests.SegundoTickAntesDe1h_NaoConsultaDeNovo;

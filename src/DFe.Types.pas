@@ -30,6 +30,12 @@ type
     UF: string;             // sigla, ex.: 'RS'
   end;
 
+  { Ambiente da SEFAZ consultado. Producao e homologacao tem NSUs SEPARADOS
+    para o mesmo CNPJ/UF, entao o ambiente faz parte da identidade do cursor
+    (ver DFe.Orquestrador.MontarNamespaceCursor). daProducao e' o primeiro
+    valor de proposito: e' o zero de um campo de classe nao inicializado. }
+  TDFeAmbiente = (daProducao, daHomologacao);
+
   { Um item do lote bruto devolvido pela consulta de Distribuicao de DFe, ja
     com o envelope de transporte (gzip+base64 do docZip) decodificado -- essa
     decodificacao e' generica entre tipos de documento e nao e' preocupacao

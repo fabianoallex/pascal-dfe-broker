@@ -57,6 +57,13 @@ type
     procedure CarregarConfigBroker_LeFilasComVariosPadroes;
     procedure CarregarConfigBroker_FilaSemRoutingKey_Levanta;
     procedure CarregarConfigBroker_FilaComNomeReservado_Levanta;
+
+    procedure CarregarConfig_AmbienteAusente_EProducao;
+    procedure CarregarConfig_AmbienteGlobalHomologacao_EHerdadoPeloCertificado;
+    procedure CarregarConfig_AmbienteDoCertificado_SobrescreveOGlobal;
+    procedure CarregarConfig_AmbienteInvalido_Levanta;
+    procedure CarregarConfig_ProducaoEHomologacaoDoMesmoCnpjUF_AmbosAtivos_NaoLevanta;
+    procedure RecarregarConfig_AmbienteNaUnidadeNova_ENaoMudaNaExistente;
   end;
 
 implementation
@@ -510,6 +517,92 @@ procedure TDFeConfigTests.CarregarConfigBroker_FilaComNomeReservado_Levanta;
 begin
   EscreverArquivo(['[fila:dfe.comandos]', 'RoutingKey=#']);
   AssertException(Exception, DoCarregarConfigBroker);
+end;
+
+procedure TDFeConfigTests.CarregarConfig_AmbienteAusente_EProducao;
+var
+  LConfig: TDFeConfig;
+begin
+  EscreverArquivo(['[certificado:x]', 'Provider=nfe', 'CnpjCpf=12345678000199', 'UF=RS']);
+
+  LConfig := CarregarConfig(FCaminho);
+
+  AssertEquals(Ord(daProducao), Ord(LConfig.Ambiente));
+  AssertEquals(Ord(daProducao), Ord(LConfig.Certificados[0].Ambiente));
+end;
+
+procedure TDFeConfigTests.CarregarConfig_AmbienteGlobalHomologacao_EHerdadoPeloCertificado;
+var
+  LConfig: TDFeConfig;
+begin
+  EscreverArquivo(['[dfe]', 'Ambiente=Homologacao', '[certificado:x]', 'Provider=nfe', 'CnpjCpf=12345678000199', 'UF=RS']);
+
+  LConfig := CarregarConfig(FCaminho);
+
+  AssertEquals(Ord(daHomologacao), Ord(LConfig.Ambiente));
+  AssertEquals(Ord(daHomologacao), Ord(LConfig.Certificados[0].Ambiente));
+end;
+
+procedure TDFeConfigTests.CarregarConfig_AmbienteDoCertificado_SobrescreveOGlobal;
+var
+  LConfig: TDFeConfig;
+begin
+  EscreverArquivo([
+    '[dfe]', 'Ambiente=homologacao',
+    '[certificado:prod]', 'Provider=nfe', 'CnpjCpf=12345678000199', 'UF=RS', 'Ambiente=producao',
+    '[certificado:hom]', 'Provider=nfe', 'CnpjCpf=98765432000188', 'UF=SP']);
+
+  LConfig := CarregarConfig(FCaminho);
+
+  AssertEquals(Ord(daProducao), Ord(LConfig.Certificados[0].Ambiente));
+  AssertEquals('herda o global', Ord(daHomologacao), Ord(LConfig.Certificados[1].Ambiente));
+end;
+
+procedure TDFeConfigTests.CarregarConfig_AmbienteInvalido_Levanta;
+begin
+  EscreverArquivo(['[dfe]', 'Ambiente=nuvem', '[certificado:x]', 'Provider=nfe', 'CnpjCpf=12345678000199', 'UF=RS']);
+  AssertException(Exception, DoCarregarConfig);
+end;
+
+procedure TDFeConfigTests.CarregarConfig_ProducaoEHomologacaoDoMesmoCnpjUF_AmbosAtivos_NaoLevanta;
+var
+  LConfig: TDFeConfig;
+begin
+  // cursores distintos (producao x homologacao): nao ha' risco de consumo indevido cruzado
+  EscreverArquivo([
+    '[certificado:prod]', 'Provider=nfe', 'CnpjCpf=12345678000199', 'UF=RS', 'Ambiente=producao',
+    '[certificado:hom]', 'Provider=nfe', 'CnpjCpf=12345678000199', 'UF=RS', 'Ambiente=homologacao']);
+
+  LConfig := CarregarConfig(FCaminho);
+
+  AssertEquals(2, Integer(Length(LConfig.Certificados)));
+end;
+
+procedure TDFeConfigTests.RecarregarConfig_AmbienteNaUnidadeNova_ENaoMudaNaExistente;
+var
+  LOrquestrador: TDFeOrquestrador;
+  LCursorStore: IDFeCursorStore;
+  LFactory: TDFeClientFactoryFake;
+begin
+  TDFeProviderRegistry.Registrar(TDFeProviderFake.Create('teste-config-amb-a'));
+
+  EscreverArquivo(['[dfe]', 'Ambiente=homologacao', '[certificado:x]', 'Provider=teste-config-amb-a', 'CnpjCpf=12345678000199', 'UF=RS']);
+
+  LOrquestrador := TDFeOrquestrador.Create(TDFePublicadorFake.Create);
+  LCursorStore := TDFeCursorStoreFake.Create;
+  LFactory := TDFeClientFactoryFake.Create;
+  try
+    RecarregarConfig(CarregarConfig(FCaminho), LOrquestrador, LCursorStore, LFactory.Fabricar);
+    AssertEquals('unidade nova recebe o ambiente', Ord(daHomologacao), Ord(LOrquestrador.ObterUnidadePorAlias('x').Ambiente));
+
+    // editar o ambiente com a unidade ja' em execucao NAO a muda: o client foi criado com o antigo
+    EscreverArquivo(['[dfe]', 'Ambiente=producao', '[certificado:x]', 'Provider=teste-config-amb-a', 'CnpjCpf=12345678000199', 'UF=RS']);
+    RecarregarConfig(CarregarConfig(FCaminho), LOrquestrador, LCursorStore, LFactory.Fabricar);
+    AssertEquals('unidade existente segue igual', Ord(daHomologacao), Ord(LOrquestrador.ObterUnidadePorAlias('x').Ambiente));
+  finally
+    LOrquestrador.Free;
+    LFactory.Free;
+  end;
 end;
 
 initialization

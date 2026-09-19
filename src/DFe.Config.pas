@@ -16,6 +16,7 @@
     IntervaloBaseSegundos=3600   ; opcional
     TickSegundos=60              ; opcional
     CursorPath=cursores.dat      ; opcional
+    Ambiente=producao            ; ou homologacao (padrao: producao); ver abaixo
 
     [certificado:matriz]
     Provider=nfe
@@ -23,6 +24,16 @@
     UF=RS
     Ativo=true                  ; opcional, default true
     ManifestacaoAutomatica=false ; opcional, default false -- ver DFe.Manifestacao
+    Ambiente=homologacao         ; opcional, sobrescreve [dfe] Ambiente so' deste certificado
+
+  AMBIENTE: producao e homologacao tem NSUs separados na SEFAZ para o mesmo
+  CNPJ/UF, entao o ambiente faz parte do namespace do cursor (homologacao ganha
+  o sufixo '/homologacao'; producao mantem a chave de sempre, sem migracao --
+  ver DFe.Orquestrador.MontarNamespaceCursor). Consequencia: um certificado de
+  producao e um de homologacao do MESMO CNPJ/UF podem estar Ativo ao mesmo
+  tempo (cursores distintos). Alterar o Ambiente de um alias que ja' esta em
+  execucao NAO tem efeito na recarga a quente (o client foi criado com o
+  ambiente antigo); exige reiniciar.
 
     [broker]                     ; tudo opcional -- ver CarregarConfigBroker
     Modo=embutido                ; ou 'externo' (RabbitMQ etc.)
@@ -89,6 +100,7 @@ type
     Certificado: TDFeCertificado;
     Ativo: Boolean;              // false = configurado mas dormente (ver comentario de topo, troca de certificado)
     ManifestacaoAutomatica: Boolean; // false = exige comando externo (ver DFe.Manifestacao); default false, opt-in explicito
+    Ambiente: TDFeAmbiente;          // herda [dfe] Ambiente; a secao do certificado pode sobrescrever
   end;
 
   TDFeConfigCertificadoArray = array of TDFeConfigCertificado;
@@ -97,6 +109,7 @@ type
     IntervaloBaseSegundos: Integer;
     TickSegundos: Integer;
     CursorPath: string;
+    Ambiente: TDFeAmbiente;  // padrao dos certificados que nao declaram o proprio
     Certificados: TDFeConfigCertificadoArray;
   end;
 
@@ -237,6 +250,22 @@ begin
     Result := SameText(AValor, 'true') or (AValor = '1');
 end;
 
+{ 'producao' / 'homologacao' (sem diferenciar maiusculas); vazio = ADefault. }
+function LerAmbiente(const AValor, AOnde: string; const ADefault: TDFeAmbiente): TDFeAmbiente;
+var
+  LValor: string;
+begin
+  LValor := LowerCase(Trim(AValor));
+  if LValor = '' then
+    Result := ADefault
+  else if LValor = 'producao' then
+    Result := daProducao
+  else if LValor = 'homologacao' then
+    Result := daHomologacao
+  else
+    raise Exception.CreateFmt('Config: %s Ambiente="%s" desconhecido (use "producao" ou "homologacao")', [AOnde, LValor]);
+end;
+
 function CarregarConfig(const ACaminho: string): TDFeConfig;
 var
   LIni: TMemIniFile;
@@ -249,6 +278,7 @@ begin
     Result.IntervaloBaseSegundos := LIni.ReadInteger(SECAO_GLOBAL, 'IntervaloBaseSegundos', DFE_INTERVALO_BASE_SEGUNDOS_PADRAO);
     Result.TickSegundos := LIni.ReadInteger(SECAO_GLOBAL, 'TickSegundos', DFE_HOST_TICK_SEGUNDOS_PADRAO);
     Result.CursorPath := LIni.ReadString(SECAO_GLOBAL, 'CursorPath', 'cursores.dat');
+    Result.Ambiente := LerAmbiente(LIni.ReadString(SECAO_GLOBAL, 'Ambiente', ''), '[dfe]', daProducao);
 
     SetLength(Result.Certificados, 0);
     LSecoes := TStringList.Create;
@@ -270,6 +300,8 @@ begin
         Result.Certificados[LIndice].Certificado.UF := LIni.ReadString(LNomeSecao, 'UF', '');
         Result.Certificados[LIndice].Ativo := LerBooleano(LIni.ReadString(LNomeSecao, 'Ativo', ''), True);
         Result.Certificados[LIndice].ManifestacaoAutomatica := LerBooleano(LIni.ReadString(LNomeSecao, 'ManifestacaoAutomatica', ''), False);
+        Result.Certificados[LIndice].Ambiente := LerAmbiente(LIni.ReadString(LNomeSecao, 'Ambiente', ''),
+          '[' + LNomeSecao + ']', Result.Ambiente);
 
         if Result.Certificados[LIndice].ProviderIdentificador = '' then
           raise Exception.CreateFmt('Config: secao "%s" sem "Provider"', [LNomeSecao]);
@@ -296,7 +328,8 @@ begin
           Continue;
         if SameText(Result.Certificados[I].ProviderIdentificador, Result.Certificados[J].ProviderIdentificador)
           and (Result.Certificados[I].Certificado.CnpjCpf = Result.Certificados[J].Certificado.CnpjCpf)
-          and SameText(Result.Certificados[I].Certificado.UF, Result.Certificados[J].Certificado.UF) then
+          and SameText(Result.Certificados[I].Certificado.UF, Result.Certificados[J].Certificado.UF)
+          and (Result.Certificados[I].Ambiente = Result.Certificados[J].Ambiente) then
           raise Exception.CreateFmt(
             'Config: certificados "%s" e "%s" estao ambos Ativo=true para o mesmo provider/CnpjCpf/UF (%s/%s/%s) -- apenas um pode estar ativo por vez (ver DFe.Config, comentario sobre troca de certificado)',
             [Result.Certificados[I].Alias, Result.Certificados[J].Alias,
@@ -417,6 +450,7 @@ begin
         AConfig.Certificados[I].Certificado, ACursorStore, AConfig.IntervaloBaseSegundos);
       LUnidade.Pausada := not AConfig.Certificados[I].Ativo;
       LUnidade.ManifestacaoAutomatica := AConfig.Certificados[I].ManifestacaoAutomatica;
+      LUnidade.Ambiente := AConfig.Certificados[I].Ambiente; // so' na criacao: ver TDFeUnidadeTrabalho.Ambiente
       AOrquestrador.AdicionarUnidade(LUnidade);
     end
     else

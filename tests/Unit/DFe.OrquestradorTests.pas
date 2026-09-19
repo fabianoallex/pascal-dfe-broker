@@ -21,6 +21,10 @@ type
     FOrquestrador: TDFeOrquestradorTestavel;
     FPublicador: TDFePublicadorFake;
     FCursorStore: TDFeCursorStoreFake;
+    { Referencia de interface que segura o FCursorStore vivo durante o teste inteiro e
+      o libera no TearDown: sem ela, um teste que nao entrega FCursorStore a nenhuma
+      unidade deixaria o objeto com refcount 0 e ele vazaria (ver CLAUDE.md, gotchas). }
+    FCursorStoreRef: IDFeCursorStore;
   public
     [Setup] procedure Setup;
     [TearDown] procedure TearDown;
@@ -37,6 +41,9 @@ type
     [Test] procedure MultiplosLotes_ContinuaAteAlcancarMaxNSU;
     [Test] procedure UnidadeComExcecaoNaoModelada_NaoDerrubaOutrasUnidades;
     [Test] procedure DecodificarLevanta_ReagendaSemAvancarCursorNemRepetirConsulta;
+    [Test] procedure MontarNamespaceCursor_Producao_MantemAChaveDeSempre;
+    [Test] procedure MontarNamespaceCursor_Homologacao_GanhaSufixo;
+    [Test] procedure UnidadeDeHomologacao_UsaOCursorDeHomologacao_ENaoTocaOdeProducao;
   end;
 
 implementation
@@ -50,6 +57,7 @@ procedure TDFeOrquestradorTests.Setup;
 begin
   FPublicador := TDFePublicadorFake.Create;
   FCursorStore := TDFeCursorStoreFake.Create;
+  FCursorStoreRef := FCursorStore;
   FOrquestrador := TDFeOrquestradorTestavel.Create(FPublicador);
   FOrquestrador.AgoraSimulado := EncodeDate(2026, 1, 1);
 end;
@@ -57,6 +65,7 @@ end;
 procedure TDFeOrquestradorTests.TearDown;
 begin
   FOrquestrador.Free;
+  FCursorStoreRef := nil;
   // FPublicador/FCursorStore sao interfaces (IDFePublicador/IDFeCursorStore)
   // seguradas tambem pelo orquestrador/unidades -- liberadas por refcount.
 end;
@@ -309,6 +318,35 @@ begin
   // "proximo tick" (sem o relogio andar), a unidade nao e' reconsultada.
   FOrquestrador.ExecutarCiclo;
   Assert.AreEqual(1, LClient.Chamadas);
+end;
+
+procedure TDFeOrquestradorTests.MontarNamespaceCursor_Producao_MantemAChaveDeSempre;
+begin
+  // a chave de producao e' a que ja' existia antes de o ambiente entrar: sem migracao
+  Assert.AreEqual('nfe/12345678000199/rs', MontarNamespaceCursor('nfe', CertificadoTeste));
+  Assert.AreEqual('nfe/12345678000199/rs', MontarNamespaceCursor('nfe', CertificadoTeste, daProducao));
+end;
+
+procedure TDFeOrquestradorTests.MontarNamespaceCursor_Homologacao_GanhaSufixo;
+begin
+  Assert.AreEqual('nfe/12345678000199/rs/homologacao', MontarNamespaceCursor('nfe', CertificadoTeste, daHomologacao));
+end;
+
+procedure TDFeOrquestradorTests.UnidadeDeHomologacao_UsaOCursorDeHomologacao_ENaoTocaOdeProducao;
+var
+  LClient: TDFeDistribuicaoClientFake;
+  LUnidade: TDFeUnidadeTrabalho;
+begin
+  LClient := TDFeDistribuicaoClientFake.Create;
+  LClient.AdicionarLote(LoteTeste(137, 700, 700));
+  LUnidade := TDFeUnidadeTrabalho.Create(TDFeProviderFake.Create('nfe'), LClient, CertificadoTeste, FCursorStore);
+  LUnidade.Ambiente := daHomologacao;
+  FOrquestrador.AdicionarUnidade(LUnidade);
+
+  FOrquestrador.ExecutarCiclo;
+
+  Assert.AreEqual(Int64(700), FCursorStore.ObterUltimoNSU(NAMESPACE_TESTE + '/homologacao'));
+  Assert.AreEqual(Int64(0), FCursorStore.ObterUltimoNSU(NAMESPACE_TESTE), 'o cursor de producao nao foi tocado');
 end;
 
 initialization

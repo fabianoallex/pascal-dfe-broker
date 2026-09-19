@@ -11,7 +11,7 @@ unit DFe.Host.ACBr;
   arquivo INI, das chaves que o parser do core ignora:
 
     [dfe]
-    Ambiente=producao            ; ou homologacao (padrao: producao)
+    Ambiente=producao            ; ou homologacao (padrao: producao); pode ser sobrescrito por [certificado:*]
     PathSchemas=Schemas          ; XSDs oficiais (padrao: 'Schemas' ao lado do exe)
 
     [certificado:matriz]
@@ -20,10 +20,10 @@ unit DFe.Host.ACBr;
     SenhaEnv=DFE_SENHA_MATRIZ    ; nome de variavel de ambiente (preferivel: o
                                  ; arquivo de config nao guarda segredo)
 
-  ATENCAO com o cursor: os NSUs de producao e de homologacao sao SEPARADOS na
-  SEFAZ, mas o namespace do cursor (DFe.Orquestrador.MontarNamespaceCursor) nao
-  inclui o ambiente. Trocar Ambiente exige apontar CursorPath para outro
-  arquivo. }
+  Os NSUs de producao e de homologacao sao SEPARADOS na SEFAZ; o cursor os
+  distingue pelo namespace (homologacao ganha o sufixo '/homologacao', ver
+  DFe.Orquestrador.MontarNamespaceCursor), entao um mesmo arquivo de cursor serve
+  aos dois ambientes. }
 
 interface
 
@@ -44,7 +44,6 @@ type
     FCaminhoConfig: string;
     function Resolver(const ACaminho: string): string;
     function PathSchemas: string;
-    function Ambiente: TACBrTipoAmbiente;
   public
     constructor Create(const ACaminhoConfig: string);
 
@@ -87,25 +86,6 @@ begin
   end;
 end;
 
-function TDFeFabricaClientesACBr.Ambiente: TACBrTipoAmbiente;
-var
-  LIni: TMemIniFile;
-  LValor: string;
-begin
-  LIni := TMemIniFile.Create(FCaminhoConfig);
-  try
-    LValor := LowerCase(Trim(LIni.ReadString('dfe', 'Ambiente', 'producao')));
-  finally
-    LIni.Free;
-  end;
-  if LValor = 'producao' then
-    Result := taProducao
-  else if LValor = 'homologacao' then
-    Result := taHomologacao
-  else
-    raise Exception.CreateFmt('Config: [dfe] Ambiente="%s" desconhecido (use "producao" ou "homologacao")', [LValor]);
-end;
-
 function TDFeFabricaClientesACBr.CriarClient(const ACertificado: TDFeConfigCertificado): IDFeDistribuicaoClient;
 var
   LIni: TMemIniFile;
@@ -140,7 +120,12 @@ begin
     raise Exception.CreateFmt('Config: secao "%s": arquivo "%s" nao existe', [LSecao, LCredencial.ArquivoPFX]);
 
   LCredencial.PathSchemas := PathSchemas;
-  Result := TDFeDistribuicaoClientACBrNFe.Create(LCredencial, Ambiente);
+  // O ambiente vem da config ja' interpretada (DFe.Config): e' o MESMO valor que
+  // a unidade usa para escolher o cursor, entao client e cursor nao divergem.
+  if ACertificado.Ambiente = daHomologacao then
+    Result := TDFeDistribuicaoClientACBrNFe.Create(LCredencial, taHomologacao)
+  else
+    Result := TDFeDistribuicaoClientACBrNFe.Create(LCredencial, taProducao);
 end;
 
 function TDFeFabricaClientesACBr.VerificarAmbiente: TDFeRelatorioAmbiente;

@@ -50,6 +50,7 @@ type
     FPausada: Boolean;
     FMotivoPausa: string;
     FManifestacaoAutomatica: Boolean;
+    FAmbiente: TDFeAmbiente;
   public
     constructor Create(const AProvider: IDFeProvider;
       const AClient: IDFeDistribuicaoClient;
@@ -73,16 +74,28 @@ type
       (ver TDFeOrquestrador). Quem decide o que fazer com isso e'
       DFe.Manifestacao.TDFeAutoManifestador, nao este unit. }
     property ManifestacaoAutomatica: Boolean read FManifestacaoAutomatica write FManifestacaoAutomatica;
+    { Ambiente da SEFAZ que o CLIENT desta unidade consulta -- so' o orquestrador
+      usa isto, para o cursor de homologacao nao se misturar com o de producao.
+      Precisa ser o MESMO com que o client foi criado (ver DFe.Host.ACBr);
+      por isso a config recarregada a quente NAO o altera numa unidade que ja'
+      existe (mudar exige reiniciar). Padrao: producao. }
+    property Ambiente: TDFeAmbiente read FAmbiente write FAmbiente;
   end;
 
   TDFeUnidadeTrabalhoArray = array of TDFeUnidadeTrabalho;
 
-  { Monta a chave de namespace do cursor de NSU: '<tipo>/<cnpjCpf>/<uf>' (ver
-    docs/architecture.md, "Persistencia do cursor de NSU"). E' o orquestrador
-    quem monta essa chave, nunca o provider -- exportada como funcao pura
-    para ser testavel isoladamente. }
+  { Monta a chave de namespace do cursor de NSU (ver docs/architecture.md,
+    "Persistencia do cursor de NSU"):
+      producao:    '<tipo>/<cnpjCpf>/<uf>'
+      homologacao: '<tipo>/<cnpjCpf>/<uf>/homologacao'
+    O sufixo so' existe em homologacao DE PROPOSITO: a chave de producao e'
+    exatamente a que ja' existia antes de o ambiente entrar no namespace
+    (2026-09-19), entao nenhum cursor gravado precisa de migracao. E' o
+    orquestrador quem monta essa chave, nunca o provider -- exportada como
+    funcao pura para ser testavel isoladamente. }
   function MontarNamespaceCursor(const ATipoDocumento: string;
-    const ACertificado: TDFeCertificado): string;
+    const ACertificado: TDFeCertificado;
+    const AAmbiente: TDFeAmbiente = daProducao): string;
 
 type
   { Chamado depois que um evento de CATEGORIA DOCUMENTO (nunca evento fiscal)
@@ -154,9 +167,11 @@ type
 implementation
 
 function MontarNamespaceCursor(const ATipoDocumento: string;
-  const ACertificado: TDFeCertificado): string;
+  const ACertificado: TDFeCertificado; const AAmbiente: TDFeAmbiente): string;
 begin
   Result := LowerCase(ATipoDocumento) + '/' + ACertificado.CnpjCpf + '/' + LowerCase(ACertificado.UF);
+  if AAmbiente = daHomologacao then
+    Result := Result + '/homologacao';
 end;
 
 function SegundosParaTimeDelta(const ASegundos: Integer): TDateTime;
@@ -296,7 +311,7 @@ begin
   if Agora < AUnidade.ProximaConsultaEm then
     Exit;
 
-  LNamespace := MontarNamespaceCursor(AUnidade.Provider.Identificador, AUnidade.Certificado);
+  LNamespace := MontarNamespaceCursor(AUnidade.Provider.Identificador, AUnidade.Certificado, AUnidade.Ambiente);
   LLotesProcessados := 0;
   LContinuar := True;
 
