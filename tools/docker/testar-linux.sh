@@ -8,6 +8,7 @@
 #   tools/docker/testar-linux.sh --so-pura    # so' a suite pura (rapido, ~10 s)
 #
 # Pre-requisito da integracao: vendor/ACBr inicializado (tools/init-acbr-submodule.sh).
+# Para os testes AMQP e o host: vendor/pascal-amqp-faa (git submodule update --init vendor/pascal-amqp-faa).
 set -euo pipefail
 export MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL="*"
 
@@ -28,19 +29,11 @@ if ! docker image inspect dfe-linux-teste >/dev/null 2>&1; then
   docker build -f tools/docker/Dockerfile.linux-teste -t dfe-linux-teste tools/docker
 fi
 
-# Repositorio irmao (broker AMQP embutido): montado em /pascal-amqp-faa, o mesmo lugar relativo
-# que ele tem em relacao ao repo (../pascal-amqp-faa) -- os .lpi/.dproj usam esse caminho.
-MONTA_IRMAO=""
-if [ -d "../pascal-amqp-faa/src" ]; then
-  IRMAO="$(cd ../pascal-amqp-faa && (pwd -W 2>/dev/null || pwd))"
-  MONTA_IRMAO="-v $IRMAO:/pascal-amqp-faa:ro"
-fi
-
 SAIDA="$(mktemp -d)"; trap 'rm -rf "$SAIDA"' EXIT
 SAIDA_MONTAGEM="$(cd "$SAIDA" && (pwd -W 2>/dev/null || pwd))"
 
 docker run --rm \
-  -v "$RAIZ:/proj:ro" -v "$SAIDA_MONTAGEM:/out" $MONTA_IRMAO \
+  -v "$RAIZ:/proj:ro" -v "$SAIDA_MONTAGEM:/out" \
   -e SEM_LINK="$SEM_LINK" -e SO_PURA="$SO_PURA" \
   --entrypoint bash dfe-linux-teste -c '
 set -uo pipefail
@@ -79,14 +72,14 @@ echo "saida da integracao=$RCI (0 = tudo passou; 124 = estourou o tempo)"
 grep -E "Number of|Time:" /out/resultado.txt | head -6 || true
 grep -A2 "Message:" /out/resultado.txt | head -4 | cut -c1-400 || true
 RCA=0; RCH=0
-if [ ! -d /pascal-amqp-faa/src ]; then
-  echo; echo "=== integracao AMQP embutido e host console: PULADA (../pascal-amqp-faa nao encontrado) ==="
+if [ ! -d /proj/vendor/pascal-amqp-faa/src ]; then
+  echo; echo "=== integracao AMQP embutido e host console: PULADA (vendor/pascal-amqp-faa nao inicializado: git submodule update --init vendor/pascal-amqp-faa) ==="
 else
   echo; echo "=== integracao AMQP embutido (broker in-process, sem ACBr) ==="
   mkdir -p /out/amqp
   cd /proj/tests/Integration/AmqpBroker
-  fpc -Mdelphi -Sh -Fu/proj/src -Fu/pascal-amqp-faa/src -Fu/pascal-amqp-faa/src/server -Fu/proj/tests/Unit/fpc \
-      -Fi/proj/src -Fi/pascal-amqp-faa/src -FU/out/amqp -FE/out/amqp -oAmqpBrokerTests AmqpBrokerTests.lpr 2>&1 | grep -E "Fatal|Error:|lines compiled"
+  fpc -Mdelphi -Sh -Fu/proj/src -Fu/proj/vendor/pascal-amqp-faa/src -Fu/proj/vendor/pascal-amqp-faa/src/server -Fu/proj/tests/Unit/fpc \
+      -Fi/proj/src -Fi/proj/vendor/pascal-amqp-faa/src -FU/out/amqp -FE/out/amqp -oAmqpBrokerTests AmqpBrokerTests.lpr 2>&1 | grep -E "Fatal|Error:|lines compiled"
   cd /out/amqp
   timeout 300 ./AmqpBrokerTests --all --format=plain > /out/amqp.txt 2>&1; RCA=$?
   echo "saida da integracao AMQP=$RCA (0 = tudo passou; 124 = estourou o tempo)"

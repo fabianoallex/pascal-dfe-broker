@@ -37,7 +37,12 @@ If the current version on the [Portal Nacional da NF-e](https://www.nfe.fazenda.
 
 ## Building and running
 
-Requires the sibling repository [pascal-amqp-faa](https://github.com/fabianoallex/pascal-amqp-faa) **next to** this one (`../pascal-amqp-faa`) and the ACBr submodule (`./tools/init-acbr-submodule.sh`, ~70 MB partial clone).
+Depends on two submodules under `vendor/`: the [pascal-amqp-faa](https://github.com/fabianoallex/pascal-amqp-faa) broker (~2 MB) and ACBr (~70 MB partial clone). **Do not use `--recurse-submodules`**: it would download the whole ACBr monorepo (~1.3 GB). After cloning:
+
+```
+git submodule update --init vendor/pascal-amqp-faa
+./tools/init-acbr-submodule.sh
+```
 
 - **FPC/Lazarus:** `lazbuild hosts/console/DFeBrokerConsole.lpi`
 - **Delphi:** open `PascalDfeBroker.groupproj` and build `DFeBrokerConsole` (Win64).

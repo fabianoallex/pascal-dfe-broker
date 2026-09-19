@@ -46,8 +46,8 @@
       <Filename Value="AmqpBrokerTests"/>
     </Target>
     <SearchPaths>
-      <IncludeFiles Value="..\..\..\src;..\..\..\..\pascal-amqp-faa\src"/>
-      <OtherUnitFiles Value="..\..\..\src;..\..\..\..\pascal-amqp-faa\src;..\..\..\..\pascal-amqp-faa\src\server;..\..\Unit\fpc"/>
+      <IncludeFiles Value="..\..\..\src;..\..\..\vendor\pascal-amqp-faa\src"/>
+      <OtherUnitFiles Value="..\..\..\src;..\..\..\vendor\pascal-amqp-faa\src;..\..\..\vendor\pascal-amqp-faa\src\server;..\..\Unit\fpc"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Parsing>

@@ -37,7 +37,12 @@ Se a versão vigente no [Portal Nacional da NF-e](https://www.nfe.fazenda.gov.br
 
 ## Como compilar e rodar
 
-Precisa do repositório irmão [pascal-amqp-faa](https://github.com/fabianoallex/pascal-amqp-faa) **ao lado** deste (`../pascal-amqp-faa`) e do submódulo do ACBr (`./tools/init-acbr-submodule.sh`, clone parcial de ~70 MB).
+Depende de dois submódulos em `vendor/`: o broker [pascal-amqp-faa](https://github.com/fabianoallex/pascal-amqp-faa) (~2 MB) e o ACBr (clone parcial de ~70 MB). **Não use `--recurse-submodules`**: ele baixaria o monorepo inteiro do ACBr (~1,3 GB). Depois de clonar:
+
+```
+git submodule update --init vendor/pascal-amqp-faa
+./tools/init-acbr-submodule.sh
+```
 
 - **FPC/Lazarus:** `lazbuild hosts/console/DFeBrokerConsole.lpi`
 - **Delphi:** abrir `PascalDfeBroker.groupproj` e compilar `DFeBrokerConsole` (Win64).

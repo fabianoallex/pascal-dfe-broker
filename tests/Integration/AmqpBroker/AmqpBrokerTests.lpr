@@ -7,7 +7,7 @@ program AmqpBrokerTests;
   suite pura nao deve arrastar. Nao precisa de ACBr, certificado, OpenSSL nem
   rede alem do loopback.
 
-  Requer o repositorio irmao ../pascal-amqp-faa (ver CLAUDE.md).
+  Requer o submodulo vendor/pascal-amqp-faa (git submodule update --init vendor/pascal-amqp-faa).
 
   Uso: .\AmqpBrokerTests.exe --all --format=plain }
 

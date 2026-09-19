@@ -4,7 +4,7 @@
   aplicacao inteira) contra o broker EMBUTIDO -- versao DELPHI (DUnitX) do
   projeto FPC tests\Integration\AmqpBroker (AmqpBrokerTests.lpr): mesmos 17
   testes. Nao precisa de ACBr, certificado, OpenSSL nem rede alem do loopback,
-  entao roda em Win32 e Win64. Requer o repositorio irmao ..\pascal-amqp-faa. }
+  entao roda em Win32 e Win64. Requer o submodulo vendor\pascal-amqp-faa. }
 
 {$APPTYPE CONSOLE}
 {$STRONGLINKTYPES ON}

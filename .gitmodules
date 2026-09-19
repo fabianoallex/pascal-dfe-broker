@@ -1,3 +1,6 @@
 [submodule "vendor/ACBr"]
 	path = vendor/ACBr
 	url = https://github.com/MirrorProjetoACBr/ACBr.git
+[submodule "vendor/pascal-amqp-faa"]
+	path = vendor/pascal-amqp-faa
+	url = https://github.com/fabianoallex/pascal-amqp-faa.git

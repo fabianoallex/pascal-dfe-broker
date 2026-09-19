@@ -3,7 +3,7 @@ unit DFe.Publicador.AMQP;
 {$I dfe.inc}
 
 { Implementacao real de IDFePublicador sobre o cliente do pascal-amqp-faa
-  (../pascal-amqp-faa). Fala AMQP 0-9-1 padrao, entao serve tanto para o
+  (submodulo vendor/pascal-amqp-faa). Fala AMQP 0-9-1 padrao, entao serve tanto para o
   broker EMBUTIDO (TAMQPServer, no mesmo processo, em 127.0.0.1) quanto para
   um RabbitMQ externo -- so' muda TAMQPConnectionParams (decisao 3).
 
