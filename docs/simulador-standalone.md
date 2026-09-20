@@ -158,10 +158,21 @@ os `.exe`): `DFe.UnitTests` **404/404** (0 vazamento) e o `DFeSimuladorLimite` d
 por `curl`. O `.dproj` do exemplo precisou de `..\..` no caminho de busca. Não coberto no Delphi: a suíte HTTP
 de integração contra o exemplo Delphi e o Win64.
 
-### Fase D — distribuição
+### Fase D — distribuição — **FEITA (2026-09-20, exceto HTTPS)**
 
 Imagem Docker (binário Linux estático do FPC), README para quem não usa Pascal (curl/Python contra a API admin), exemplos de cenário, HTTPS opcional se houver demanda, entrada no CI.
 **Pronto quando:** `docker run` + um script Python (pika/requests) reproduzem o roteiro do README sem instalar Pascal.
+
+Implementada: `simulador/Dockerfile` (build em contêiner Debian 12 + FPC 3.2.2, runtime `debian:bookworm-slim`, usuário
+comum, `ENTRYPOINT` = o executável, `CMD` = `--bind 0.0.0.0 --porta 9200`; contexto = raiz do repo, com `.dockerignore`),
+cenários `simulador/cenarios/` (`basico`, `paginacao`, `instavel`; vão em `/cenarios/`), o roteiro
+`simulador/exemplos/python/roteiro.py` (**só biblioteca padrão**, sem pika/requests — decisão: menos dependência para quem só quer ver
+funcionar; o pika continua nos exemplos do consumidor do broker) e `tools/docker/testar-simulador-docker.sh`, que também é o job
+`testar-simulador-docker` do CI. Seção "Sem instalar Pascal" no `simulador/LEIAME.md`.
+Desvios do plano: o binário **não é estático** (liga só a `libc`, e a imagem de runtime a tem); HTTPS **não** foi feito (sem demanda).
+Verificado localmente (Docker no Windows): build, `docker run`, o roteiro inteiro contra o contêiner, os três cenários carregando
+(o log confirma; **o comportamento de `paginacao` e `instavel` é exercitado só no roteiro por API, não pelos arquivos**), usuário não-root
+e `docker stop` rápido. **O job do CI ainda não rodou** no GitHub.
 
 ## Decisões em aberto
 

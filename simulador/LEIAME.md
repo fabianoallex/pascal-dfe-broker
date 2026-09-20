@@ -31,6 +31,41 @@ DFeSimulador --porta 9200 --cenario cenario.exemplo.ini
 Rotas SOAP (o envelope como o ACBr envia): `POST /NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx` e
 `POST /NFeRecepcaoEvento4/NFeRecepcaoEvento4.asmx`. `GET /ping` para saber se está de pé.
 
+## Sem instalar Pascal (Docker)
+
+```
+git submodule update --init vendor/horse                    # o Horse, casca HTTP (uma vez)
+docker build -f simulador/Dockerfile -t dfe-simulador .     # a partir da RAIZ do repositório
+docker run --rm -p 127.0.0.1:9200:9200 dfe-simulador
+```
+
+O contêiner escuta em todas as interfaces *dentro* dele (senão o `-p` não alcança) e roda como usuário comum;
+**quem enxerga a API admin (sem autenticação) é decidido pelo `-p`** — prefira `127.0.0.1:` na frente.
+Os argumentos são os da seção acima, depois do nome da imagem:
+
+```
+docker run --rm -p 127.0.0.1:9200:9200 dfe-simulador --bind 0.0.0.0 --porta 9200 --cenario /cenarios/paginacao.ini
+```
+
+Cenários que já vão na imagem (`simulador/cenarios/`, em `/cenarios/`): `basico` (3 resNFe + 1 procNFe),
+`paginacao` (120 documentos: lotes de 50, 50 e 20) e `instavel` (108, timeout, 500 e 656 nas primeiras
+consultas). Para o seu, monte um volume: `-v $PWD/meu.ini:/cenarios/meu.ini:ro`.
+
+**Roteiro pronto em Python** (só a biblioteca padrão — `simulador/exemplos/python/roteiro.py`): publica
+documentos pela API admin, consulta a Distribuição por SOAP e decodifica o `docZip` (gzip + base64), pagina,
+reproduz o 656 e o desfaz com o relógio virtual, enfileira falhas e liga o modo estrito. Sai com 0 se tudo bate.
+
+```
+python3 simulador/exemplos/python/roteiro.py --url http://127.0.0.1:9200
+```
+
+O envelope que ele manda (a função `envelope()`) é o que o ACBr manda; use-o como ponto de partida para o seu
+cliente. **A sua biblioteca precisa permitir trocar a URL do serviço e falar HTTP** (sem TLS) — não há modo
+HTTPS ainda (só se houver demanda).
+
+`tools/docker/testar-simulador-docker.sh` faz o build, sobe o contêiner, roda o roteiro e confere os cenários e a
+parada; é o que o CI executa.
+
 ## API admin
 
 JSON **plano** (um objeto de campos simples; sem objetos aninhados). Sem autenticação. Erros: `{"erro":"..."}`

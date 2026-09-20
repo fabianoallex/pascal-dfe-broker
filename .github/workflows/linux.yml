@@ -29,6 +29,20 @@ jobs:
       - name: Suites (pura, ACBr x simulador, AMQP, host console)
         run: tools/docker/testar-linux.sh
 
+  testar-simulador-docker:
+    # Fase D do simulador standalone: a imagem (simulador/Dockerfile) sobe com docker run e o
+    # roteiro Python de biblioteca padrao roda contra ela, sem Pascal no host.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Submodulo do Horse
+        run: git submodule update --init vendor/horse
+
+      - name: Imagem do simulador + roteiro Python
+        run: sh tools/docker/testar-simulador-docker.sh
+
   testar-systemd:
     # A unit de systemd em conteiner com systemd como PID 1 (--privileged, cgroup v2);
     # o ubuntu-latest do GitHub suporta (verificado em 2026-09-19).

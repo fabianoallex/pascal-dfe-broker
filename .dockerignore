@@ -1,0 +1,19 @@
+# Contexto de build dos Dockerfiles cuja raiz e' o repositorio (simulador/Dockerfile):
+# so' entra o que a imagem copia. O ACBr (~1,3 GB), o .git e as saidas de compilacao ficam de fora.
+.git
+vendor/ACBr
+vendor/pascal-amqp-faa
+docs
+tests
+tools
+hosts
+packages
+**/lib
+**/build
+**/Win32
+**/Win64
+**/__history
+*.exe
+*.dcu
+*.o
+*.ppu
