@@ -154,6 +154,7 @@ type
 implementation
 
 const
+  BARRA = '\'; // evita escrever a sequencia de escape no fonte
   CAMINHO_DIST = '/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx';
   SOAP_DIST = 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse';
   CNPJ_A = '11222333000181';
@@ -556,8 +557,8 @@ procedure TDFeJsonPlanoTests.EscapeUnicode_ViraCaractereNativo;
 var
   J: TDFeJsonPlano;
 begin
-  // ã = a-til. No FPC o texto nativo e' UTF-8 (C3 A3).
-  J := Ler('{"t":"não"}');
+  // a-til (U+00E3) escrito na entrada como escape, montado com BARRA para o fonte ficar ASCII.
+  J := Ler('{"t":"n' + BARRA + 'u00e3o"}');
   try
     Assert.AreEqual('n' + #$00E3 + 'o', J.Texto('t'));
   finally
@@ -569,8 +570,8 @@ procedure TDFeJsonPlanoTests.ParSubstituto_ViraUmPontoDeCodigo;
 var
   J: TDFeJsonPlano;
 begin
-  // U+1F600 = 😀 -> F0 9F 98 80 em UTF-8
-  J := Ler('{"t":"😀"}');
+  // U+1F600 = par substituto D83D DE00 (montado com BARRA; o fonte fica ASCII).
+  J := Ler('{"t":"' + BARRA + 'uD83D' + BARRA + 'uDE00"}');
   try
     Assert.AreEqual(#$D83D#$DE00, J.Texto('t'));
   finally
@@ -813,8 +814,8 @@ procedure TDFeSimuladorAdminTests.Documentos_XNomeComAcento_ViaEscape;
 var
   R: TDFeSimHttpResposta;
 begin
-  // É = E acentuado; & precisa sair escapado no XML
-  R := Admin('POST', '/admin/documentos', '{"cnpj":"' + CNPJ_A + '","uf":"RS","xNome":"JOSÉ & FILHOS"}');
+  // u00c9 = E acentuado (escape montado com BARRA); & precisa sair escapado no XML
+  R := Admin('POST', '/admin/documentos', '{"cnpj":"' + CNPJ_A + '","uf":"RS","xNome":"JOS' + BARRA + 'u00c9 & FILHOS"}');
   Assert.AreEqual(200, R.Status);
   R := Consultar;
   Assert.AreEqual(200, R.Status);

@@ -353,7 +353,7 @@ begin
               Erro('\u invalido');
               Exit;
             end;
-            // par substituto 😀 vira UM ponto de codigo
+            // par substituto (dois escapes, alto e baixo) vira UM ponto de codigo
             if (LCodigo >= $D800) and (LCodigo <= $DBFF) and (FP + 1 <= Length(FT)) and
                (FT[FP] = '\') and (FT[FP + 1] = 'u') then
             begin
