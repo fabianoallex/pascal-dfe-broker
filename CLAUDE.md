@@ -121,6 +121,8 @@ Com isso, todas as decisões que ficaram em aberto ao longo da concepção e da 
 - `docs/architecture.md`: fluxo completo, contrato de provider, convenção de routing-key, riscos técnicos do cursor de NSU, decisão de integração com ACBr, estrutura de projeto/teste.
 - `tests/Unit/` (DUnitX) e `tests/Unit/fpc/` (FPCUnit): suíte de testes atual, mirrored 1:1 — olhar aqui antes de mudar qualquer unit pura (`DFe.RoutingKey`, `DFe.Types`, `DFe.CursorStore.Arquivo`) pra saber o que já está coberto.
 - `docs/simulador-sefaz.md`: plano do simulador da SEFAZ (próximo grande marco de teste), com o que já foi verificado e o que ainda é hipótese.
+- `docs/simulador-standalone.md` e `simulador/LEIAME.md`: o simulador como aplicação separada (Fases A e B feitas; próximo: Fase C).
+- **`docs/acbr-achados.md`: o que descobrimos sobre o ACBr e que o projeto ACBr poderia mudar. Decisão do usuário (2026-09-20): NÃO propor nada ao ACBr agora — acumular aqui e propor só quando o projeto estiver viabilizado e, de preferência, em uso na comunidade. Ao encontrar comportamento surpreendente do ACBr, registrar lá na hora (com evidência, contorno e revisão do ACBr), além do gotcha aqui se for útil para trabalhar.**
 - `docs/referencias/`: cópias e citações literais das NTs oficiais de Distribuição de DFe — fonte de verdade para qualquer regra de protocolo (cStat, intervalos, formato de lote).
 - `CONTRIBUTING.md`: o que é exigido de um PR que adiciona um novo tipo de documento.
 - `vendor/pascal-amqp-faa/CLAUDE.md`: arquitetura e regras dual-compiler do broker AMQP que serve de base (regras de "o que não usar no FPC" valem aqui igual, uma vez que o código comece a ser escrito).
