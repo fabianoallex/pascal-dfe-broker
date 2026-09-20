@@ -2,56 +2,110 @@
 
 [![Linux (FPC)](https://github.com/fabianoallex/pascal-dfe-broker/actions/workflows/linux.yml/badge.svg)](https://github.com/fabianoallex/pascal-dfe-broker/actions/workflows/linux.yml)
 
-> ⚠️ **Estado (setembro/2026): funciona de ponta a ponta contra um simulador da SEFAZ, mas nunca foi executado contra a SEFAZ real** — o autor não tem certificado digital ICP-Brasil. Testado em Delphi (Win32/Win64) e FPC (Windows e Linux/Docker); o host console sobe e para limpo nos dois compiladores. Não use em produção sem validar com o seu certificado (em homologação primeiro) e, se puder, [conte o que encontrou](https://github.com/fabianoallex/pascal-dfe-broker/issues/1). Decisões de design ficam registradas em [`CLAUDE.md`](CLAUDE.md) e [`docs/architecture.md`](docs/architecture.md).
+> ⚠️ **Estado (setembro/2026): funciona de ponta a ponta contra um simulador da SEFAZ, mas nunca foi executado contra a SEFAZ real** — o autor não tem certificado digital ICP-Brasil. Testado em Delphi (Win32/Win64) e FPC (Windows e Linux/Docker); o host console sobe e para limpo nos dois compiladores. Não use em produção sem validar com o seu certificado (em homologação primeiro) e, se puder, [conte o que encontrou](https://github.com/fabianoallex/pascal-dfe-broker/issues/1). As decisões de projeto estão registradas em [`docs/architecture.md`](docs/architecture.md).
 
-Ferramenta open source para consulta e distribuição de Documentos Fiscais Eletrônicos brasileiros (NFe na v1; CTe, MDFe e demais DFe planejados) via serviço de **Distribuição de DFe** da SEFAZ, publicando os documentos e eventos recebidos em filas AMQP configuráveis pelo usuário — sem exigir infraestrutura de mensageria externa para funcionar.
+**Consulta a Distribuição de DFe da SEFAZ (NFe na v1; CTe e MDFe planejados) e publica cada documento e evento como uma mensagem numa fila AMQP.** Qualquer sistema — Delphi, Python, Node, PHP, Java, C# — consome com um cliente AMQP comum, sem saber nada de SEFAZ, certificado ou ACBr. Auto-hospedado, open source (MIT), sem exigir infraestrutura de mensageria externa.
+
+```
+   SEFAZ ──(certificado, NSU, 1 consulta/hora)──►  DFe Broker  ──►  broker AMQP embutido  ──►  seus sistemas
+                                                   (cursor, ACBr,      exchange "dfe"           (qualquer linguagem)
+                                                    manifestação)      nfe.documento.rs.<cnpj>
+                                                                       nfe.evento.cancelamento.rs.<cnpj>
+```
+
+O que um consumidor recebe (saída real do exemplo em Python, com dados sintéticos):
+
+```
+novo      nfe.documento.rs.11222333000181  cnpj=11222333000181 uf=rs
+          resNFe  chave=35260998765432000110550010000000011000079198
+          xNome=EMITENTE SINTETICO LTDA, dhEmi=2026-09-10T14:30:05-03:00, vNF=150.00
+novo      nfe.evento.cancelamento.rs.11222333000181  cnpj=11222333000181 uf=rs
+          resEvento  chave=35260998765432000110550010000000031000237570  tpEvento=110111
+```
+
+## Veja funcionando, sem certificado
+
+O projeto inclui um **simulador da SEFAZ**. O [`docs/guia-de-uso.md`](docs/guia-de-uso.md) leva você, passo a passo, de "acabei de compilar" a ver documentos chegando numa fila, reproduzir o bloqueio de consumo indevido (656) em segundos e mandar uma manifestação do destinatário; a configuração da demo está em [`exemplos/demo-simulador/`](exemplos/demo-simulador/dfe.ini). Não conhece o vocabulário (NSU, cStat, resNFe…)? O guia tem um glossário, e há um [FAQ](docs/faq.md).
 
 ## Por quê
 
-Automatizar a consulta de documentos fiscais que envolvem sua empresa (Distribuição de DFe) hoje significa, na prática, escolher entre pagar por um SaaS fechado ou implementar o fluxo inteiro (NSU, certificado, XML, manifestação) na unha dentro do próprio ERP. O DFe Broker propõe uma terceira via: uma ferramenta **open source e auto-hospedada**, que qualquer empresa ou dev roda com o próprio certificado digital, entregando os documentos como mensagens numa fila — para que qualquer sistema (Delphi, Python, Node, Java, o que for) consuma via um cliente AMQP padrão, sem nenhum acoplamento com Object Pascal.
+Automatizar a consulta de documentos fiscais que envolvem sua empresa (Distribuição de DFe) hoje significa, na prática, escolher entre pagar por um SaaS fechado ou implementar o fluxo inteiro (NSU, certificado, XML, manifestação) na unha dentro do próprio ERP. O DFe Broker propõe uma terceira via: uma ferramenta **open source e auto-hospedada**, que qualquer empresa ou dev roda com o próprio certificado digital, entregando os documentos como mensagens numa fila — para que qualquer sistema consuma via um cliente AMQP padrão, sem nenhum acoplamento com Object Pascal.
 
-## Visão geral da arquitetura
+## O que ele faz
 
-- **Poller por certificado** — para cada certificado digital configurado, consulta periodicamente o serviço de Distribuição de DFe da SEFAZ correspondente, respeitando os intervalos mínimos exigidos pela própria SEFAZ (consulta fora do intervalo é rejeitada), e mantém o cursor de NSU persistido de forma confiável — é o ponto de maior risco técnico do projeto: um cursor corrompido significa documento perdido ou reconsultado para sempre.
-- **Providers por tipo de documento** — a lógica específica de cada tipo de DFe (NFe na v1; CTe e MDFe planejados, idealmente via contribuição da comunidade) fica isolada atrás de um contrato comum, para que novos tipos entrem sem tocar no core do broker. Ver [`CONTRIBUTING.md`](CONTRIBUTING.md).
-- **Broker AMQP embutido** — usa o broker AMQP 0-9-1 embutido do [pascal-amqp-faa](https://github.com/fabianoallex/pascal-amqp-faa) rodando dentro do próprio processo. Não exige RabbitMQ (ou outro broker) externo para funcionar, mas continua compatível com um, por falar o protocolo AMQP 0-9-1 padrão — quem já tem infraestrutura de mensageria pode apontar para ela.
-- **Integração fiscal via ACBr** — os componentes do [projeto ACBr](https://www.acbr.com.br/) cuidam da comunicação com a SEFAZ, do certificado digital e do parsing dos XMLs de retorno.
+- **Poller por certificado** — consulta periodicamente a Distribuição de DFe, respeitando o intervalo mínimo da SEFAZ (1 h), e mantém o **cursor de NSU** persistido com escrita atômica: é o ponto de maior risco (um cursor corrompido significa documento perdido ou reconsultado para sempre). O cursor só avança depois que o lote inteiro foi publicado e confirmado pelo broker — entrega *pelo menos uma vez*, então deduplique pela chave de acesso.
+- **Broker AMQP 0-9-1 embutido** — do [pascal-amqp-faa](https://github.com/fabianoallex/pascal-amqp-faa), dentro do próprio processo, **durável** por padrão. Não exige RabbitMQ, mas fala o protocolo padrão: dá para apontar para um externo.
+- **Contrato público de routing-key** — exchange `dfe` (topic), routing-key `<tipo>.<categoria>.<uf>.<cnpj>`. Quem só quer cancelamentos assina `nfe.evento.cancelamento.#`. Consumidores de exemplo (Python) em [`exemplos/consumidor/`](exemplos/consumidor/README.md).
+- **Manifestação do destinatário** — ciência, confirmação, desconhecimento e operação não realizada, por um comando na fila; o resultado (ou a rejeição da SEFAZ) volta como evento. Há modo automático por certificado, **desligado por padrão** (é um ato fiscal).
+- **Vários certificados** (inclusive troca antes do vencimento) e **recarga a quente** do arquivo de configuração.
+- **Providers por tipo de documento** — NFe na v1; CTe e MDFe entram sem tocar no core (ver [`CONTRIBUTING.md`](CONTRIBUTING.md)).
+- **Formas de rodar** — console (Windows e Linux; sob systemd em produção no Linux) e Serviço Windows (Delphi).
+- **Simulador da SEFAZ** — servidor HTTP com API de administração, relógio virtual, injeção de falhas e extensão em Pascal; serve também como ferramenta independente ([`simulador/LEIAME.md`](simulador/LEIAME.md)).
+- **Integração fiscal via ACBr** — os componentes do [projeto ACBr](https://www.acbr.com.br/) cuidam da comunicação com a SEFAZ, do certificado e do XML.
 
-Detalhes de design — convenção de exchange/routing-key, contrato de provider, persistência do cursor de NSU, modelo de execução (serviço Windows, console, daemon Linux) — estão em [`docs/architecture.md`](docs/architecture.md).
+Detalhes de design — convenção de exchange/routing-key, contrato de provider, persistência do cursor, modelo de execução — estão em [`docs/architecture.md`](docs/architecture.md).
 
-> Nota técnica: os web services da SEFAZ exigem certificado digital ICP-Brasil real mesmo em homologação. Por isso, apenas o adaptador que fala com a SEFAZ depende de certificado — o resto do sistema (poller, cursor de NSU, contrato de provider, publicação AMQP) é desenvolvido e testado contra fixtures gravadas, sem precisar de certificado nenhum. Ver "Fronteira testável sem certificado real" em `docs/architecture.md`.
+> Nota técnica: os web services da SEFAZ exigem certificado digital ICP-Brasil real mesmo em homologação. Por isso, só o adaptador que fala com a SEFAZ depende de certificado; o restante é testado contra o **simulador da SEFAZ** do projeto, com o componente ACBr real, e a suíte automatizada não precisa de certificado nenhum. A fidelidade do simulador é a leitura que o projeto faz das Notas Técnicas — validar com um certificado real é exatamente o que falta ([issue #1](https://github.com/fabianoallex/pascal-dfe-broker/issues/1)).
 
 ## Compiladores suportados
 
-Delphi e FPC/Lazarus, **desde o início** — mesmo padrão dual-compiler do pascal-amqp-faa. Onde o suporte do ACBr a Lazarus for uma limitação real, o limite fica documentado explicitamente, não escondido nem contornado às custas de funcionalidade.
+Delphi e FPC/Lazarus, **desde o início** — mesmo padrão dual-compiler do pascal-amqp-faa. Onde o suporte do ACBr a Lazarus for uma limitação real, o limite fica documentado explicitamente.
 
-## Notas Técnicas de referência
-
-Este projeto segue as seguintes versões das Notas Técnicas oficiais de Distribuição de DFe (cópias e citações literais em [`docs/referencias/`](docs/referencias/README.md)):
-
-| Documento | Versão | Baixado em |
+| Compilador | Versão usada pelo autor | Observação |
 |---|---|---|
-| NT 2014.002 (NFe) | 1.02d, março/2021 | 2026-09-17 |
-| NT 2015/002 (CT-e) | 1.00a, agosto/2016 | 2026-09-17 |
-| NT 2015/002 (MDF-e) | 1.00b, março/2016 | 2026-09-17 |
-
-Se a versão vigente no [Portal Nacional da NF-e](https://www.nfe.fazenda.gov.br/portal) for mais recente que a listada aqui, esta tabela e `docs/referencias/` estão desatualizados — trate como um bug e abra uma issue.
+| **FPC/Lazarus** | Lazarus 4.0 (FPC 3.2.2) no Windows; FPC 3.2.2 no Linux (Debian 12) | Windows e Linux x86_64. Não testado: ARM, macOS. |
+| **Delphi** | Delphi 12 (Athens), Win32 e Win64 | Versões anteriores não foram testadas. O Serviço Windows é só Delphi. |
 
 ## Como compilar e rodar
 
-Depende de dois submódulos em `vendor/`: o broker [pascal-amqp-faa](https://github.com/fabianoallex/pascal-amqp-faa) (~2 MB) e o ACBr (clone parcial de ~70 MB). **Não use `--recurse-submodules`**: ele baixaria o monorepo inteiro do ACBr (~1,3 GB). Depois de clonar:
+Depende de submódulos em `vendor/`: o broker [pascal-amqp-faa](https://github.com/fabianoallex/pascal-amqp-faa) (~4 MB), o ACBr (clone parcial de ~75 MB) e, só para o simulador, o [Horse](https://github.com/HashLoad/horse). **Não use `--recurse-submodules`**: ele baixaria o monorepo inteiro do ACBr (~1,3 GB).
+
+> **Windows:** clone num caminho **curto** (ex.: `C:\dev\`). O ACBr tem pastas profundas, e um caminho longo faz o Git recusar o clone do submódulo (`Filename too long`).
+
+Estes comandos foram executados num clone limpo e funcionam (Git Bash no Windows, ou shell Linux):
 
 ```
+git clone https://github.com/fabianoallex/pascal-dfe-broker
+cd pascal-dfe-broker
 git submodule update --init vendor/pascal-amqp-faa
-./tools/init-acbr-submodule.sh
+sh tools/init-acbr-submodule.sh                                  # ~2 min na 1a vez
 ```
 
-- **FPC/Lazarus:** `lazbuild hosts/console/DFeBrokerConsole.lpi`
-- **Delphi:** abrir `PascalDfeBroker.groupproj` e compilar `DFeBrokerConsole` (Win64).
-- **Executar:** `DFeBrokerConsole --config dfe.ini` (modelo em `hosts/console/dfe.exemplo.ini`); `--verificar-ambiente` só confere OpenSSL, libxml2 e XSDs ([`docs/dependencias-runtime.md`](docs/dependencias-runtime.md)).
-- **Guia passo a passo (demo, funcionalidades, roteiro de apresentação):** [`docs/guia-de-uso.md`](docs/guia-de-uso.md), com a config pronta em `exemplos/demo-simulador/`.
-- **Ver funcionando sem certificado / consumir os documentos:** `tools/demo/DFeDemo` e os exemplos em Python em [`exemplos/consumidor/`](exemplos/consumidor/README.md).
-- **Testes:** ver "Como recompilar/rodar os testes" no [`CLAUDE.md`](CLAUDE.md); em Linux, `tools/docker/testar-linux.sh`.
+**Broker (host console) com FPC/Lazarus:**
+
+```
+lazbuild --add-package-link packages/pascal_dfe_broker.lpk       # uma vez por máquina; sem isso: "Broken dependency"
+lazbuild hosts/console/DFeBrokerConsole.lpi
+```
+
+**Simulador da SEFAZ** (para a demo e para testes):
+
+```
+git submodule update --init vendor/horse
+sh simulador/preparar-horse.sh                                   # só Windows/FPC: contorno de 1 linha no Horse
+lazbuild simulador/DFeSimulador.lpi
+```
+
+**Delphi:** abra `PascalDfeBroker.groupproj` e compile `DFeBrokerConsole` (Win64) e, se quiser, `DFeSimulador`.
+
+**Executar:** `DFeBrokerConsole --config dfe.ini` (modelo comentado em `hosts/console/dfe.exemplo.ini`).
+
+**Dependências de execução — não vêm no repositório:** OpenSSL 3 (`libssl` + `libcrypto`), **libxml2** e os XSDs da NFe (estes já vêm no submódulo do ACBr). Faltar algo só aparece em execução, por isso existe `DFeBrokerConsole --config dfe.ini --verificar-ambiente`: confere tudo e diz o que falta e como obter ([`docs/dependencias-runtime.md`](docs/dependencias-runtime.md)).
+
+**Mais:** demo sintética `tools/demo/DFeDemo` · Serviço Windows em [`hosts/servico/LEIAME.md`](hosts/servico/LEIAME.md) · Linux/systemd em [`docs/linux.md`](docs/linux.md) · testes em [`docs/testes.md`](docs/testes.md).
+
+## Notas Técnicas de referência
+
+Este projeto segue as seguintes versões das Notas Técnicas oficiais (cópias e citações literais em [`docs/referencias/`](docs/referencias/README.md)):
+
+| Documento | Versão | Baixado em |
+|---|---|---|
+| NT 2014.002 (NFe, Distribuição de DFe) | 1.02d, março/2021 | 2026-09-17 |
+| NT 2015/002 (CT-e, Distribuição de DFe) | 1.00a, agosto/2016 | 2026-09-17 |
+| NT 2015/002 (MDF-e, Distribuição de DFe) | 1.00b, março/2016 | 2026-09-17 |
+| NT 2012/002 (Manifestação do Destinatário) | 1.02, março/2012 | 2026-09-18 |
+
+Se a versão vigente no [Portal Nacional da NF-e](https://www.nfe.fazenda.gov.br/portal) for mais recente que a listada aqui, esta tabela e `docs/referencias/` estão desatualizados — trate como um bug e abra uma issue.
 
 ## Antes de usar com o certificado de uma empresa
 
@@ -59,10 +113,26 @@ git submodule update --init vendor/pascal-amqp-faa
 - **Manifestação do destinatário é um ato fiscal**: registra evento na NF-e da empresa (ciência, confirmação, *desconhecimento*, *operação não realizada*). O padrão é `ManifestacaoAutomatica=false`; **não a use em produção sem o aval de quem responde pelo fiscal**.
 - O certificado é a identidade digital (e assinatura com valor legal) da empresa: tenha autorização para usá-lo, guarde o `.pfx` e a senha como segredo (`SenhaEnv`, nunca no repositório) e leia a política interna.
 
+## Documentação
+
+| Para… | Leia |
+|---|---|
+| Ver funcionando, entender e apresentar | [`docs/guia-de-uso.md`](docs/guia-de-uso.md) |
+| Tirar dúvidas comuns | [`docs/faq.md`](docs/faq.md) |
+| Entender as decisões de projeto | [`docs/architecture.md`](docs/architecture.md) |
+| Consumir os documentos em outra linguagem | [`exemplos/consumidor/`](exemplos/consumidor/README.md) |
+| Preparar o ambiente (OpenSSL, libxml2, XSDs) | [`docs/dependencias-runtime.md`](docs/dependencias-runtime.md) |
+| Rodar como serviço / no Linux | [`hosts/servico/LEIAME.md`](hosts/servico/LEIAME.md) · [`docs/linux.md`](docs/linux.md) |
+| Usar o simulador da SEFAZ | [`simulador/LEIAME.md`](simulador/LEIAME.md) |
+| Rodar os testes | [`docs/testes.md`](docs/testes.md) |
+| Contribuir | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
+| Reportar um problema de segurança | [`SECURITY.md`](SECURITY.md) |
+| English | [`README.en.md`](README.en.md) |
+
 ## Licença
 
 Este projeto é licenciado sob [MIT](LICENSE). Os componentes ACBr usados como dependência são licenciados sob **LGPLv3** — a integração é feita preservando a separação de licenciamento (o projeto não incorpora código-fonte ACBr sob a licença MIT deste repositório).
 
 ## Contribuindo
 
-Contribuições são muito bem-vindas, especialmente de devs brasileiros com experiência em SEFAZ, ACBr, AMQP ou Lazarus/FPC. Antes de abrir um PR que adicione um novo tipo de documento (CTe, MDFe, etc.), leia [`CONTRIBUTING.md`](CONTRIBUTING.md) — a uniformidade entre providers é um requisito do projeto, não um detalhe de estilo.
+Contribuições são muito bem-vindas, especialmente de devs brasileiros com experiência em SEFAZ, ACBr, AMQP ou Lazarus/FPC. **A ajuda mais valiosa hoje é validar em homologação com um certificado real** ([issue #1](https://github.com/fabianoallex/pascal-dfe-broker/issues/1)). Antes de abrir um PR que adicione um novo tipo de documento (CTe, MDFe etc.), leia [`CONTRIBUTING.md`](CONTRIBUTING.md) — a uniformidade entre providers é um requisito do projeto, não um detalhe de estilo.

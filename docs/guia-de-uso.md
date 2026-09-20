@@ -107,7 +107,7 @@ já está no repositório. Nada toca a SEFAZ real.
 - Repositório com os submódulos (ver o README): `vendor/pascal-amqp-faa`, `vendor/ACBr` (`tools/init-acbr-submodule.sh`) e `vendor/horse` (para o simulador).
 - **OpenSSL 3 e libxml2** acessíveis (o ACBr precisa até para consultar). Confira com `DFeBrokerConsole --verificar-ambiente`; cada linha diz o que está ok ou o que falta ([`dependencias-runtime.md`](dependencias-runtime.md)).
 - Python 3 com `pip install pika` (só para os consumidores de exemplo).
-- Executáveis compilados: `hosts/console/DFeBrokerConsole`, `simulador/DFeSimulador` (FPC: `lazbuild hosts/console/DFeBrokerConsole.lpi`; simulador: `sh simulador/preparar-horse.sh` e depois `lazbuild simulador/DFeSimulador.lpi`; ou pelo `PascalDfeBroker.groupproj` no Delphi).
+- Executáveis compilados: `hosts/console/DFeBrokerConsole` e `simulador/DFeSimulador`. Os comandos exatos (inclusive `lazbuild --add-package-link`, sem o qual dá `Broken dependency`, e `sh simulador/preparar-horse.sh`, só no Windows/FPC) estão em "Como compilar e rodar" no [`README.md`](../README.md); no Delphi, pelo `PascalDfeBroker.groupproj`. **No Windows, clone num caminho curto** (ex.: `C:\dev\`).
 - Portas **9200** (simulador) e **5672** (AMQP) livres. Se o Docker/WSL já usa a 5672, troque `Porta=` no `dfe.ini` e use `--porta` nos scripts Python.
 
 A configuração da demo está em [`exemplos/demo-simulador/dfe.ini`](../exemplos/demo-simulador/dfe.ini) (leia-a: é curta e cada linha está comentada). Pontos-chave dela: `Ambiente=homologacao` + `SimuladorURL=…`, intervalos de 10 s (só para demo), duas filas nomeadas e um certificado `matriz` com o CNPJ de teste `11222333000181`.

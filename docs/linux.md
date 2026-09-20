@@ -1,6 +1,6 @@
 # Linux
 
-Estado (2026-09-18): o core, o client ACBr real e o simulador da SEFAZ **compilam e passam todos os testes em Linux x86_64** (Debian 12), em contêiner Docker. **Não testado**: Delphi para Linux, outras distribuições/arquiteturas (ARM), systemd em máquina real (só em contêiner, ver abaixo) e — como no Windows — TLS/HTTP reais com a SEFAZ. Desde 2026-09-19 também há o host console e a unit de systemd (verificados em contêiner).
+Estado (atualizado em 2026-09-20; texto original de 2026-09-18): o core, o client ACBr real e o simulador da SEFAZ **compilam e passam todos os testes em Linux x86_64** (Debian 12), em contêiner Docker. **Não testado**: Delphi para Linux, outras distribuições/arquiteturas (ARM), systemd em máquina real (só em contêiner, ver abaixo) e — como no Windows — TLS/HTTP reais com a SEFAZ. Desde 2026-09-19 também há o host console e a unit de systemd (verificados em contêiner).
 
 ## Como rodar
 
@@ -12,12 +12,13 @@ tools/docker/testar-linux.sh --so-pura    # só a suíte pura (~10 s depois da 1
 tools/docker/testar-linux.sh --sem-link   # integração SEM o link libxml2.so (a recusa que o operador veria)
 ```
 
-A 1ª execução constrói a imagem `dfe-linux-teste` (`tools/docker/Dockerfile.linux-teste`, ~1 min, autocontida: `debian:bookworm-slim` + `fpc` + `lcl-nogui-2.2` + `lcl-units-2.2` + `libssl3` + `libxml2`). A integração precisa de `vendor/ACBr` inicializado (`tools/init-acbr-submodule.sh`). Resultado da última verificação:
+A 1ª execução constrói a imagem `dfe-linux-teste` (`tools/docker/Dockerfile.linux-teste`, ~1 min, autocontida: `debian:bookworm-slim` + `fpc` + `lcl-nogui-2.2` + `lcl-units-2.2` + `libssl3` + `libxml2`). A integração precisa de `vendor/ACBr` inicializado (`tools/init-acbr-submodule.sh`). Resultado da última verificação (2026-09-20; os números crescem a cada fase, ver o cabeçalho do `CLAUDE.md`):
 
 | Suíte | Resultado |
 |---|---|
-| Pura (FPCUnit) | 227/227 |
-| Integração ACBr × simulador (44 testes, inclui assinatura e validação XSD de eventos, acento no `xJust` e fuso do `dhEvento`) | 44/44 |
+| Pura (FPCUnit) | 400/400 |
+| Integração ACBr × simulador (61 testes: assinatura e validação XSD de eventos, acento no `xJust`, fuso do `dhEvento`, e o client ACBr por HTTP contra o `DFeSimulador`) | 61/61 |
+| Integração AMQP (publicador, fonte de comandos, aplicação inteira) | 18/18 |
 
 Ambiente: Debian 12, x86_64, FPC 3.2.2, Lazarus/LCL 2.2.6 `nogui`, OpenSSL **3.0.20**, libxml2 2.9.14. O executável de integração liga só a `libc` (libssl e libxml2 são carregadas em execução; **nenhuma** dependência de GTK/X11/Qt).
 
