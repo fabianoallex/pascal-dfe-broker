@@ -107,6 +107,7 @@ já está no repositório. Nada toca a SEFAZ real.
 - Repositório com os submódulos (ver o README): `vendor/pascal-amqp-faa`, `vendor/ACBr` (`tools/init-acbr-submodule.sh`) e `vendor/horse` (para o simulador).
 - **OpenSSL 3 e libxml2** acessíveis (o ACBr precisa até para consultar). Confira com `DFeBrokerConsole --verificar-ambiente`; cada linha diz o que está ok ou o que falta ([`dependencias-runtime.md`](dependencias-runtime.md)).
 - Python 3 com `pip install pika` (só para os consumidores de exemplo).
+- **Atalho no Windows x64:** o pacote da [release](https://github.com/fabianoallex/pascal-dfe-broker/releases/latest) já traz os executáveis, as DLLs e um `dfe.ini` pronto; o roteiro dele é este, resumido. Do contrário, compile:
 - Executáveis compilados: `hosts/console/DFeBrokerConsole` e `simulador/DFeSimulador`. Os comandos exatos (inclusive `lazbuild --add-package-link`, sem o qual dá `Broken dependency`, e `sh simulador/preparar-horse.sh`, só no Windows/FPC) estão em "Como compilar e rodar" no [`README.md`](../README.md); no Delphi, pelo `PascalDfeBroker.groupproj`. **No Windows, clone num caminho curto** (ex.: `C:\dev\`).
 - Portas **9200** (simulador) e **5672** (AMQP) livres. Se o Docker/WSL já usa a 5672, troque `Porta=` no `dfe.ini` e use `--porta` nos scripts Python.
 

@@ -25,6 +25,8 @@ novo      nfe.evento.cancelamento.rs.11222333000181  cnpj=11222333000181 uf=rs
 
 ## See it working, no certificate needed
 
+**Without building anything (Windows x64):** download the package from the [v0.1.0 release](https://github.com/fabianoallex/pascal-dfe-broker/releases/latest) — executables, the simulator, the DLLs, a test certificate and a 6-step `LEIAME.md` (Portuguese).
+
 The project ships a **SEFAZ simulator**. [`docs/guia-de-uso.md`](docs/guia-de-uso.md) (Portuguese) walks you from "I just built it" to watching documents arrive on a queue, reproducing the "improper use" block (cStat 656) in seconds, and sending a recipient manifestation. The demo configuration is in [`exemplos/demo-simulador/`](exemplos/demo-simulador/dfe.ini). See also the [FAQ](docs/faq.md) (Portuguese).
 
 ## Why
