@@ -28,6 +28,8 @@ uses
   DFe.Ambiente in '..\..\src\DFe.Ambiente.pas',
   DFe.Fuso in '..\..\src\DFe.Fuso.pas',
   DFe.Transmissor.Http in '..\..\src\DFe.Transmissor.Http.pas',
+  DFe.Simulador.Servidor in '..\..\src\DFe.Simulador.Servidor.pas',
+  DFe.Simulador.Cenario in '..\..\src\DFe.Simulador.Cenario.pas',
   DFe.Host.LogArquivo in '..\..\src\DFe.Host.LogArquivo.pas',
   DFe.TestDoubles in 'DFe.TestDoubles.pas',
   DFe.RoutingKeyTests in 'DFe.RoutingKeyTests.pas',
@@ -47,6 +49,7 @@ uses
   DFe.SimuladorEventoTests in 'DFe.SimuladorEventoTests.pas',
   DFe.XmlTextoTests in 'DFe.XmlTextoTests.pas',
   DFe.TransmissorHttpTests in 'DFe.TransmissorHttpTests.pas',
+  DFe.SimuladorServidorTests in 'DFe.SimuladorServidorTests.pas',
   DFe.AmbienteTests in 'DFe.AmbienteTests.pas',
   DFe.FusoTests in 'DFe.FusoTests.pas',
   DFe.LogArquivoTests in 'DFe.LogArquivoTests.pas';

@@ -9,6 +9,7 @@
 #
 # Pre-requisito da integracao: vendor/ACBr inicializado (tools/init-acbr-submodule.sh).
 # Para os testes AMQP e o host: vendor/pascal-amqp-faa (git submodule update --init vendor/pascal-amqp-faa).
+# Para o simulador standalone (a integracao por HTTP): vendor/horse (git submodule update --init vendor/horse).
 set -euo pipefail
 export MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL="*"
 
@@ -65,6 +66,17 @@ fpc -Mdelphi -Sh $UNITS $INCS \
     -Fu$LAZ/lcl/units/x86_64-linux/nogui -Fu$LAZ/lcl/units/x86_64-linux \
     -Fu$LAZ/components/lazutils/lib/x86_64-linux -dLCL -dLCLnogui \
     -FU/out -FE/out -oAcbrSimTests AcbrSimTests.lpr 2>&1 | grep -E "Fatal|Error:|lines compiled"
+
+# O simulador da SEFAZ como PROCESSO (o Horse do submodulo, sem alteracao no Linux). Os testes
+# HTTP o procuram em ../../../simulador a partir do executavel (/out) = /simulador.
+echo; echo "--- simulador standalone (DFeSimulador): compila ---"
+mkdir -p /out/sim /simulador
+if [ -d /proj/vendor/horse/src ]; then
+  cd /proj/simulador
+  fpc -Mdelphi -Sh -dUseCThreads -Fu/proj/src -Fi/proj/src -Fu/proj/vendor/horse/src       -FU/out/sim -FE/simulador -oDFeSimulador DFeSimulador.lpr 2>&1 | grep -E "Fatal|Error:|lines compiled"
+else
+  echo "(vendor/horse nao inicializado: os testes por HTTP vao falhar -- git submodule update --init vendor/horse)"
+fi
 
 cp -r /proj/tests/Integration/AcbrSim/cert-teste /proj/tests/Integration/AcbrSim/Schemas /out/
 ln -sf /proj/vendor /vendor    # os testes de evento acham os XSDs em ../../../vendor a partir do executavel

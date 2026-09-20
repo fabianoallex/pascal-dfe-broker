@@ -109,6 +109,14 @@
         <Filename Value="..\src\DFe.Transmissor.Http.pas"/>
         <UnitName Value="DFe.Transmissor.Http"/>
       </Item>
+      <Item>
+        <Filename Value="..\src\DFe.Simulador.Servidor.pas"/>
+        <UnitName Value="DFe.Simulador.Servidor"/>
+      </Item>
+      <Item>
+        <Filename Value="..\src\DFe.Simulador.Cenario.pas"/>
+        <UnitName Value="DFe.Simulador.Cenario"/>
+      </Item>
     </Files>
     <RequiredPkgs>
       <Item>

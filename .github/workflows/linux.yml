@@ -23,7 +23,7 @@ jobs:
 
       - name: Submodulos (pascal-amqp-faa completo, ACBr parcial)
         run: |
-          git submodule update --init vendor/pascal-amqp-faa
+          git submodule update --init vendor/pascal-amqp-faa vendor/horse
           ./tools/init-acbr-submodule.sh
 
       - name: Suites (pura, ACBr x simulador, AMQP, host console)
@@ -39,7 +39,7 @@ jobs:
 
       - name: Submodulos (pascal-amqp-faa completo, ACBr parcial)
         run: |
-          git submodule update --init vendor/pascal-amqp-faa
+          git submodule update --init vendor/pascal-amqp-faa vendor/horse
           ./tools/init-acbr-submodule.sh
 
       - name: Unit de systemd (subida, queda + reinicio, SIGTERM, exit 2)

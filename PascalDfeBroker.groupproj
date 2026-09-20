@@ -24,6 +24,9 @@
         <Projects Include="simulador\spike-horse\SpikeHorse.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="simulador\DFeSimulador.dproj">
+            <Dependencies/>
+        </Projects>
     </ItemGroup>
     <ProjectExtensions>
         <Borland.Personality>Default.Personality.12</Borland.Personality>
@@ -95,14 +98,23 @@
     <Target Name="SpikeHorse:Make">
         <MSBuild Projects="simulador\spike-horse\SpikeHorse.dproj" Targets="Make"/>
     </Target>
+    <Target Name="DFeSimulador">
+        <MSBuild Projects="simulador\DFeSimulador.dproj"/>
+    </Target>
+    <Target Name="DFeSimulador:Clean">
+        <MSBuild Projects="simulador\DFeSimulador.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="DFeSimulador:Make">
+        <MSBuild Projects="simulador\DFeSimulador.dproj" Targets="Make"/>
+    </Target>
     <Target Name="Build">
-        <CallTarget Targets="DFe_UnitTests;AcbrClientSmoke;AcbrSimDelphiTests;AmqpBrokerDelphiTests;DFeBrokerConsole;DFeBrokerServico;SpikeHorse"/>
+        <CallTarget Targets="DFe_UnitTests;AcbrClientSmoke;AcbrSimDelphiTests;AmqpBrokerDelphiTests;DFeBrokerConsole;DFeBrokerServico;SpikeHorse;DFeSimulador"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="DFe_UnitTests:Clean;AcbrClientSmoke:Clean;AcbrSimDelphiTests:Clean;AmqpBrokerDelphiTests:Clean;DFeBrokerConsole:Clean;DFeBrokerServico:Clean;SpikeHorse:Clean"/>
+        <CallTarget Targets="DFe_UnitTests:Clean;AcbrClientSmoke:Clean;AcbrSimDelphiTests:Clean;AmqpBrokerDelphiTests:Clean;DFeBrokerConsole:Clean;DFeBrokerServico:Clean;SpikeHorse:Clean;DFeSimulador:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="DFe_UnitTests:Make;AcbrClientSmoke:Make;AcbrSimDelphiTests:Make;AmqpBrokerDelphiTests:Make;DFeBrokerConsole:Make;DFeBrokerServico:Make;SpikeHorse:Make"/>
+        <CallTarget Targets="DFe_UnitTests:Make;AcbrClientSmoke:Make;AcbrSimDelphiTests:Make;AmqpBrokerDelphiTests:Make;DFeBrokerConsole:Make;DFeBrokerServico:Make;SpikeHorse:Make;DFeSimulador:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

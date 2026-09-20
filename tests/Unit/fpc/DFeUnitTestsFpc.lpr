@@ -33,6 +33,7 @@ uses
   DFe.SimuladorEventoTests,
   DFe.XmlTextoTests,
   DFe.TransmissorHttpTests,
+  DFe.SimuladorServidorTests,
   DFe.AmbienteTests,
   DFe.FusoTests,
   DFe.LogArquivoTests;
