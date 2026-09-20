@@ -35,6 +35,10 @@ Rotas SOAP (o envelope como o ACBr envia): `POST /NFeDistribuicaoDFe/NFeDistribu
 JSON **plano** (um objeto de campos simples; sem objetos aninhados). Sem autenticação. Erros: `{"erro":"..."}`
 com 400 (corpo inválido), 404 (rota) ou 405 (método).
 
+O corpo deve ser **UTF-8**. Mande `-H 'Content-Type: application/json'`: no executável compilado com Delphi, um
+corpo *não-ASCII* sem esse cabeçalho (o `curl -d` manda `x-www-form-urlencoded`) é decodificado de outro jeito e
+recusado com 400. No executável FPC (o do Docker) não importa. Texto com acento também pode ir como escape JSON.
+
 | Rota | Efeito |
 |---|---|
 | `GET /admin/estado` | Contas (CNPJ/UF, NSU, documentos, bloqueio), falhas pendentes, contadores, modo e "agora". |
