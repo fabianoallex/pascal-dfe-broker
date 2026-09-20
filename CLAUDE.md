@@ -120,6 +120,7 @@ Com isso, todas as decisões que ficaram em aberto ao longo da concepção e da 
 
 - `docs/architecture.md`: fluxo completo, contrato de provider, convenção de routing-key, riscos técnicos do cursor de NSU, decisão de integração com ACBr, estrutura de projeto/teste.
 - `tests/Unit/` (DUnitX) e `tests/Unit/fpc/` (FPCUnit): suíte de testes atual, mirrored 1:1 — olhar aqui antes de mudar qualquer unit pura (`DFe.RoutingKey`, `DFe.Types`, `DFe.CursorStore.Arquivo`) pra saber o que já está coberto.
+- `docs/guia-de-uso.md`: guia para aprender/reproduzir/apresentar o projeto (demo de 6 passos ensaiada em 2026-09-20 com `exemplos/demo-simulador/dfe.ini`: simulador + broker + `consumir.py` + `manifestar.py`; funcionalidades em detalhe, roteiro de apresentação, o que NAO esta provado). Manter em sincronia quando a demo mudar.
 - `docs/simulador-sefaz.md`: plano do simulador da SEFAZ (próximo grande marco de teste), com o que já foi verificado e o que ainda é hipótese.
 - `docs/simulador-standalone.md` e `simulador/LEIAME.md`: o simulador como aplicação separada (Fases A a D feitas; HTTPS opcional só se houver demanda).
 - **`docs/acbr-achados.md`: o que descobrimos sobre o ACBr e que o projeto ACBr poderia mudar. Decisão do usuário (2026-09-20): NÃO propor nada ao ACBr agora — acumular aqui e propor só quando o projeto estiver viabilizado e, de preferência, em uso na comunidade. Ao encontrar comportamento surpreendente do ACBr, registrar lá na hora (com evidência, contorno e revisão do ACBr), além do gotcha aqui se for útil para trabalhar.**
