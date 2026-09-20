@@ -272,7 +272,7 @@ begin
   CarregarCenario(FCaminho, FSim);
   LResp := FSim.Consultar('11222333000181', 'RS', 0);
   Assert.AreEqual(1, Integer(Length(LResp.Lote.Itens)));
-  Assert.AreEqual(3, LResp.Lote.MaxNSU);
+  Assert.AreEqual(Int64(3), LResp.Lote.MaxNSU);
 end;
 
 procedure TDFeSimuladorCenarioTests.Falhas_SaoEnfileiradasNaOrdem;
