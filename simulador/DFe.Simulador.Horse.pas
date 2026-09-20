@@ -54,16 +54,45 @@ begin
   Res.Status(R.Status).ContentType(R.ContentType).Send(R.Corpo);
 end;
 
+{ Le o corpo da requisicao. No Delphi o Horse decodifica o corpo como UTF-8 ao
+  acessa-lo, e bytes que nao sao UTF-8 valido (ex.: um curl no Windows mandando
+  cp1252 sem charset) levantam uma excecao de codificacao -- que e' erro do
+  CLIENTE (400), nao do simulador (500). No FPC o corpo e' so' bytes e nunca levanta. }
+function LerCorpo(const Req: THorseRequest; out ACorpo: string;
+  out AResp: TDFeSimHttpResposta): Boolean;
+begin
+  try
+    ACorpo := Req.Body;
+    Result := True;
+  except
+    on E: Exception do
+    begin
+      ACorpo := '';
+      AResp.Status := 400;
+      AResp.ContentType := 'application/json; charset=utf-8';
+      AResp.Corpo := '{"erro":"o corpo da requisicao nao esta em UTF-8 valido"}';
+      Result := False;
+    end;
+  end;
+end;
+
 { Uma excecao do nucleo (ex.: falha de evento enfileirada e consumida por uma
   consulta de distribuicao -- ver DFe.Simulador) vira HTTP 500 com a mensagem,
   em vez de depender do tratamento de erro do Horse. }
 procedure TratarPost(const Req: THorseRequest; const Res: THorseResponse; const ACaminho: string);
 var
   R: TDFeSimHttpResposta;
+  LCorpo: string;
 begin
+  if not LerCorpo(Req, LCorpo, R) then
+  begin
+    Registrar('POST', ACaminho, R.Status);
+    Responder(Res, R);
+    Exit;
+  end;
   try
     R := GServidor.Tratar('POST', ACaminho, Req.Headers['SOAPAction'],
-      Req.Headers['Content-Type'], Req.Body);
+      Req.Headers['Content-Type'], LCorpo);
   except
     on E: Exception do
     begin
@@ -96,9 +125,16 @@ end;
 procedure Admin(Req: THorseRequest; Res: THorseResponse);
 var
   R: TDFeSimHttpResposta;
+  LCorpo: string;
 begin
+  if not LerCorpo(Req, LCorpo, R) then
+  begin
+    Registrar(Req.Method, Req.PathInfo, R.Status);
+    Responder(Res, R);
+    Exit;
+  end;
   try
-    R := GServidor.Tratar(Req.Method, Req.PathInfo, '', Req.ContentType, Req.Body);
+    R := GServidor.Tratar(Req.Method, Req.PathInfo, '', Req.ContentType, LCorpo);
   except
     on E: Exception do
     begin
