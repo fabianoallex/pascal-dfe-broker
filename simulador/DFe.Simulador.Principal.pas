@@ -27,6 +27,7 @@ uses
   DFe.Simulador,
   DFe.Simulador.Relogio,
   DFe.Simulador.Servidor,
+  DFe.Simulador.Regras,
   DFe.Simulador.Cenario,
   DFe.Simulador.Horse;
 
@@ -41,6 +42,7 @@ var
   GEstrito: Boolean;
   GServidor: TDFeSimuladorServidor;
   GResumo: TDFeCenarioResumo;
+  I: Integer;
 
 procedure Ajuda;
 begin
@@ -51,6 +53,8 @@ begin
   Writeln('  --cenario <ini>    cenario declarativo (contas, documentos, falhas); ver simulador/LEIAME.md');
   Writeln('  --estrito          recusa (HTTP 400) requisicao fora do formato esperado (padrao: aceita e registra)');
   Writeln('  --ajuda            esta mensagem');
+  Writeln;
+  Writeln('Extensao em Pascal: ver simulador/exemplos/ (regras registradas por initialization).');
   Writeln;
   Writeln('NAO e'' a SEFAZ: responde conforme a leitura do projeto das NTs, so'' para teste.');
 end;
@@ -130,6 +134,13 @@ begin
       end
       else
         Writeln('Sem cenario: nenhuma conta nem documento (use --cenario).');
+
+      // regras do usuario (DFe.Simulador.Regras): as units delas, se linkadas no
+      // programa, se registram sozinhas; o simulador puro nao tem nenhuma
+      GServidor.AdicionarRegrasRegistradas;
+      for I := 0 to GServidor.Regras - 1 do
+        Writeln('Regra "', GServidor.Regra(I).Nome, '"', ' (',
+          BoolToStr(GServidor.Regra(I).Ativa, True), '): ', GServidor.Regra(I).Descricao);
 
       RegistrarRotas(GServidor);
       THorse.Listen(GPorta, GBind, Anunciar);

@@ -48,7 +48,7 @@ set -uo pipefail
 
 echo "=== suite pura (FPCUnit) ==="
 cd /proj/tests/Unit/fpc
-fpc -Mdelphi -Sh -Fu/proj/src -Fu/proj/tests/Unit/fpc -Fi/proj/src -FU/out -FE/out \
+fpc -Mdelphi -Sh -Fu/proj/src -Fu/proj/tests/Unit/fpc -Fu/proj/simulador/exemplos/limite-consultas -Fi/proj/src -FU/out -FE/out \
     -oDFeUnitTestsFpc DFeUnitTestsFpc.lpr 2>&1 | grep -E "Fatal|Error:|lines compiled"
 /out/DFeUnitTestsFpc --all --format=plain > /out/pura.txt 2>&1; RCP=$?
 grep -E "Number of|unfreed" /out/pura.txt
@@ -74,6 +74,11 @@ mkdir -p /out/sim /simulador
 if [ -d /proj/vendor/horse/src ]; then
   cd /proj/simulador
   fpc -Mdelphi -Sh -dUseCThreads -Fu/proj/src -Fi/proj/src -Fu/proj/vendor/horse/src       -FU/out/sim -FE/simulador -oDFeSimulador DFeSimulador.lpr 2>&1 | grep -E "Fatal|Error:|lines compiled"
+  # o exemplo de extensao (Fase C): o mesmo programa + uma regra do usuario, sem alterar o core
+  echo "--- exemplo de extensao (DFeSimuladorLimite): compila ---"
+  mkdir -p /out/simex
+  cd /proj/simulador/exemplos/limite-consultas
+  fpc -Mdelphi -Sh -dUseCThreads -Fu/proj/src -Fi/proj/src -Fu/proj/simulador -Fu/proj/vendor/horse/src -FU/out/simex -FE/simulador -oDFeSimuladorLimite DFeSimuladorLimite.lpr 2>&1 | grep -E "Fatal|Error:|lines compiled"
 else
   echo "(vendor/horse nao inicializado: os testes por HTTP vao falhar -- git submodule update --init vendor/horse)"
 fi

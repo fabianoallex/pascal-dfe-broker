@@ -120,8 +120,9 @@ begin
   Responder(Res, GServidor.Tratar('GET', '/ping', '', '', ''));
 end;
 
-{ Toda a API admin (GET/POST/DELETE em /admin/...) passa por aqui: quem decide
-  rota e metodo e' o servidor puro (DFe.Simulador.Admin), que responde 404/405. }
+{ Toda a API admin (GET/POST/DELETE em /admin/...) e as rotas das regras do
+  usuario (/ext/...) passam por aqui: quem decide rota e metodo e' o servidor puro
+  (DFe.Simulador.Admin e DFe.Simulador.Regras), que responde 404/405. }
 procedure Admin(Req: THorseRequest; Res: THorseResponse);
 var
   R: TDFeSimHttpResposta;
@@ -154,6 +155,11 @@ begin
   THorse.Get('/health', Ping);
   THorse.All('/admin/*', Admin);
   THorse.All('/admin/*/*', Admin);
+  // rotas das regras do usuario (DFe.Simulador.Regras); o Horse casa um segmento
+  // por curinga, entao ate 3 niveis
+  THorse.All('/ext/*', Admin);
+  THorse.All('/ext/*/*', Admin);
+  THorse.All('/ext/*/*/*', Admin);
   THorse.Post(CAMINHO_DISTRIBUICAO, Distribuicao);
   THorse.Post(CAMINHO_EVENTO, Evento);
 end;

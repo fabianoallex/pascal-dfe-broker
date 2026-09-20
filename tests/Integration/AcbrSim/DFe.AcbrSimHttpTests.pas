@@ -42,8 +42,12 @@ type
     FCenario: string;
     function DiretorioBase: string;
     function CaminhoDoSimulador: string;
+    { O exemplo de extensao (simulador/exemplos/limite-consultas): na pasta dele
+      (Windows) ou ao lado do DFeSimulador (Linux, tools/docker/testar-linux.sh). }
+    function CaminhoDoExemplo: string;
     function Certificado: TDFeCertificado;
-    procedure IniciarSimulador(const ALinhasDoCenario: array of string);
+    procedure IniciarSimulador(const ALinhasDoCenario: array of string;
+      const AExecutavel: string = '');
     function NovoClient(const ABaseURL: string; const ATimeoutMs: Integer = 10000): IDFeDistribuicaoClient;
     function ClientDoSimulador: IDFeDistribuicaoClient;
     function ViolacoesDoSimulador: string;
@@ -74,6 +78,7 @@ type
     procedure Admin_Violacao_AparecePorHttpELimpa;
     procedure Admin_ModoEstrito_RecusaComHttp400ENaoConsomeNsu;
     procedure Admin_Zerar_VoltaAoInicio;
+    procedure Extensao_RegraDoUsuario_BarraOClientPorHttp;
     procedure Manifestacao_Ciencia_RegistradaPorHttp;
     procedure Manifestacao_JustificativaComAcento_ChegaAssinadaEIntactaAoSimulador;
   end;
@@ -99,6 +104,17 @@ begin
     'simulador' + PathDelim + 'DFeSimulador' {$IFDEF WINDOWS} + '.exe' {$ENDIF};
 end;
 
+function TDFeAcbrSimHttpTests.CaminhoDoExemplo: string;
+var
+  LBase: string;
+begin
+  LBase := DiretorioBase + '..' + PathDelim + '..' + PathDelim + '..' + PathDelim + 'simulador' + PathDelim;
+  Result := LBase + 'exemplos' + PathDelim + 'limite-consultas' + PathDelim + 'DFeSimuladorLimite'
+    {$IFDEF WINDOWS} + '.exe' {$ENDIF};
+  if not FileExists(Result) then
+    Result := LBase + 'DFeSimuladorLimite' {$IFDEF WINDOWS} + '.exe' {$ENDIF};
+end;
+
 function TDFeAcbrSimHttpTests.Certificado: TDFeCertificado;
 begin
   Result.Identificador := 'teste';
@@ -106,16 +122,23 @@ begin
   Result.UF := 'RS';
 end;
 
-procedure TDFeAcbrSimHttpTests.IniciarSimulador(const ALinhasDoCenario: array of string);
+procedure TDFeAcbrSimHttpTests.IniciarSimulador(const ALinhasDoCenario: array of string;
+  const AExecutavel: string);
 var
+  LExecutavel: string;
   LConteudo: TStringList;
   I, LTentativas: Integer;
   LCliente: TFPHTTPClient;
   LPronto: Boolean;
 begin
-  if not FileExists(CaminhoDoSimulador) then
-    Fail('DFeSimulador nao encontrado em ' + ExpandFileName(CaminhoDoSimulador) +
-      ' -- compile antes: lazbuild simulador\DFeSimulador.lpi (Windows: sh simulador/preparar-horse.sh primeiro)');
+  if AExecutavel <> '' then
+    LExecutavel := AExecutavel
+  else
+    LExecutavel := CaminhoDoSimulador;
+  if not FileExists(LExecutavel) then
+    Fail('simulador nao encontrado em ' + ExpandFileName(LExecutavel) +
+      ' -- compile antes: lazbuild simulador\DFeSimulador.lpi (Windows: sh simulador/preparar-horse.sh primeiro;' +
+      ' o exemplo: lazbuild simulador\exemplos\limite-consultas\DFeSimuladorLimite.lpi)');
 
   Inc(GProximaPorta);
   FPorta := GProximaPorta;
@@ -130,7 +153,7 @@ begin
   end;
 
   FProcesso := TProcess.Create(nil);
-  FProcesso.Executable := ExpandFileName(CaminhoDoSimulador);
+  FProcesso.Executable := ExpandFileName(LExecutavel);
   FProcesso.Parameters.Add('--porta');
   FProcesso.Parameters.Add(IntToStr(FPorta));
   FProcesso.Parameters.Add('--cenario');
@@ -434,6 +457,31 @@ begin
   Admin('POST', '/admin/relogio/avancar', '{"horas":1,"minutos":1}');
   AssertTrue('o relogio virtual andou', Pos('"deslocamentoSegundos":3660', Admin('GET', '/admin/relogio')) > 0);
   AssertEquals('depois de 1 h virtual: liberado', 137, LClient.Consultar(Certificado, 0).CStat);
+end;
+
+procedure TDFeAcbrSimHttpTests.Extensao_RegraDoUsuario_BarraOClientPorHttp;
+var
+  LClient: IDFeDistribuicaoClient;
+  LLote: TDFeLoteBruto;
+begin
+  // Criterio de pronto da Fase C: uma regra que o core NAO tem (limite de consultas
+  // por janela), registrada so' por estar linkada no programa do exemplo, vista pelo
+  // client ACBr real por HTTP -- inclusive a rota propria /ext/ e o relogio virtual.
+  IniciarSimulador(['[simulador]'], CaminhoDoExemplo);
+  Admin('POST', '/admin/documentos', '{"cnpj":"' + CNPJ_CERT + '","uf":"RS"}');
+  AssertTrue('a regra aparece em /admin/regras', Pos('"nome":"limite-consultas"', Admin('GET', '/admin/regras')) > 0);
+  Admin('POST', '/ext/limite', '{"maximo":1,"janelaSegundos":600}');
+  LClient := ClientDoSimulador;
+  AssertEquals('1a: dentro do limite, o nucleo responde', 138, LClient.Consultar(Certificado, 0).CStat);
+  LLote := LClient.Consultar(Certificado, 0); // 656 e' LOTE, nao excecao (decisao 16)
+  AssertEquals('2a: barrada pela regra', 656, LLote.CStat);
+  AssertTrue('a mensagem e a da regra: ' + LLote.XMotivo, Pos('limite de 1 consulta', LLote.XMotivo) > 0);
+  AssertTrue('a rota propria conta a rejeicao', Pos('"rejeitadas":1', Admin('GET', '/ext/limite')) > 0);
+  Admin('POST', '/admin/relogio/avancar', '{"minutos":11}');
+  AssertEquals('depois da janela (virtual), liberada', 138, LClient.Consultar(Certificado, 0).CStat);
+  Admin('POST', '/admin/regras', '{"nome":"limite-consultas","ativa":false}');
+  AssertEquals('desligada: sem limite', 138, LClient.Consultar(Certificado, 0).CStat);
+  AssertEquals('desligada: sem limite (de novo)', 138, LClient.Consultar(Certificado, 0).CStat);
 end;
 
 procedure TDFeAcbrSimHttpTests.Admin_FalhaEnfileirada_ClienteSofre;

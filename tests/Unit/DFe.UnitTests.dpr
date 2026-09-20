@@ -33,6 +33,8 @@ uses
   DFe.Simulador.Relogio in '..\..\src\DFe.Simulador.Relogio.pas',
   DFe.Simulador.Json in '..\..\src\DFe.Simulador.Json.pas',
   DFe.Simulador.Admin in '..\..\src\DFe.Simulador.Admin.pas',
+  DFe.Simulador.Regras in '..\..\src\DFe.Simulador.Regras.pas',
+  DFe.Simulador.Exemplo.LimiteConsultas in '..\..\simulador\exemplos\limite-consultas\DFe.Simulador.Exemplo.LimiteConsultas.pas',
   DFe.Host.LogArquivo in '..\..\src\DFe.Host.LogArquivo.pas',
   DFe.TestDoubles in 'DFe.TestDoubles.pas',
   DFe.RoutingKeyTests in 'DFe.RoutingKeyTests.pas',
@@ -54,6 +56,8 @@ uses
   DFe.TransmissorHttpTests in 'DFe.TransmissorHttpTests.pas',
   DFe.SimuladorServidorTests in 'DFe.SimuladorServidorTests.pas',
   DFe.SimuladorAdminTests in 'DFe.SimuladorAdminTests.pas',
+  DFe.SimuladorRegrasTests in 'DFe.SimuladorRegrasTests.pas',
+  DFe.SimuladorExemploTests in 'DFe.SimuladorExemploTests.pas',
   DFe.AmbienteTests in 'DFe.AmbienteTests.pas',
   DFe.FusoTests in 'DFe.FusoTests.pas',
   DFe.LogArquivoTests in 'DFe.LogArquivoTests.pas';

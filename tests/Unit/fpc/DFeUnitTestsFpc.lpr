@@ -35,6 +35,8 @@ uses
   DFe.TransmissorHttpTests,
   DFe.SimuladorServidorTests,
   DFe.SimuladorAdminTests,
+  DFe.SimuladorRegrasTests,
+  DFe.SimuladorExemploTests,
   DFe.AmbienteTests,
   DFe.FusoTests,
   DFe.LogArquivoTests;

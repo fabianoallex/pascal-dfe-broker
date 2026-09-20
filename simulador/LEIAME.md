@@ -10,8 +10,9 @@ ponta a ponta — ACBr real, certificado de teste, publicação na fila — sem 
 sem tocar na SEFAZ. Um cliente de outra linguagem também pode usá-lo, se a biblioteca dele aceitar
 trocar a URL do serviço.
 
-**Estado:** Fases A e B do plano: cenário por arquivo, **API admin** (`/admin`) para preparar e consultar
-o simulador em execução, **relógio virtual** e modo **leniente/estrito**. Só a NFe (Distribuição e
+**Estado:** Fases A, B e C do plano: cenário por arquivo, **API admin** (`/admin`) para preparar e consultar
+o simulador em execução, **relógio virtual**, modo **leniente/estrito** e **extensão em Pascal** (regras
+registradas por `initialization`, rotas próprias `/ext/`; ver abaixo). Só a NFe (Distribuição e
 manifestação).
 
 ## Rodar
@@ -51,7 +52,9 @@ recusado com 400. No executável FPC (o do Docker) não importa. Texto com acent
 | `GET /admin/violacoes` · `DELETE /admin/violacoes` | O que os requests recebidos têm de diferente do formato esperado (texto; `(nenhuma)` se nada) / esquece. |
 | `GET /admin/ultimo-envelope` | O último envelope recebido (XML). |
 | `POST /admin/cenario` | O corpo é o INI do cenário. **Validado por inteiro antes de aplicar** (erro = nada muda); acumula sobre o estado atual. |
-| `POST /admin/zerar` | Estado, falhas, violações e relógio voltam ao início (o modo continua). |
+| `POST /admin/zerar` | Estado, falhas, violações e relógio voltam ao início (o modo e o liga/desliga das regras continuam; as regras limpam o próprio estado). |
+| `GET /admin/regras` · `POST /admin/regras` | Regras de extensão (abaixo) registradas neste executável: `{"regras":[{"nome","descricao","ativa"}]}` / liga-desliga com `{"nome":"x","ativa":false}`. Sem regras, a lista é vazia. |
+| `* /ext/...` | Rotas **próprias das regras de extensão**; 404 se nenhuma regra ativa atende. |
 
 ### O 656 sem esperar uma hora
 
@@ -75,6 +78,19 @@ relógio *dele*; para um teste reproduzível configure `IntervaloBaseSegundos` p
   `/admin/violacoes`. É o certo para um cliente de terceiros, que não é o ACBr.
 - **Estrito** (`--estrito` ou `{"estrito":true}`): esse request é **recusado com HTTP 400** e o estado **não é
   tocado** (não consome NSU nem abre bloqueio) — para testar que o seu cliente manda o formato certo.
+
+## Extensão em Pascal (regras)
+
+Quem usa o simulador pode acrescentar comportamento **sem tocar no core**: uma *regra* é uma classe
+(`TDFeSimuladorRegra`, em `src/DFe.Simulador.Regras.pas`) que se registra por `initialization` (o mesmo
+padrão dos providers) e é linkada num executável próprio — o `DFeSimulador` de sempre mais uma unit. Ela
+pode responder no lugar do núcleo (`AntesDeAtender`), alterar a resposta dele (`DepoisDeAtender`), servir
+rotas `/ext/...` (`TratarRota`) e limpar o estado no `zerar` (`AoZerar`). Exemplo completo, contrato dos
+ganchos e o roteiro: [`exemplos/limite-consultas/`](exemplos/limite-consultas/LEIAME.md). Este executável
+padrão não traz nenhuma regra.
+
+Fora do Pascal, o equivalente é o **cenário declarativo** (abaixo) e a API admin; uma extensão por
+webhook (uma regra que chama uma URL sua) só entra se houver demanda.
 
 ## Cenário (`cenario.exemplo.ini`)
 
@@ -120,7 +136,8 @@ Requer `git submodule update --init vendor/horse`.
 ## Testes
 
 - Pura (`tests/Unit`): `DFe.SimuladorServidorTests` (servidor e cenário), `DFe.SimuladorAdminTests` (núcleo,
-  estrito, relógio, JSON, cenário atômico e a API admin), `DFe.TransmissorHttpTests` (o lado do broker) — sem HTTP.
+  estrito, relógio, JSON, cenário atômico e a API admin), `DFe.SimuladorRegrasTests` (o mecanismo de extensão),
+  `DFe.SimuladorExemploTests` (o exemplo), `DFe.TransmissorHttpTests` (o lado do broker) — sem HTTP.
 - Integração (`tests/Integration/AcbrSim`, `DFe.AcbrSimHttpTests`): sobe este executável como processo e
   roda o client ACBr real por HTTP — 137/138, 656, timeout, 500, corpo ilegível, docZip corrompido,
   simulador fora do ar, manifestação (com acento, provado no que o simulador recebeu) e a API admin

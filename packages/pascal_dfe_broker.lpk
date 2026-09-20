@@ -129,6 +129,10 @@
         <Filename Value="..\src\DFe.Simulador.Admin.pas"/>
         <UnitName Value="DFe.Simulador.Admin"/>
       </Item>
+      <Item>
+        <Filename Value="..\src\DFe.Simulador.Regras.pas"/>
+        <UnitName Value="DFe.Simulador.Regras"/>
+      </Item>
     </Files>
     <RequiredPkgs>
       <Item>

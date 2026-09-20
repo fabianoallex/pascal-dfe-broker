@@ -19,8 +19,11 @@ unit DFe.Simulador.Servidor;
     do timeout em processo -- EDFeComunicacaoFalhou.
   - Rotas: GET /ping ou /health; POST em um caminho que contenha
     'NFeDistribuicaoDFe' ou 'NFeRecepcaoEvento4' (o mesmo criterio do adaptador,
-    ver DFe.Simulador.Soap); /admin/* e' a API admin (DFe.Simulador.Admin); o
-    resto e' 404. }
+    ver DFe.Simulador.Soap); /admin/* e' a API admin (DFe.Simulador.Admin, mais
+    /admin/regras, daqui); /ext/* e' das regras do usuario
+    (DFe.Simulador.Regras); o resto e' 404.
+  - Regras (extensao em Pascal): AdicionarRegra/AdicionarRegrasRegistradas. Os
+    ganchos rodam sob a mesma trava do nucleo. Ver DFe.Simulador.Regras. }
 
 interface
 
@@ -30,10 +33,12 @@ uses
   DFe.Simulador,
   DFe.Simulador.Soap,
   DFe.Simulador.Relogio,
-  DFe.Simulador.Admin;
+  DFe.Simulador.Admin,
+  DFe.Simulador.Regras;
 
 const
-  DFE_SIM_CONTENT_TYPE_SOAP = 'application/soap+xml; charset=utf-8';
+  { Definido em DFe.Simulador.Regras (as regras respondem SOAP com o mesmo tipo). }
+  DFE_SIM_CONTENT_TYPE_SOAP = DFe.Simulador.Regras.DFE_SIM_CONTENT_TYPE_SOAP;
 
 type
   { Definido em DFe.Simulador.Admin (a API admin devolve o mesmo tipo). }
@@ -46,9 +51,19 @@ type
     FTransmissorIntf: IDFeTransmissor; // dono do ciclo de vida do transmissor
     FLock: TCriticalSection;
     FAdmin: TDFeSimuladorAdmin;
+    FRegras: array of TDFeSimuladorRegra; // possuidas
     function GetEstrito: Boolean;
     procedure SetEstrito(const AValor: Boolean);
     function Resposta(const AStatus: Integer; const AContentType, ACorpo: string): TDFeSimHttpResposta;
+    function RequisicaoDe(const AServico: TDFeSimServico; const AMetodo, ACaminho,
+      ASoapAction, AContentType, ACorpo: string): TDFeSimRequisicao;
+    function CaminhoLimpo(const ACaminho: string): string;
+    function JsonDasRegras: string;
+    function TratarRegras(const AMetodo, ACorpo: string): TDFeSimHttpResposta;
+    function TratarExtensao(const AMetodo, ACaminho, ACorpo: string): TDFeSimHttpResposta;
+    function TratarSoap(const AServico: TDFeSimServico; const AMetodo, ACaminho,
+      ASoapAction, AContentType, ACorpo: string): TDFeSimHttpResposta;
+    function TratarAdmin(const AMetodo, ACaminho, ACorpo: string): TDFeSimHttpResposta;
   public
     { O simulador NAO e' possuido (mesma regra de DFe.Simulador.Soap): quem o
       criou o libera, DEPOIS do servidor. }
@@ -62,6 +77,16 @@ type
       valores dos cabecalhos SOAPAction e Content-Type ('' se ausentes). }
     function Tratar(const AMetodo, ACaminho, ASoapAction, AContentType,
       ACorpo: string): TDFeSimHttpResposta;
+
+    { Extensao (DFe.Simulador.Regras). O servidor PASSA A POSSUIR a regra (libera
+      no destrutor). Nome repetido levanta excecao e a regra NAO e' adotada
+      (quem chamou continua dono dela). }
+    procedure AdicionarRegra(const ARegra: TDFeSimuladorRegra);
+    { Instancia e adota todas as regras registradas por initialization
+      (RegistrarRegraSimulador); sem nenhuma registrada, nao faz nada. }
+    procedure AdicionarRegrasRegistradas;
+    function Regras: Integer;
+    function Regra(const AIndice: Integer): TDFeSimuladorRegra;
 
     { Violacoes do adaptador SOAP ate' agora (thread-safe); '' = nenhuma. }
     function Violacoes: string;
@@ -77,7 +102,8 @@ type
 implementation
 
 uses
-  DFe.XmlTexto;
+  DFe.XmlTexto,
+  DFe.Simulador.Json;
 
 constructor TDFeSimuladorServidor.Create(const ASimulador: TDFeSimuladorSefaz;
   const ARelogio: TDFeRelogioVirtual);
@@ -91,7 +117,11 @@ begin
 end;
 
 destructor TDFeSimuladorServidor.Destroy;
+var
+  I: Integer;
 begin
+  for I := 0 to High(FRegras) do
+    FRegras[I].Free;
   FAdmin.Free;
   FTransmissorIntf := nil; // libera o transmissor
   FTransmissor := nil;
@@ -107,11 +137,201 @@ begin
   Result.Corpo := ACorpo;
 end;
 
-function TDFeSimuladorServidor.Tratar(const AMetodo, ACaminho, ASoapAction,
-  AContentType, ACorpo: string): TDFeSimHttpResposta;
+function TDFeSimuladorServidor.CaminhoLimpo(const ACaminho: string): string;
+var
+  I: Integer;
+begin
+  Result := LowerCase(ACaminho);
+  I := Pos('?', Result);
+  if I > 0 then
+    Result := Copy(Result, 1, I - 1);
+  while (Length(Result) > 1) and (Result[Length(Result)] = '/') do
+    Delete(Result, Length(Result), 1);
+end;
+
+function TDFeSimuladorServidor.RequisicaoDe(const AServico: TDFeSimServico; const AMetodo,
+  ACaminho, ASoapAction, AContentType, ACorpo: string): TDFeSimRequisicao;
+begin
+  Result.Servico := AServico;
+  Result.Metodo := AMetodo;
+  Result.Caminho := ACaminho;
+  Result.SoapAction := ASoapAction;
+  Result.ContentType := AContentType;
+  Result.Corpo := ACorpo;
+  Result.Agora := FSimulador.AgoraSimulado;
+end;
+
+{ ---- regras ---- }
+
+procedure TDFeSimuladorServidor.AdicionarRegra(const ARegra: TDFeSimuladorRegra);
+var
+  I: Integer;
+begin
+  FLock.Enter;
+  try
+    for I := 0 to High(FRegras) do
+      if SameText(FRegras[I].Nome, ARegra.Nome) then
+        raise Exception.Create('Ja existe uma regra "' + ARegra.Nome + '" neste simulador');
+    ARegra.Anexar(FSimulador);
+    SetLength(FRegras, Length(FRegras) + 1);
+    FRegras[High(FRegras)] := ARegra;
+  finally
+    FLock.Leave;
+  end;
+end;
+
+procedure TDFeSimuladorServidor.AdicionarRegrasRegistradas;
+var
+  LClasses: TDFeSimuladorRegraClasseArray;
+  LRegra: TDFeSimuladorRegra;
+  I: Integer;
+begin
+  LClasses := RegrasSimuladorRegistradas;
+  for I := 0 to High(LClasses) do
+  begin
+    LRegra := LClasses[I].Create;
+    try
+      AdicionarRegra(LRegra);
+    except
+      LRegra.Free;
+      raise;
+    end;
+  end;
+end;
+
+function TDFeSimuladorServidor.Regras: Integer;
+begin
+  Result := Length(FRegras);
+end;
+
+function TDFeSimuladorServidor.Regra(const AIndice: Integer): TDFeSimuladorRegra;
+begin
+  Result := FRegras[AIndice];
+end;
+
+function TDFeSimuladorServidor.JsonDasRegras: string;
+var
+  I: Integer;
+begin
+  Result := '';
+  for I := 0 to High(FRegras) do
+  begin
+    if Result <> '' then
+      Result := Result + ',';
+    Result := Result + '{"nome":' + JsonTexto(FRegras[I].Nome) +
+      ',"descricao":' + JsonTexto(FRegras[I].Descricao) +
+      ',"ativa":' + LowerCase(BoolToStr(FRegras[I].Ativa, True)) + '}';
+  end;
+  Result := '{"regras":[' + Result + ']}';
+end;
+
+(* GET /admin/regras lista; POST {"nome":"x","ativa":true|false} liga/desliga. *)
+function TDFeSimuladorServidor.TratarRegras(const AMetodo, ACorpo: string): TDFeSimHttpResposta;
+var
+  LJson: TDFeJsonPlano;
+  LErro, LNome: string;
+  I: Integer;
+begin
+  if SameText(AMetodo, 'GET') then
+  begin
+    Result := RespostaJson(200, JsonDasRegras);
+    Exit;
+  end;
+  if not SameText(AMetodo, 'POST') then
+  begin
+    Result := RespostaJson(405, '{"erro":"metodo nao permitido para esta rota"}');
+    Exit;
+  end;
+  if not LerJsonPlano(ACorpo, LJson, LErro) then
+  begin
+    Result := RespostaJson(400, '{"erro":' + JsonTexto('JSON invalido: ' + LErro) + '}');
+    Exit;
+  end;
+  try
+    LNome := Trim(LJson.Texto('nome'));
+    if (LNome = '') or not LJson.Tem('ativa') then
+    begin
+      Result := RespostaJson(400, '{"erro":' +
+        JsonTexto('informe "nome" e "ativa" (true ou false)') + '}');
+      Exit;
+    end;
+    for I := 0 to High(FRegras) do
+      if SameText(FRegras[I].Nome, LNome) then
+      begin
+        FRegras[I].Ativa := LJson.Booleano('ativa', True);
+        Result := RespostaJson(200, JsonDasRegras);
+        Exit;
+      end;
+    Result := RespostaJson(404, '{"erro":' + JsonTexto('regra desconhecida: ' + LNome) + '}');
+  finally
+    LJson.Free;
+  end;
+end;
+
+function TDFeSimuladorServidor.TratarExtensao(const AMetodo, ACaminho,
+  ACorpo: string): TDFeSimHttpResposta;
+var
+  LReq: TDFeSimRequisicao;
+  I: Integer;
+begin
+  LReq := RequisicaoDe(ssExtensao, AMetodo, ACaminho, '', '', ACorpo);
+  for I := 0 to High(FRegras) do
+    if FRegras[I].Ativa and FRegras[I].TratarRota(LReq, Result) then
+      Exit;
+  Result := Resposta(404, 'text/plain; charset=utf-8', 'rota de extensao desconhecida: ' + ACaminho);
+end;
+
+function TDFeSimuladorServidor.TratarAdmin(const AMetodo, ACaminho,
+  ACorpo: string): TDFeSimHttpResposta;
+var
+  LLimpo: string;
+  I: Integer;
+begin
+  LLimpo := CaminhoLimpo(ACaminho);
+  if LLimpo = '/admin/regras' then
+  begin
+    Result := TratarRegras(AMetodo, ACorpo);
+    Exit;
+  end;
+  Result := FAdmin.Tratar(AMetodo, ACaminho, ACorpo);
+  if (LLimpo = '/admin/zerar') and SameText(AMetodo, 'POST') and (Result.Status = 200) then
+    for I := 0 to High(FRegras) do
+      FRegras[I].AoZerar;
+end;
+
+function TDFeSimuladorServidor.TratarSoap(const AServico: TDFeSimServico; const AMetodo,
+  ACaminho, ASoapAction, AContentType, ACorpo: string): TDFeSimHttpResposta;
 var
   LSoap: TDFeRespostaTransmissao;
   LContentType: string;
+  LReq: TDFeSimRequisicao;
+  I: Integer;
+begin
+  LContentType := AContentType;
+  if LContentType = '' then
+    LContentType := DFE_SIM_CONTENT_TYPE_SOAP;
+
+  LReq := RequisicaoDe(AServico, AMetodo, ACaminho, ASoapAction, AContentType, ACorpo);
+  Result := Resposta(0, '', '');
+  for I := 0 to High(FRegras) do
+    if FRegras[I].Ativa and FRegras[I].AntesDeAtender(LReq, Result) then
+      Exit; // a regra respondeu: o nucleo nao e' tocado
+
+  LSoap := FTransmissorIntf.Transmitir(TextoParaAcbr(ACorpo), ACaminho, ASoapAction, AContentType);
+  if LSoap.InternalErrorCode <> 0 then
+    Result := Resposta(504, 'text/plain; charset=utf-8', '') // sem resposta (timeout simulado)
+  else
+    Result := Resposta(LSoap.HTTPResultCode, LContentType, TextoDoAcbr(LSoap.Texto));
+
+  for I := 0 to High(FRegras) do
+    if FRegras[I].Ativa then
+      FRegras[I].DepoisDeAtender(LReq, Result);
+end;
+
+function TDFeSimuladorServidor.Tratar(const AMetodo, ACaminho, ASoapAction,
+  AContentType, ACorpo: string): TDFeSimHttpResposta;
+var
+  LMinusculo: string;
 begin
   if SameText(ACaminho, '/ping') or SameText(ACaminho, '/health') then
   begin
@@ -122,11 +342,24 @@ begin
     Exit;
   end;
 
-  if Copy(LowerCase(ACaminho), 1, Length(CAMINHO_ADMIN)) = CAMINHO_ADMIN then
+  LMinusculo := LowerCase(ACaminho);
+
+  if Copy(LMinusculo, 1, Length(CAMINHO_ADMIN)) = CAMINHO_ADMIN then
   begin
     FLock.Enter;
     try
-      Result := FAdmin.Tratar(AMetodo, ACaminho, ACorpo);
+      Result := TratarAdmin(AMetodo, ACaminho, ACorpo);
+    finally
+      FLock.Leave;
+    end;
+    Exit;
+  end;
+
+  if Copy(LMinusculo, 1, Length(CAMINHO_EXTENSAO)) = CAMINHO_EXTENSAO then
+  begin
+    FLock.Enter;
+    try
+      Result := TratarExtensao(AMetodo, ACaminho, ACorpo);
     finally
       FLock.Leave;
     end;
@@ -145,21 +378,15 @@ begin
     Exit;
   end;
 
-  LContentType := AContentType;
-  if LContentType = '' then
-    LContentType := DFE_SIM_CONTENT_TYPE_SOAP;
-
   FLock.Enter;
   try
-    LSoap := FTransmissorIntf.Transmitir(TextoParaAcbr(ACorpo), ACaminho, ASoapAction, AContentType);
+    if Pos('NFeDistribuicaoDFe', ACaminho) > 0 then
+      Result := TratarSoap(ssDistribuicao, AMetodo, ACaminho, ASoapAction, AContentType, ACorpo)
+    else
+      Result := TratarSoap(ssEvento, AMetodo, ACaminho, ASoapAction, AContentType, ACorpo);
   finally
     FLock.Leave;
   end;
-
-  if LSoap.InternalErrorCode <> 0 then
-    Result := Resposta(504, 'text/plain; charset=utf-8', '') // sem resposta (timeout simulado)
-  else
-    Result := Resposta(LSoap.HTTPResultCode, LContentType, TextoDoAcbr(LSoap.Texto));
 end;
 
 function TDFeSimuladorServidor.Violacoes: string;

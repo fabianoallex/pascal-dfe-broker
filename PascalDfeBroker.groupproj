@@ -27,6 +27,9 @@
         <Projects Include="simulador\DFeSimulador.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="simulador\exemplos\limite-consultas\DFeSimuladorLimite.dproj">
+            <Dependencies/>
+        </Projects>
     </ItemGroup>
     <ProjectExtensions>
         <Borland.Personality>Default.Personality.12</Borland.Personality>
@@ -107,14 +110,23 @@
     <Target Name="DFeSimulador:Make">
         <MSBuild Projects="simulador\DFeSimulador.dproj" Targets="Make"/>
     </Target>
+    <Target Name="DFeSimuladorLimite">
+        <MSBuild Projects="simulador\exemplos\limite-consultas\DFeSimuladorLimite.dproj"/>
+    </Target>
+    <Target Name="DFeSimuladorLimite:Clean">
+        <MSBuild Projects="simulador\exemplos\limite-consultas\DFeSimuladorLimite.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="DFeSimuladorLimite:Make">
+        <MSBuild Projects="simulador\exemplos\limite-consultas\DFeSimuladorLimite.dproj" Targets="Make"/>
+    </Target>
     <Target Name="Build">
-        <CallTarget Targets="DFe_UnitTests;AcbrClientSmoke;AcbrSimDelphiTests;AmqpBrokerDelphiTests;DFeBrokerConsole;DFeBrokerServico;SpikeHorse;DFeSimulador"/>
+        <CallTarget Targets="DFe_UnitTests;AcbrClientSmoke;AcbrSimDelphiTests;AmqpBrokerDelphiTests;DFeBrokerConsole;DFeBrokerServico;SpikeHorse;DFeSimulador;DFeSimuladorLimite"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="DFe_UnitTests:Clean;AcbrClientSmoke:Clean;AcbrSimDelphiTests:Clean;AmqpBrokerDelphiTests:Clean;DFeBrokerConsole:Clean;DFeBrokerServico:Clean;SpikeHorse:Clean;DFeSimulador:Clean"/>
+        <CallTarget Targets="DFe_UnitTests:Clean;AcbrClientSmoke:Clean;AcbrSimDelphiTests:Clean;AmqpBrokerDelphiTests:Clean;DFeBrokerConsole:Clean;DFeBrokerServico:Clean;SpikeHorse:Clean;DFeSimulador:Clean;DFeSimuladorLimite:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="DFe_UnitTests:Make;AcbrClientSmoke:Make;AcbrSimDelphiTests:Make;AmqpBrokerDelphiTests:Make;DFeBrokerConsole:Make;DFeBrokerServico:Make;SpikeHorse:Make;DFeSimulador:Make"/>
+        <CallTarget Targets="DFe_UnitTests:Make;AcbrClientSmoke:Make;AcbrSimDelphiTests:Make;AmqpBrokerDelphiTests:Make;DFeBrokerConsole:Make;DFeBrokerServico:Make;SpikeHorse:Make;DFeSimulador:Make;DFeSimuladorLimite:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

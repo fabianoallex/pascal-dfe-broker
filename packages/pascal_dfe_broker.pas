@@ -14,7 +14,8 @@ uses
   DFe.Simulador.Fixtures, DFe.Simulador, DFe.Simulador.Client, DFe.Transmissor, 
   DFe.Simulador.Soap, DFe.XmlTexto, DFe.Ambiente, DFe.Fuso, DFe.Host.LogArquivo,
   DFe.Transmissor.Http, DFe.Simulador.Servidor, DFe.Simulador.Cenario,
-  DFe.Simulador.Relogio, DFe.Simulador.Json, DFe.Simulador.Admin;
+  DFe.Simulador.Relogio, DFe.Simulador.Json, DFe.Simulador.Admin,
+  DFe.Simulador.Regras;
 
 implementation
 

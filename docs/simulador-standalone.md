@@ -1,6 +1,6 @@
 # Simulador da SEFAZ como aplicação separada — plano
 
-> Estado: **proposta (2026-09-20). Nenhuma linha de código de produto escrita**; só o spike do Horse (`simulador/spike-horse/`) foi feito e está confirmado em FPC/Linux, FPC/Windows (com contorno) e Delphi Win32. Este documento existe para uma sessão futura retomar sem depender da conversa em que o plano nasceu. Complementa `docs/simulador-sefaz.md` (que descreve o simulador **em processo**, fases 0–4, todas feitas).
+> Estado (2026-09-20): **Fases A, B e C feitas** (ver cada uma abaixo; a C também confirmada no Delphi Win32); D pendente. O texto original ("proposta, nenhuma linha escrita") ficou abaixo por histórico. Este documento existe para uma sessão futura retomar sem depender da conversa em que o plano nasceu. Complementa `docs/simulador-sefaz.md` (que descreve o simulador **em processo**, fases 0–4, todas feitas).
 
 ## Objetivo
 
@@ -120,10 +120,43 @@ Implementada como descrito abaixo; detalhes e contrato final em `simulador/LEIAM
 API admin completa, **relógio virtual**, violações consultáveis, estado, modo leniente/estrito.
 **Pronto quando:** o 656 é reproduzido por HTTP em segundos (avanço do relógio), e as violações do ACBr aparecem em `/admin/violacoes`.
 
-### Fase C — extensão
+### Fase C — extensão — **FEITA (2026-09-20, FPC Windows e Linux; Delphi Win32 verificado)**
 
 Registro de regras (`initialization`), rotas próprias, um exemplo completo em `simulador/exemplos/`.
 **Pronto quando:** o exemplo (uma regra que o core não tem) compila **sem alterar o core**, e há teste que a exercita.
+
+Implementada: `src/DFe.Simulador.Regras.pas` (a classe `TDFeSimuladorRegra`, o registro de **classes** e as
+ajudas), ganchos em `DFe.Simulador.Servidor` (`AdicionarRegra`/`AdicionarRegrasRegistradas`, `/ext/*`,
+`/admin/regras`) e o exemplo `simulador/exemplos/limite-consultas/` (limite de consultas por CNPJ numa janela,
+que responde 656 **sem tocar no núcleo**; usa o relógio virtual, estado próprio, rota própria e `AoZerar`).
+Contrato completo no `LEIAME.md` do exemplo. Decisões tomadas (o plano dizia "só se fixa depois da Fase B, com
+uso real"; foi fixado enxuto, e pode crescer):
+
+- **Regra = classe, registro guarda classes** (não objetos): cada servidor instancia a sua, então o estado é
+  por servidor e os testes ficam isolados. `Nome` é `class function` para o registro recusar duplicata sem
+  instanciar. O registro **não** instala nada sozinho: `AdicionarRegrasRegistradas` (chamado por
+  `DFe.Simulador.Principal`) é que o faz — assim um teste que monta um servidor não herda as regras que outras
+  units da suíte registraram.
+- **Quatro ganchos**: `AntesDeAtender` (curto-circuito; só as duas rotas SOAP), `DepoisDeAtender` (só se
+  ninguém respondeu antes), `TratarRota` (`/ext/*`), `AoZerar`. Todos **sob a trava** do servidor. A resposta
+  de uma regra que curto-circuita é final: o `DepoisDeAtender` das outras não roda.
+- **As regras não veem `/admin` nem `/ping`** (uma regra com defeito não tira o controle do ar).
+- **Liga/desliga** por `POST /admin/regras`; o `zerar` não religa (é como o modo estrito: configuração, não
+  estado de teste).
+- **Rotas próprias só sob `/ext/`**: o Horse casa um segmento por curinga, então `/ext/*`, `/ext/*/*` e
+  `/ext/*/*/*` (3 níveis). Rotas Horse fora daí, registradas pelo programa do usuário, não passam pelo servidor
+  puro — servem em princípio, **não exercitado**.
+- **Ficou de fora, de propósito**: webhook (extensão a outras linguagens) — só com demanda; ganchos sobre os
+  eventos de manifestação além do `AntesDeAtender` genérico; regras carregadas de arquivo/DLL.
+- Exceção num gancho propaga do servidor puro e a casca (Horse) a converte em **HTTP 500** com a mensagem.
+
+Verificado: pura FPC **400/400** (+40: 26 do mecanismo, 14 do exemplo; 0 vazamento), integração
+`AcbrSimTests` 61/61 (+1: o client ACBr real por HTTP contra o **executável do exemplo**, com a regra, a rota
+`/ext/limite`, o relógio virtual e o liga/desliga), e por `curl` no `.exe` do Windows (rotas `/ext/*`, 656 da
+regra, janela reaberta pelo relógio virtual, desligar). Delphi Win32 (usuário recompilou; eu rodei
+os `.exe`): `DFe.UnitTests` **404/404** (0 vazamento) e o `DFeSimuladorLimite` do Delphi se comporta como o do FPC
+por `curl`. O `.dproj` do exemplo precisou de `..\..` no caminho de busca. Não coberto no Delphi: a suíte HTTP
+de integração contra o exemplo Delphi e o Win64.
 
 ### Fase D — distribuição
 
