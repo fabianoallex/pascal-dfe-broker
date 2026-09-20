@@ -30,6 +30,9 @@ uses
   DFe.Transmissor.Http in '..\..\src\DFe.Transmissor.Http.pas',
   DFe.Simulador.Servidor in '..\..\src\DFe.Simulador.Servidor.pas',
   DFe.Simulador.Cenario in '..\..\src\DFe.Simulador.Cenario.pas',
+  DFe.Simulador.Relogio in '..\..\src\DFe.Simulador.Relogio.pas',
+  DFe.Simulador.Json in '..\..\src\DFe.Simulador.Json.pas',
+  DFe.Simulador.Admin in '..\..\src\DFe.Simulador.Admin.pas',
   DFe.Host.LogArquivo in '..\..\src\DFe.Host.LogArquivo.pas',
   DFe.TestDoubles in 'DFe.TestDoubles.pas',
   DFe.RoutingKeyTests in 'DFe.RoutingKeyTests.pas',
@@ -50,6 +53,7 @@ uses
   DFe.XmlTextoTests in 'DFe.XmlTextoTests.pas',
   DFe.TransmissorHttpTests in 'DFe.TransmissorHttpTests.pas',
   DFe.SimuladorServidorTests in 'DFe.SimuladorServidorTests.pas',
+  DFe.SimuladorAdminTests in 'DFe.SimuladorAdminTests.pas',
   DFe.AmbienteTests in 'DFe.AmbienteTests.pas',
   DFe.FusoTests in 'DFe.FusoTests.pas',
   DFe.LogArquivoTests in 'DFe.LogArquivoTests.pas';

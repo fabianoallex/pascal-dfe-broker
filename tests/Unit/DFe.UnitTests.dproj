@@ -186,6 +186,9 @@
         <DCCReference Include="..\..\src\DFe.Transmissor.Http.pas"/>
         <DCCReference Include="..\..\src\DFe.Simulador.Servidor.pas"/>
         <DCCReference Include="..\..\src\DFe.Simulador.Cenario.pas"/>
+        <DCCReference Include="..\..\src\DFe.Simulador.Relogio.pas"/>
+        <DCCReference Include="..\..\src\DFe.Simulador.Json.pas"/>
+        <DCCReference Include="..\..\src\DFe.Simulador.Admin.pas"/>
         <DCCReference Include="DFe.TestDoubles.pas"/>
         <DCCReference Include="DFe.RoutingKeyTests.pas"/>
         <DCCReference Include="DFe.TypesTests.pas"/>
@@ -205,6 +208,7 @@
         <DCCReference Include="DFe.XmlTextoTests.pas"/>
         <DCCReference Include="DFe.TransmissorHttpTests.pas"/>
         <DCCReference Include="DFe.SimuladorServidorTests.pas"/>
+        <DCCReference Include="DFe.SimuladorAdminTests.pas"/>
         <DCCReference Include="DFe.AmbienteTests.pas"/>
         <DCCReference Include="DFe.FusoTests.pas"/>
         <DCCReference Include="DFe.LogArquivoTests.pas"/>

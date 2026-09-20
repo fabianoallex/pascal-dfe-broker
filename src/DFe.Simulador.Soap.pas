@@ -46,7 +46,12 @@ type
     FViolacoes: array of string;
     FRequisicoes: Integer;
     FUltimoEnvelope: string;
+    FEstrito: Boolean;
     procedure Violar(const AMensagem: string);
+    { Modo estrito: se a conferencia acabou de registrar violacao, a resposta e' a
+      recusa (HTTP 400) e o estado do simulador NAO e' tocado. }
+    function RecusaEstrita(const AViolacoesAntes: Integer;
+      out AResposta: TDFeRespostaTransmissao): Boolean;
     procedure ConferirRequisicao(const AEnvelope, AURL, ASoapAction: string;
       out ACnpjCpf, AUF: string; out AUltimoNSU: Int64; out ATpAmb: string);
     procedure ConferirEvento(const AEnvelope, AURL, ASoapAction: string;
@@ -58,6 +63,14 @@ type
 
     function Transmitir(const AEnvelope, AURL, ASoapAction,
       AMimeType: string): TDFeRespostaTransmissao;
+
+    { Padrao (False) = LENIENTE: a violacao so' e' registrada e a requisicao e'
+      atendida -- o certo para um cliente de terceiros, que nao e' o ACBr.
+      True = ESTRITO: requisicao com violacao e' recusada com HTTP 400 e nao
+      consome NSU nem abre bloqueio -- para testar que o cliente manda o formato certo. }
+    property Estrito: Boolean read FEstrito write FEstrito;
+    { Esquece as violacoes registradas (nao zera o contador de requisicoes). }
+    procedure LimparViolacoes;
 
     function QuantidadeViolacoes: Integer;
     function Violacao(const AIndice: Integer): string;
@@ -293,12 +306,39 @@ begin
   AUltimoNSU := StrToInt64Def(LUltNSU, 0);
 end;
 
+procedure TDFeSimuladorTransmissor.LimparViolacoes;
+begin
+  SetLength(FViolacoes, 0);
+end;
+
+function TDFeSimuladorTransmissor.RecusaEstrita(const AViolacoesAntes: Integer;
+  out AResposta: TDFeRespostaTransmissao): Boolean;
+var
+  I: Integer;
+  LTexto: string;
+begin
+  Result := FEstrito and (Length(FViolacoes) > AViolacoesAntes);
+  if not Result then
+    Exit;
+  LTexto := '';
+  for I := AViolacoesAntes to High(FViolacoes) do
+  begin
+    if LTexto <> '' then
+      LTexto := LTexto + '; ';
+    LTexto := LTexto + FViolacoes[I];
+  end;
+  AResposta.Texto := 'Requisicao recusada (modo estrito): ' + LTexto;
+  AResposta.HTTPResultCode := 400;
+  AResposta.InternalErrorCode := 0;
+end;
+
 function TDFeSimuladorTransmissor.Transmitir(const AEnvelope, AURL, ASoapAction,
   AMimeType: string): TDFeRespostaTransmissao;
 var
   LCnpj, LUF, LTpAmb: string;
   LUltimoNSU: Int64;
   LResposta: TDFeRespostaSimulada;
+  LAntes: Integer;
 begin
   Inc(FRequisicoes);
   FUltimoEnvelope := AEnvelope;
@@ -307,7 +347,10 @@ begin
     Result := TransmitirEvento(AEnvelope, AURL, ASoapAction);
     Exit;
   end;
+  LAntes := Length(FViolacoes);
   ConferirRequisicao(AEnvelope, AURL, ASoapAction, LCnpj, LUF, LUltimoNSU, LTpAmb);
+  if RecusaEstrita(LAntes, Result) then
+    Exit;
 
   Result.Texto := '';
   Result.HTTPResultCode := 200;
@@ -549,8 +592,12 @@ var
   LCnpj, LChave, LTpEvento, LTpAmb, LIdLote: string;
   LNSeq: Integer;
   LResposta: TDFeRespostaEventoSimulada;
+  LAntes: Integer;
 begin
+  LAntes := Length(FViolacoes);
   ConferirEvento(AEnvelope, AURL, ASoapAction, LCnpj, LChave, LTpEvento, LTpAmb, LIdLote, LNSeq);
+  if RecusaEstrita(LAntes, Result) then
+    Exit;
 
   Result.Texto := '';
   Result.HTTPResultCode := 200;

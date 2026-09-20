@@ -107,6 +107,16 @@ type
     BloqueadoAte: TDateTime;         // 0 = livre
   end;
 
+  { Uma conta (CNPJ/UF) vista de fora, sem expor o estado interno. }
+  TDFeSimContaResumo = record
+    Cnpj: string;
+    UF: string;
+    NsuAtual: Int64;
+    Documentos: Integer;
+    BloqueadoAte: TDateTime; // 0 = livre
+  end;
+  TDFeSimContaResumoArray = array of TDFeSimContaResumo;
+
   TDFeSimuladorSefaz = class
   private
     FAgora: TDFeAgoraFunc;
@@ -180,6 +190,17 @@ type
       registrados (135). }
     property TotalEventos: Integer read FTotalEventos;
     function EventosRegistrados: Integer;
+
+    { Volta ao estado inicial: sem contas, sem falhas enfileiradas e contadores
+      zerados. O relogio injetado e o codigo de consumo indevido nao mudam. }
+    procedure Zerar;
+    { Falhas enfileiradas que ainda nao foram consumidas por uma consulta. }
+    function FalhasPendentes: Integer;
+    { Uma entrada por conta, na ordem de criacao. NAO cria conta (diferente de
+      NsuAtual, que a cria ao consultar uma inexistente). }
+    function Contas: TDFeSimContaResumoArray;
+    { O instante que o simulador considera "agora" (o relogio injetado; Now se nao houver). }
+    function AgoraSimulado: TDateTime;
   end;
 
 implementation
@@ -383,6 +404,46 @@ end;
 function TDFeSimuladorSefaz.EventosRegistrados: Integer;
 begin
   Result := Length(FEventosRegistrados);
+end;
+
+procedure TDFeSimuladorSefaz.Zerar;
+var
+  I: Integer;
+begin
+  for I := 0 to High(FContas) do
+    FContas[I].Free;
+  SetLength(FContas, 0);
+  SetLength(FFalhas, 0);
+  SetLength(FEventosRegistrados, 0);
+  FTotalConsultas := 0;
+  FUltimoNSURecebido := 0;
+  FTotalEventos := 0;
+end;
+
+function TDFeSimuladorSefaz.FalhasPendentes: Integer;
+begin
+  Result := Length(FFalhas);
+end;
+
+function TDFeSimuladorSefaz.Contas: TDFeSimContaResumoArray;
+var
+  I, LBarra: Integer;
+begin
+  SetLength(Result, Length(FContas));
+  for I := 0 to High(FContas) do
+  begin
+    LBarra := Pos('/', FContas[I].Chave);
+    Result[I].Cnpj := Copy(FContas[I].Chave, 1, LBarra - 1);
+    Result[I].UF := Copy(FContas[I].Chave, LBarra + 1, MaxInt);
+    Result[I].NsuAtual := FContas[I].NsuAtual;
+    Result[I].Documentos := Length(FContas[I].Documentos);
+    Result[I].BloqueadoAte := FContas[I].BloqueadoAte;
+  end;
+end;
+
+function TDFeSimuladorSefaz.AgoraSimulado: TDateTime;
+begin
+  Result := AgoraAtual;
 end;
 
 procedure TDFeSimuladorSefaz.LocalizarChave(const ACnpjAutor, AChave: string;

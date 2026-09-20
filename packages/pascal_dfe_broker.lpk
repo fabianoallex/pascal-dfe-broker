@@ -117,6 +117,18 @@
         <Filename Value="..\src\DFe.Simulador.Cenario.pas"/>
         <UnitName Value="DFe.Simulador.Cenario"/>
       </Item>
+      <Item>
+        <Filename Value="..\src\DFe.Simulador.Relogio.pas"/>
+        <UnitName Value="DFe.Simulador.Relogio"/>
+      </Item>
+      <Item>
+        <Filename Value="..\src\DFe.Simulador.Json.pas"/>
+        <UnitName Value="DFe.Simulador.Json"/>
+      </Item>
+      <Item>
+        <Filename Value="..\src\DFe.Simulador.Admin.pas"/>
+        <UnitName Value="DFe.Simulador.Admin"/>
+      </Item>
     </Files>
     <RequiredPkgs>
       <Item>

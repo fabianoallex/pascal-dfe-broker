@@ -106,14 +106,16 @@ Cada fase termina com **testes verdes** e o critério abaixo; nada de "pronto" s
 
 ### Fase A — o simulador roda separado e o broker fala com ele
 
-> **Fase A concluída em 2026-09-20 (FPC Windows/Linux e Delphi; ver CLAUDE.md para o que ficou sem cobertura no Delphi).** Resumo abaixo do que foi feito. **Andamento:** item 1 feito no FPC (`DFe.Transmissor.Http`, `DFe.Transmissor.Http.Cliente`, `TextoParaAcbr`; suíte pura 270/270 e Linux verdes, cliente exercitado por HTTP real contra o servidor do spike). Item 2 também feito (`[dfe] SimuladorURL`/`SimuladorPermitirProducao` + `DecidirUsoDoSimulador`; salvaguarda verificada no executável do host console). Falta confirmar os dois no Delphi. **Item 3 feito:** `DFeSimulador` (Horse) + `DFe.Simulador.Servidor`/`Cenario` (puras, em `src/` junto das demais `DFe.Simulador*` até a migração para `simulador/`), `simulador/LEIAME.md`; integração `DFe.AcbrSimHttpTests` (10 testes, Windows e Linux verdes). Desvio do plano: o Horse roteia por caminho *exato* (as duas rotas SOAP), não por trecho — o servidor puro é que casa por trecho.
+> **Fase B concluída em 2026-09-20 no FPC (Windows/Linux); falta o Delphi** (ver CLAUDE.md). API admin, relógio virtual e modo leniente/estrito prontos; o JSON plano é próprio (decisão em aberto 3 resolvida). Nota: `GET /admin/violacoes` e `/admin/ultimo-envelope` devolvem texto, não JSON, para ler num `curl`. **Fase A concluída em 2026-09-20 (FPC Windows/Linux e Delphi; ver CLAUDE.md para o que ficou sem cobertura no Delphi).** Resumo abaixo do que foi feito. **Andamento:** item 1 feito no FPC (`DFe.Transmissor.Http`, `DFe.Transmissor.Http.Cliente`, `TextoParaAcbr`; suíte pura 270/270 e Linux verdes, cliente exercitado por HTTP real contra o servidor do spike). Item 2 também feito (`[dfe] SimuladorURL`/`SimuladorPermitirProducao` + `DecidirUsoDoSimulador`; salvaguarda verificada no executável do host console). Falta confirmar os dois no Delphi. **Item 3 feito:** `DFeSimulador` (Horse) + `DFe.Simulador.Servidor`/`Cenario` (puras, em `src/` junto das demais `DFe.Simulador*` até a migração para `simulador/`), `simulador/LEIAME.md`; integração `DFe.AcbrSimHttpTests` (10 testes, Windows e Linux verdes). Desvio do plano: o Horse roteia por caminho *exato* (as duas rotas SOAP), não por trecho — o servidor puro é que casa por trecho.
 
 1. `TDFeTransmissorHttp` (broker; `IDFeTransmissor` sobre um cliente HTTP dual: `fphttpclient` no FPC, `System.Net.HttpClient` no Delphi, atrás de IFDEF; **bytes/encoding** conforme o achado do spike: FPC entrega bytes UTF-8, Delphi `UnicodeString`, ver `DFe.XmlTexto`).
 2. Opção `[dfe] SimuladorURL=` em `DFe.Host.ACBr` + as salvaguardas.
 3. `simulador/`: executável `DFeSimulador` (Horse) com o handler puro chamando `TDFeSimuladorTransmissor`; trava (lock) em volta do núcleo, que não é thread-safe; cenário mínimo por arquivo.
 4. **Pronto quando:** testes automáticos (não à mão) em que o **client ACBr real** consulta o simulador por HTTP e o resultado é idêntico ao do simulador em processo (mesmos casos de `tests/Integration/AcbrSim`), rodando FPC Linux/Docker e Windows; e o `DFeBrokerConsole` sobe, consulta o simulador e publica na fila (teste de aplicação com dois processos).
 
-### Fase B — controle e reprodutibilidade
+### Fase B — controle e reprodutibilidade — **FEITA (2026-09-20, FPC)**
+
+Implementada como descrito abaixo; detalhes e contrato final em `simulador/LEIAME.md` (rotas, corpos, o exemplo do 656 e o modo estrito). Texto do plano original:
 
 API admin completa, **relógio virtual**, violações consultáveis, estado, modo leniente/estrito.
 **Pronto quando:** o 656 é reproduzido por HTTP em segundos (avanço do relógio), e as violações do ACBr aparecem em `/admin/violacoes`.

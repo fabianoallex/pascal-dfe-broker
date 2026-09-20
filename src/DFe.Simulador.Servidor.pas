@@ -19,7 +19,8 @@ unit DFe.Simulador.Servidor;
     do timeout em processo -- EDFeComunicacaoFalhou.
   - Rotas: GET /ping ou /health; POST em um caminho que contenha
     'NFeDistribuicaoDFe' ou 'NFeRecepcaoEvento4' (o mesmo criterio do adaptador,
-    ver DFe.Simulador.Soap); o resto e' 404. }
+    ver DFe.Simulador.Soap); /admin/* e' a API admin (DFe.Simulador.Admin); o
+    resto e' 404. }
 
 interface
 
@@ -27,17 +28,16 @@ uses
   SysUtils, SyncObjs,
   DFe.Transmissor,
   DFe.Simulador,
-  DFe.Simulador.Soap;
+  DFe.Simulador.Soap,
+  DFe.Simulador.Relogio,
+  DFe.Simulador.Admin;
 
 const
   DFE_SIM_CONTENT_TYPE_SOAP = 'application/soap+xml; charset=utf-8';
 
 type
-  TDFeSimHttpResposta = record
-    Status: Integer;
-    ContentType: string;
-    Corpo: string; // texto NATIVO (a casca codifica em UTF-8)
-  end;
+  { Definido em DFe.Simulador.Admin (a API admin devolve o mesmo tipo). }
+  TDFeSimHttpResposta = DFe.Simulador.Admin.TDFeSimHttpResposta;
 
   TDFeSimuladorServidor = class
   private
@@ -45,11 +45,17 @@ type
     FTransmissor: TDFeSimuladorTransmissor;
     FTransmissorIntf: IDFeTransmissor; // dono do ciclo de vida do transmissor
     FLock: TCriticalSection;
+    FAdmin: TDFeSimuladorAdmin;
+    function GetEstrito: Boolean;
+    procedure SetEstrito(const AValor: Boolean);
     function Resposta(const AStatus: Integer; const AContentType, ACorpo: string): TDFeSimHttpResposta;
   public
     { O simulador NAO e' possuido (mesma regra de DFe.Simulador.Soap): quem o
       criou o libera, DEPOIS do servidor. }
-    constructor Create(const ASimulador: TDFeSimuladorSefaz);
+    { ARelogio (opcional, tambem NAO possuido): habilita as rotas /admin/relogio; o
+      nucleo deve ter sido criado com ARelogio.Agora para o avanco valer. }
+    constructor Create(const ASimulador: TDFeSimuladorSefaz;
+      const ARelogio: TDFeRelogioVirtual = nil);
     destructor Destroy; override;
 
     { ACaminho: so' o caminho (sem esquema/host); ASoapAction e AContentType:
@@ -63,6 +69,9 @@ type
     { O ultimo envelope que o simulador RECEBEU, ja' na convencao de texto NATIVO
       (o que a rede levou). Serve a testes que provam o que chegou (ex.: acento). }
     function UltimoEnvelope: string;
+    { Modo do adaptador SOAP: False (padrao) = leniente; True = estrito (recusa com
+      HTTP 400 a requisicao com violacao, sem tocar o estado). Ver DFe.Simulador.Soap. }
+    property Estrito: Boolean read GetEstrito write SetEstrito;
   end;
 
 implementation
@@ -70,17 +79,20 @@ implementation
 uses
   DFe.XmlTexto;
 
-constructor TDFeSimuladorServidor.Create(const ASimulador: TDFeSimuladorSefaz);
+constructor TDFeSimuladorServidor.Create(const ASimulador: TDFeSimuladorSefaz;
+  const ARelogio: TDFeRelogioVirtual);
 begin
   inherited Create;
   FSimulador := ASimulador;
   FLock := TCriticalSection.Create;
   FTransmissor := TDFeSimuladorTransmissor.Create(FSimulador);
   FTransmissorIntf := FTransmissor;
+  FAdmin := TDFeSimuladorAdmin.Create(FSimulador, FTransmissor, ARelogio);
 end;
 
 destructor TDFeSimuladorServidor.Destroy;
 begin
+  FAdmin.Free;
   FTransmissorIntf := nil; // libera o transmissor
   FTransmissor := nil;
   FLock.Free;
@@ -107,6 +119,17 @@ begin
       Result := Resposta(200, 'text/plain; charset=utf-8', 'ok')
     else
       Result := Resposta(405, 'text/plain; charset=utf-8', 'metodo nao permitido');
+    Exit;
+  end;
+
+  if Copy(LowerCase(ACaminho), 1, Length(CAMINHO_ADMIN)) = CAMINHO_ADMIN then
+  begin
+    FLock.Enter;
+    try
+      Result := FAdmin.Tratar(AMetodo, ACaminho, ACorpo);
+    finally
+      FLock.Leave;
+    end;
     Exit;
   end;
 
@@ -154,6 +177,26 @@ begin
   FLock.Enter;
   try
     Result := TextoDoAcbr(FTransmissor.UltimoEnvelope);
+  finally
+    FLock.Leave;
+  end;
+end;
+
+function TDFeSimuladorServidor.GetEstrito: Boolean;
+begin
+  FLock.Enter;
+  try
+    Result := FTransmissor.Estrito;
+  finally
+    FLock.Leave;
+  end;
+end;
+
+procedure TDFeSimuladorServidor.SetEstrito(const AValor: Boolean);
+begin
+  FLock.Enter;
+  try
+    FTransmissor.Estrito := AValor;
   finally
     FLock.Leave;
   end;

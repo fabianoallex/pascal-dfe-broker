@@ -47,8 +47,14 @@ function FalhaPorNome(const ANome: string; out AFalha: TDFeFalhaSimulada): Boole
 function NomesDeFalhaValidos: string;
 
 { Le o INI e aplica ao simulador. Levanta Exception se o arquivo nao existe ou
-  tem valor invalido. }
+  tem valor invalido. O cenario e' VALIDADO POR INTEIRO antes de aplicar: um erro
+  nao deixa o simulador com so' metade do cenario. E' ACUMULATIVO: aplica por
+  cima do estado atual (use TDFeSimuladorSefaz.Zerar antes para recomecar). }
 function CarregarCenario(const ACaminho: string;
+  const ASimulador: TDFeSimuladorSefaz): TDFeCenarioResumo;
+
+{ O mesmo, com o conteudo do INI em texto (usado por POST /admin/cenario). }
+function CarregarCenarioDeTexto(const ATexto: string;
   const ASimulador: TDFeSimuladorSefaz): TDFeCenarioResumo;
 
 implementation
@@ -121,69 +127,51 @@ begin
   Result := StrToInt(LTexto);
 end;
 
-function CarregarCenario(const ACaminho: string;
-  const ASimulador: TDFeSimuladorSefaz): TDFeCenarioResumo;
+type
+  TPlanoConta = record
+    Cnpj: string;
+    UF: string;
+    ResNFe: Integer;
+    ProcNFe: Integer;
+    Pular: Integer;
+  end;
+
+{ Fase 1: interpreta e VALIDA tudo; levanta antes de qualquer efeito. }
+procedure Interpretar(const AIni: TCustomIniFile; var AContas: array of TPlanoConta;
+  out AQtdContas: Integer; var AFalhas: array of TDFeFalhaSimulada; out AQtdFalhas: Integer);
 var
-  LIni: TMemIniFile;
-  LSecoes: TStringList;
-  LFalhas: TStringList;
-  I, N, LNota: Integer;
-  LSecao, LCnpj, LUF: string;
+  LSecoes, LFalhas: TStringList;
+  I: Integer;
+  LSecao: string;
   LFalha: TDFeFalhaSimulada;
-  LChave: string;
 begin
-  if not FileExists(ACaminho) then
-    raise Exception.CreateFmt('Cenario: arquivo "%s" nao existe', [ACaminho]);
-
-  Result.Contas := 0;
-  Result.Documentos := 0;
-  Result.Falhas := 0;
-
-  LIni := TMemIniFile.Create(ACaminho);
+  AQtdContas := 0;
+  AQtdFalhas := 0;
   LSecoes := TStringList.Create;
   LFalhas := TStringList.Create;
   try
-    LIni.ReadSections(LSecoes);
-
+    AIni.ReadSections(LSecoes);
     for I := 0 to LSecoes.Count - 1 do
     begin
       LSecao := LSecoes[I];
       if Copy(LowerCase(LSecao), 1, Length(PREFIXO_CONTA)) <> PREFIXO_CONTA then
         Continue;
+      if AQtdContas > High(AContas) then
+        raise Exception.Create('Cenario: contas demais (o maximo e'' ' + IntToStr(Length(AContas)) + ')');
 
-      LCnpj := Trim(LIni.ReadString(LSecao, 'Cnpj', ''));
-      LUF := UpperCase(Trim(LIni.ReadString(LSecao, 'UF', '')));
-      if not SoDigitos(LCnpj) then
+      AContas[AQtdContas].Cnpj := Trim(AIni.ReadString(LSecao, 'Cnpj', ''));
+      AContas[AQtdContas].UF := UpperCase(Trim(AIni.ReadString(LSecao, 'UF', '')));
+      if not SoDigitos(AContas[AQtdContas].Cnpj) then
         raise Exception.CreateFmt('Cenario: secao "%s": "Cnpj" ausente ou nao numerico', [LSecao]);
-      if Length(LUF) <> 2 then
+      if Length(AContas[AQtdContas].UF) <> 2 then
         raise Exception.CreateFmt('Cenario: secao "%s": "UF" ausente ou invalida (2 letras)', [LSecao]);
-
-      LNota := 0;
-      N := LerContagem(LIni, LSecao, 'ResNFe');
-      while N > 0 do
-      begin
-        Inc(LNota);
-        LChave := ChaveNFeSintetica(DFE_SIM_CNPJ_EMITENTE, LNota);
-        ASimulador.PublicarDocumento(LCnpj, LUF, DFE_SIM_SCHEMA_RESNFE, XmlResNFe(LChave));
-        Inc(Result.Documentos);
-        Dec(N);
-      end;
-      N := LerContagem(LIni, LSecao, 'ProcNFe');
-      while N > 0 do
-      begin
-        Inc(LNota);
-        LChave := ChaveNFeSintetica(DFE_SIM_CNPJ_EMITENTE, LNota);
-        ASimulador.PublicarDocumento(LCnpj, LUF, DFE_SIM_SCHEMA_PROCNFE, XmlProcNFe(LChave));
-        Inc(Result.Documentos);
-        Dec(N);
-      end;
-      N := LerContagem(LIni, LSecao, 'PularNSU');
-      if N > 0 then
-        ASimulador.PularNSU(LCnpj, LUF, N);
-      Inc(Result.Contas);
+      AContas[AQtdContas].ResNFe := LerContagem(AIni, LSecao, 'ResNFe');
+      AContas[AQtdContas].ProcNFe := LerContagem(AIni, LSecao, 'ProcNFe');
+      AContas[AQtdContas].Pular := LerContagem(AIni, LSecao, 'PularNSU');
+      Inc(AQtdContas);
     end;
 
-    LFalhas.CommaText := Trim(LIni.ReadString(SECAO_SIMULADOR, 'Falhas', ''));
+    LFalhas.CommaText := Trim(AIni.ReadString(SECAO_SIMULADOR, 'Falhas', ''));
     for I := 0 to LFalhas.Count - 1 do
     begin
       if Trim(LFalhas[I]) = '' then
@@ -191,13 +179,103 @@ begin
       if not FalhaPorNome(LFalhas[I], LFalha) then
         raise Exception.CreateFmt('Cenario: falha desconhecida "%s" (validas: %s)',
           [LFalhas[I], NomesDeFalhaValidos]);
-      ASimulador.EnfileirarFalha(LFalha);
-      Inc(Result.Falhas);
+      if AQtdFalhas > High(AFalhas) then
+        raise Exception.Create('Cenario: falhas demais (o maximo e'' ' + IntToStr(Length(AFalhas)) + ')');
+      AFalhas[AQtdFalhas] := LFalha;
+      Inc(AQtdFalhas);
     end;
   finally
     LFalhas.Free;
     LSecoes.Free;
+  end;
+end;
+
+{ Fase 2: aplica o plano ja' validado. }
+function Aplicar(const AContas: array of TPlanoConta; const AQtdContas: Integer;
+  const AFalhas: array of TDFeFalhaSimulada; const AQtdFalhas: Integer;
+  const ASimulador: TDFeSimuladorSefaz): TDFeCenarioResumo;
+var
+  I, N, LNota: Integer;
+  LChave: string;
+begin
+  Result.Contas := 0;
+  Result.Documentos := 0;
+  Result.Falhas := 0;
+  for I := 0 to AQtdContas - 1 do
+  begin
+    LNota := 0;
+    for N := 1 to AContas[I].ResNFe do
+    begin
+      Inc(LNota);
+      LChave := ChaveNFeSintetica(DFE_SIM_CNPJ_EMITENTE, LNota);
+      ASimulador.PublicarDocumento(AContas[I].Cnpj, AContas[I].UF, DFE_SIM_SCHEMA_RESNFE, XmlResNFe(LChave));
+      Inc(Result.Documentos);
+    end;
+    for N := 1 to AContas[I].ProcNFe do
+    begin
+      Inc(LNota);
+      LChave := ChaveNFeSintetica(DFE_SIM_CNPJ_EMITENTE, LNota);
+      ASimulador.PublicarDocumento(AContas[I].Cnpj, AContas[I].UF, DFE_SIM_SCHEMA_PROCNFE, XmlProcNFe(LChave));
+      Inc(Result.Documentos);
+    end;
+    if AContas[I].Pular > 0 then
+      ASimulador.PularNSU(AContas[I].Cnpj, AContas[I].UF, AContas[I].Pular);
+    Inc(Result.Contas);
+  end;
+  for I := 0 to AQtdFalhas - 1 do
+  begin
+    ASimulador.EnfileirarFalha(AFalhas[I]);
+    Inc(Result.Falhas);
+  end;
+end;
+
+const
+  MAX_CONTAS = 200;
+  MAX_FALHAS = 1000;
+
+function AplicarIni(const AIni: TCustomIniFile;
+  const ASimulador: TDFeSimuladorSefaz): TDFeCenarioResumo;
+var
+  LContas: array of TPlanoConta;
+  LFalhas: array of TDFeFalhaSimulada;
+  LQtdContas, LQtdFalhas: Integer;
+begin
+  SetLength(LContas, MAX_CONTAS);
+  SetLength(LFalhas, MAX_FALHAS);
+  Interpretar(AIni, LContas, LQtdContas, LFalhas, LQtdFalhas);
+  Result := Aplicar(LContas, LQtdContas, LFalhas, LQtdFalhas, ASimulador);
+end;
+
+function CarregarCenario(const ACaminho: string;
+  const ASimulador: TDFeSimuladorSefaz): TDFeCenarioResumo;
+var
+  LIni: TMemIniFile;
+begin
+  if not FileExists(ACaminho) then
+    raise Exception.CreateFmt('Cenario: arquivo "%s" nao existe', [ACaminho]);
+  LIni := TMemIniFile.Create(ACaminho);
+  try
+    Result := AplicarIni(LIni, ASimulador);
+  finally
     LIni.Free;
+  end;
+end;
+
+function CarregarCenarioDeTexto(const ATexto: string;
+  const ASimulador: TDFeSimuladorSefaz): TDFeCenarioResumo;
+var
+  LIni: TMemIniFile;
+  LLinhas: TStringList;
+begin
+  LLinhas := TStringList.Create;
+  LIni := TMemIniFile.Create('');
+  try
+    LLinhas.Text := ATexto;
+    LIni.SetStrings(LLinhas);
+    Result := AplicarIni(LIni, ASimulador);
+  finally
+    LIni.Free;
+    LLinhas.Free;
   end;
 end;
 

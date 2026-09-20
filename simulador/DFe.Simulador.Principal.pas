@@ -25,6 +25,7 @@ uses
   {$ENDIF}
   Horse,
   DFe.Simulador,
+  DFe.Simulador.Relogio,
   DFe.Simulador.Servidor,
   DFe.Simulador.Cenario,
   DFe.Simulador.Horse;
@@ -36,6 +37,8 @@ var
   GPorta: Integer;
   GBind, GCenario: string;
   GSim: TDFeSimuladorSefaz;
+  GRelogio: TDFeRelogioVirtual;
+  GEstrito: Boolean;
   GServidor: TDFeSimuladorServidor;
   GResumo: TDFeCenarioResumo;
 
@@ -46,6 +49,7 @@ begin
   Writeln('  --porta <n>        porta HTTP (padrao ', PORTA_PADRAO, ')');
   Writeln('  --bind <endereco>  endereco de escuta (padrao 127.0.0.1; 0.0.0.0 = a rede toda, SEM autenticacao)');
   Writeln('  --cenario <ini>    cenario declarativo (contas, documentos, falhas); ver simulador/LEIAME.md');
+  Writeln('  --estrito          recusa (HTTP 400) requisicao fora do formato esperado (padrao: aceita e registra)');
   Writeln('  --ajuda            esta mensagem');
   Writeln;
   Writeln('NAO e'' a SEFAZ: responde conforme a leitura do projeto das NTs, so'' para teste.');
@@ -65,6 +69,7 @@ begin
   GPorta := PORTA_PADRAO;
   GBind := '127.0.0.1';
   GCenario := '';
+  GEstrito := False;
   I := 1;
   while I <= ParamCount do
   begin
@@ -83,6 +88,8 @@ begin
       Inc(I);
       GBind := ParamStr(I);
     end
+    else if SameText(ParamStr(I), '--estrito') then
+      GEstrito := True
     else if SameText(ParamStr(I), '--cenario') and (I < ParamCount) then
     begin
       Inc(I);
@@ -107,10 +114,14 @@ begin
     Exit;
   end;
 
-  GSim := TDFeSimuladorSefaz.Create;
-  GServidor := TDFeSimuladorServidor.Create(GSim);
+  GRelogio := TDFeRelogioVirtual.Create;
+  GSim := TDFeSimuladorSefaz.Create(GRelogio.Agora);
+  GServidor := TDFeSimuladorServidor.Create(GSim, GRelogio);
   try
     try
+      GServidor.Estrito := GEstrito;
+      if GEstrito then
+        Writeln('Modo ESTRITO: requisicao fora do formato esperado e'' recusada com HTTP 400.');
       if GCenario <> '' then
       begin
         GResumo := CarregarCenario(GCenario, GSim);
@@ -137,6 +148,7 @@ begin
   finally
     GServidor.Free; // antes do simulador
     GSim.Free;
+    GRelogio.Free;
   end;
 end;
 

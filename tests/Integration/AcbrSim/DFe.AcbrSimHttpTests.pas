@@ -49,6 +49,10 @@ type
     function ViolacoesDoSimulador: string;
     function PathSchemasDoClient: string;
     function UltimoEnvelopeDoSimulador: string;
+    { Chama a API admin (ou qualquer rota) do simulador; devolve o corpo e o status HTTP. }
+    function Chamar(const AMetodo, ACaminho, ACorpo: string; out AStatus: Integer): string;
+    function Admin(const AMetodo, ACaminho: string; const ACorpo: string = ''): string;
+    function EnvelopeDeDistribuicao: string;
     { Manifestacao assina e valida o XML: precisa de libxml2 e dos XSDs oficiais;
       sem eles o teste e' IGNORADO (e contado), como em DFe.AcbrSimEventoTests. }
     procedure ExigirAmbienteDeEvento;
@@ -64,6 +68,12 @@ type
     procedure CorpoIlegivel_ViraRespostaInvalida;
     procedure DocZipCorrompido_ViraRespostaInvalida;
     procedure SimuladorForaDoAr_ViraComunicacaoFalhou;
+    procedure Admin_PublicaDocumentos_ClienteRecebe;
+    procedure Admin_ConsumoIndevido_ReproduzidoEDesfeitoPeloRelogioVirtual;
+    procedure Admin_FalhaEnfileirada_ClienteSofre;
+    procedure Admin_Violacao_AparecePorHttpELimpa;
+    procedure Admin_ModoEstrito_RecusaComHttp400ENaoConsomeNsu;
+    procedure Admin_Zerar_VoltaAoInicio;
     procedure Manifestacao_Ciencia_RegistradaPorHttp;
     procedure Manifestacao_JustificativaComAcento_ChegaAssinadaEIntactaAoSimulador;
   end;
@@ -217,6 +227,51 @@ begin
   end;
 end;
 
+function TDFeAcbrSimHttpTests.Chamar(const AMetodo, ACaminho, ACorpo: string;
+  out AStatus: Integer): string;
+var
+  LCliente: TFPHTTPClient;
+  LEnvio, LResposta: TStringStream;
+begin
+  LCliente := TFPHTTPClient.Create(nil);
+  LEnvio := TStringStream.Create(ACorpo);
+  LResposta := TStringStream.Create('');
+  try
+    LCliente.IOTimeout := 5000;
+    if ACorpo <> '' then
+      LCliente.RequestBody := LEnvio;
+    LCliente.HTTPMethod(AMetodo, 'http://127.0.0.1:' + IntToStr(FPorta) + ACaminho, LResposta, []);
+    AStatus := LCliente.ResponseStatusCode;
+    Result := LResposta.DataString;
+  finally
+    LResposta.Free;
+    LEnvio.Free;
+    LCliente.Free;
+  end;
+end;
+
+function TDFeAcbrSimHttpTests.Admin(const AMetodo, ACaminho, ACorpo: string): string;
+var
+  LStatus: Integer;
+begin
+  Result := Chamar(AMetodo, ACaminho, ACorpo, LStatus);
+  AssertEquals('status de ' + AMetodo + ' ' + ACaminho + ': ' + Result, 200, LStatus);
+end;
+
+{ Requisicao no formato que o ACBr emite (a mesma dos testes puros do adaptador),
+  mas SEM a SOAPAction: quem a manda aqui e' um cliente que nao e' o ACBr. }
+function TDFeAcbrSimHttpTests.EnvelopeDeDistribuicao: string;
+begin
+  Result := '<?xml version="1.0" encoding="UTF-8"?><soap12:Envelope ' +
+    'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" ' +
+    'xmlns:soap12="http://www.w3.org/2003/05/soap-envelope"><soap12:Body>' +
+    '<nfeDistDFeInteresse xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">' +
+    '<nfeDadosMsg><distDFeInt xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.01">' +
+    '<tpAmb>2</tpAmb><cUFAutor>43</cUFAutor><CNPJ>' + CNPJ_CERT + '</CNPJ>' +
+    '<distNSU><ultNSU>000000000000000</ultNSU></distNSU></distDFeInt></nfeDadosMsg>' +
+    '</nfeDistDFeInteresse></soap12:Body></soap12:Envelope>';
+end;
+
 function TDFeAcbrSimHttpTests.PathSchemasDoClient: string;
 begin
   // Com os XSDs oficiais, a mesma pasta serve a distribuicao e a manifestacao;
@@ -347,6 +402,105 @@ begin
   except
     on EDFeComunicacaoFalhou do ;
   end;
+end;
+
+procedure TDFeAcbrSimHttpTests.Admin_PublicaDocumentos_ClienteRecebe;
+var
+  LClient: IDFeDistribuicaoClient;
+  LLote: TDFeLoteBruto;
+begin
+  IniciarSimulador(['[simulador]']); // sem contas: tudo vem pela API admin
+  Admin('POST', '/admin/documentos', '{"cnpj":"' + CNPJ_CERT + '","uf":"RS","quantidade":2}');
+  Admin('POST', '/admin/documentos', '{"cnpj":"' + CNPJ_CERT + '","uf":"RS","tipo":"procNFe"}');
+  LClient := ClientDoSimulador;
+  LLote := LClient.Consultar(Certificado, 0);
+  AssertEquals(138, LLote.CStat);
+  AssertEquals(3, Length(LLote.Itens));
+  AssertEquals('resNFe', LLote.Itens[0].Schema);
+  AssertEquals('procNFe', LLote.Itens[2].Schema);
+  AssertTrue('o estado da API reflete a consulta', Pos('"consultas":1', Admin('GET', '/admin/estado')) > 0);
+end;
+
+procedure TDFeAcbrSimHttpTests.Admin_ConsumoIndevido_ReproduzidoEDesfeitoPeloRelogioVirtual;
+var
+  LClient: IDFeDistribuicaoClient;
+begin
+  // O criterio de pronto da Fase B: o 656 (bloqueio de 1 h) reproduzido e desfeito
+  // por HTTP em SEGUNDOS, sem esperar a hora -- com o client ACBr real.
+  IniciarSimulador(['[simulador]']);
+  LClient := ClientDoSimulador;
+  AssertEquals('1a: sem novidade', 137, LClient.Consultar(Certificado, 0).CStat);
+  AssertEquals('2a, na hora: consumo indevido', 656, LClient.Consultar(Certificado, 0).CStat);
+  Admin('POST', '/admin/relogio/avancar', '{"horas":1,"minutos":1}');
+  AssertTrue('o relogio virtual andou', Pos('"deslocamentoSegundos":3660', Admin('GET', '/admin/relogio')) > 0);
+  AssertEquals('depois de 1 h virtual: liberado', 137, LClient.Consultar(Certificado, 0).CStat);
+end;
+
+procedure TDFeAcbrSimHttpTests.Admin_FalhaEnfileirada_ClienteSofre;
+var
+  LClient: IDFeDistribuicaoClient;
+begin
+  IniciarSimulador(['[simulador]']);
+  Admin('POST', '/admin/falhas', '{"falhas":["erro-http","corpo-ilegivel"]}');
+  LClient := ClientDoSimulador;
+  try
+    LClient.Consultar(Certificado, 0);
+    Fail('esperava EDFeComunicacaoFalhou (HTTP 500)');
+  except
+    on EDFeComunicacaoFalhou do ;
+  end;
+  try
+    LClient.Consultar(Certificado, 0);
+    Fail('esperava EDFeRespostaInvalida (corpo ilegivel)');
+  except
+    on EDFeRespostaInvalida do ;
+  end;
+  AssertTrue('acabaram as falhas', Pos('"falhasPendentes":0', Admin('GET', '/admin/estado')) > 0);
+end;
+
+procedure TDFeAcbrSimHttpTests.Admin_Violacao_AparecePorHttpELimpa;
+var
+  LStatus: Integer;
+begin
+  IniciarSimulador(['[simulador]']);
+  // um cliente que NAO e' o ACBr, sem a SOAPAction: leniente = atendido, mas registrado
+  Chamar('POST', '/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx', EnvelopeDeDistribuicao, LStatus);
+  AssertEquals('leniente atende', 200, LStatus);
+  AssertTrue('registra a violacao de SoapAction', Pos('SoapAction', Admin('GET', '/admin/violacoes')) > 0);
+  AssertTrue(Pos('"removidas":1', Admin('DELETE', '/admin/violacoes')) > 0);
+  AssertEquals('(nenhuma)', Admin('GET', '/admin/violacoes'));
+end;
+
+procedure TDFeAcbrSimHttpTests.Admin_ModoEstrito_RecusaComHttp400ENaoConsomeNsu;
+var
+  LStatus: Integer;
+  LCorpo: string;
+begin
+  IniciarSimulador(['[simulador]']);
+  Admin('POST', '/admin/modo', '{"estrito":true}');
+  LCorpo := Chamar('POST', '/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx', EnvelopeDeDistribuicao, LStatus);
+  AssertEquals('estrito recusa', 400, LStatus);
+  AssertTrue('diz o motivo', Pos('SoapAction', LCorpo) > 0);
+  // o ponto: a requisicao recusada nao tocou o estado
+  AssertTrue('nenhuma consulta processada', Pos('"consultas":0', Admin('GET', '/admin/estado')) > 0);
+  AssertTrue('e nenhuma conta criada', Pos('"contas":[]', Admin('GET', '/admin/estado')) > 0);
+  // o client ACBr real manda o formato certo: passa mesmo no modo estrito
+  AssertEquals(137, ClientDoSimulador.Consultar(Certificado, 0).CStat);
+end;
+
+procedure TDFeAcbrSimHttpTests.Admin_Zerar_VoltaAoInicio;
+var
+  LEstado: string;
+begin
+  IniciarSimulador(['[simulador]']);
+  Admin('POST', '/admin/documentos', '{"cnpj":"' + CNPJ_CERT + '","uf":"RS"}');
+  Admin('POST', '/admin/falhas', '{"falha":"timeout"}');
+  Admin('POST', '/admin/relogio/avancar', '{"segundos":500}');
+  Admin('POST', '/admin/zerar');
+  LEstado := Admin('GET', '/admin/estado');
+  AssertTrue(Pos('"contas":[]', LEstado) > 0);
+  AssertTrue(Pos('"falhasPendentes":0', LEstado) > 0);
+  AssertTrue(Pos('"deslocamentoSegundos":0', LEstado) > 0);
 end;
 
 procedure TDFeAcbrSimHttpTests.Manifestacao_Ciencia_RegistradaPorHttp;

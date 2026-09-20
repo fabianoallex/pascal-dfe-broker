@@ -91,19 +91,24 @@ begin
   Responder(Res, GServidor.Tratar('GET', '/ping', '', '', ''));
 end;
 
-procedure Violacoes(Req: THorseRequest; Res: THorseResponse);
+{ Toda a API admin (GET/POST/DELETE em /admin/...) passa por aqui: quem decide
+  rota e metodo e' o servidor puro (DFe.Simulador.Admin), que responde 404/405. }
+procedure Admin(Req: THorseRequest; Res: THorseResponse);
 var
-  LTexto: string;
+  R: TDFeSimHttpResposta;
 begin
-  LTexto := GServidor.Violacoes;
-  if LTexto = '' then
-    LTexto := '(nenhuma)';
-  Res.Status(200).ContentType('text/plain; charset=utf-8').Send(LTexto);
-end;
-
-procedure UltimoEnvelope(Req: THorseRequest; Res: THorseResponse);
-begin
-  Res.Status(200).ContentType('text/xml; charset=utf-8').Send(GServidor.UltimoEnvelope);
+  try
+    R := GServidor.Tratar(Req.Method, Req.PathInfo, '', Req.ContentType, Req.Body);
+  except
+    on E: Exception do
+    begin
+      R.Status := 500;
+      R.ContentType := 'text/plain; charset=utf-8';
+      R.Corpo := 'simulador: ' + E.Message;
+    end;
+  end;
+  Registrar(Req.Method, Req.PathInfo, R.Status);
+  Responder(Res, R);
 end;
 
 procedure RegistrarRotas(const AServidor: TDFeSimuladorServidor);
@@ -111,8 +116,8 @@ begin
   GServidor := AServidor;
   THorse.Get('/ping', Ping);
   THorse.Get('/health', Ping);
-  THorse.Get('/admin/violacoes', Violacoes);
-  THorse.Get('/admin/ultimo-envelope', UltimoEnvelope);
+  THorse.All('/admin/*', Admin);
+  THorse.All('/admin/*/*', Admin);
   THorse.Post(CAMINHO_DISTRIBUICAO, Distribuicao);
   THorse.Post(CAMINHO_EVENTO, Evento);
 end;
