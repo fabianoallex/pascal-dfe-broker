@@ -67,6 +67,7 @@ INICIO=$(date +%s)
 docker stop "$NOME" >/dev/null
 FIM=$(date +%s)
 verifica "docker stop nao esperou o kill (< 8 s)" test $((FIM-INICIO)) -lt 8
+verifica "saiu por SIGTERM com codigo 0 (nao foi morto: 137)" test "$(docker inspect -f '{{.State.ExitCode}}' "$NOME")" = "0"
 
 echo
 if [ "$FALHAS" = "0" ]; then echo "Simulador em Docker: tudo passou."; exit 0; fi

@@ -20,6 +20,7 @@ implementation
 uses
   {$IFDEF FPC}
   SysUtils,
+  {$IFDEF UNIX}BaseUnix, DFe.Host.Sinais,{$ENDIF}
   {$ELSE}
   System.SysUtils, System.Classes,
   {$ENDIF}
@@ -34,7 +35,26 @@ uses
 const
   PORTA_PADRAO = 9200;
 
+{$IFDEF UNIX}
+type
+  { SIGTERM/SIGINT no Unix: sai NA HORA. Como PID 1 de um conteiner o processo nao
+    tem a acao padrao de SIGTERM (o kernel a ignora sem tratador) e o `docker stop`
+    esperaria o kill de 10 s; o estado do simulador so' existe em memoria, nao ha
+    o que salvar. FpExit e' seguro dentro de tratador de sinal (Halt nao seria). }
+  TParadaImediata = class
+    procedure Parar;
+  end;
+
+procedure TParadaImediata.Parar;
+begin
+  FpExit(0);
+end;
+{$ENDIF}
+
 var
+  {$IFDEF UNIX}
+  GParada: TParadaImediata;
+  {$ENDIF}
   GPorta: Integer;
   GBind, GCenario: string;
   GSim: TDFeSimuladorSefaz;
@@ -143,6 +163,10 @@ begin
           BoolToStr(GServidor.Regra(I).Ativa, True), '): ', GServidor.Regra(I).Descricao);
 
       RegistrarRotas(GServidor);
+      {$IFDEF UNIX}
+      GParada := TParadaImediata.Create;
+      InstalarTratadorDeParada(GParada.Parar);
+      {$ENDIF}
       THorse.Listen(GPorta, GBind, Anunciar);
       {$IFNDEF FPC}
       // Delphi (Indy): Listen nao bloqueia -- espera enquanto o servidor roda
