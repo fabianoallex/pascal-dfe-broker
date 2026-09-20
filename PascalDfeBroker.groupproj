@@ -21,6 +21,9 @@
         <Projects Include="hosts\servico\DFeBrokerServico.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="simulador\spike-horse\SpikeHorse.dproj">
+            <Dependencies/>
+        </Projects>
     </ItemGroup>
     <ProjectExtensions>
         <Borland.Personality>Default.Personality.12</Borland.Personality>
@@ -83,14 +86,23 @@
     <Target Name="DFeBrokerServico:Make">
         <MSBuild Projects="hosts\servico\DFeBrokerServico.dproj" Targets="Make"/>
     </Target>
+    <Target Name="SpikeHorse">
+        <MSBuild Projects="simulador\spike-horse\SpikeHorse.dproj"/>
+    </Target>
+    <Target Name="SpikeHorse:Clean">
+        <MSBuild Projects="simulador\spike-horse\SpikeHorse.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="SpikeHorse:Make">
+        <MSBuild Projects="simulador\spike-horse\SpikeHorse.dproj" Targets="Make"/>
+    </Target>
     <Target Name="Build">
-        <CallTarget Targets="DFe_UnitTests;AcbrClientSmoke;AcbrSimDelphiTests;AmqpBrokerDelphiTests;DFeBrokerConsole;DFeBrokerServico"/>
+        <CallTarget Targets="DFe_UnitTests;AcbrClientSmoke;AcbrSimDelphiTests;AmqpBrokerDelphiTests;DFeBrokerConsole;DFeBrokerServico;SpikeHorse"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="DFe_UnitTests:Clean;AcbrClientSmoke:Clean;AcbrSimDelphiTests:Clean;AmqpBrokerDelphiTests:Clean;DFeBrokerConsole:Clean;DFeBrokerServico:Clean"/>
+        <CallTarget Targets="DFe_UnitTests:Clean;AcbrClientSmoke:Clean;AcbrSimDelphiTests:Clean;AmqpBrokerDelphiTests:Clean;DFeBrokerConsole:Clean;DFeBrokerServico:Clean;SpikeHorse:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="DFe_UnitTests:Make;AcbrClientSmoke:Make;AcbrSimDelphiTests:Make;AmqpBrokerDelphiTests:Make;DFeBrokerConsole:Make;DFeBrokerServico:Make"/>
+        <CallTarget Targets="DFe_UnitTests:Make;AcbrClientSmoke:Make;AcbrSimDelphiTests:Make;AmqpBrokerDelphiTests:Make;DFeBrokerConsole:Make;DFeBrokerServico:Make;SpikeHorse:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

@@ -4,3 +4,6 @@
 [submodule "vendor/pascal-amqp-faa"]
 	path = vendor/pascal-amqp-faa
 	url = https://github.com/fabianoallex/pascal-amqp-faa.git
+[submodule "vendor/horse"]
+	path = vendor/horse
+	url = https://github.com/HashLoad/horse.git
