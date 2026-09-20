@@ -20,6 +20,8 @@ type
   public
     [Test] procedure Ascii_Inalterado;
     [Test] procedure Vazio_Inalterado;
+    [Test] procedure TextoParaAcbr_ProduzOMesmoQueOAcbrEntrega;
+    [Test] procedure TextoParaAcbr_EInversoDeTextoDoAcbr;
     [Test] procedure Mojibake_VoltaAoTextoDeVerdade;
     [Test] procedure Mojibake_ExigeMesmoAConversao;
     [Test] procedure TextoUnicodeDeVerdade_NaoEUtf8Valido_FicaIntacto;
@@ -53,6 +55,20 @@ end;
 procedure TDFeXmlTextoTests.Ascii_Inalterado;
 begin
   Assert.AreEqual('<xNome>ACME LTDA</xNome>', TextoDoAcbr('<xNome>ACME LTDA</xNome>'));
+end;
+
+procedure TDFeXmlTextoTests.TextoParaAcbr_ProduzOMesmoQueOAcbrEntrega;
+begin
+  Assert.AreEqual(ComoOAcbrEntrega(TEXTO_ACENTUADO), TextoParaAcbr(TEXTO_ACENTUADO));
+  Assert.AreEqual('', TextoParaAcbr(''));
+  Assert.AreEqual('<a>x</a>', TextoParaAcbr('<a>x</a>'));
+end;
+
+procedure TDFeXmlTextoTests.TextoParaAcbr_EInversoDeTextoDoAcbr;
+const
+  XML = '<?xml version="1.0" encoding="UTF-8"?><xNome>' + TEXTO_ACENTUADO + '</xNome>';
+begin
+  Assert.AreEqual(XML, TextoDoAcbr(TextoParaAcbr(XML)));
 end;
 
 procedure TDFeXmlTextoTests.Vazio_Inalterado;

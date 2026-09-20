@@ -12,7 +12,8 @@ uses
   DFe.CursorStore.Arquivo, DFe.Orquestrador, DFe.Host.Loop, DFe.Config, 
   DFe.Manifestacao, DFe.Provider.NFe, DFe.Simulador.Codec, 
   DFe.Simulador.Fixtures, DFe.Simulador, DFe.Simulador.Client, DFe.Transmissor, 
-  DFe.Simulador.Soap, DFe.XmlTexto, DFe.Ambiente, DFe.Fuso, DFe.Host.LogArquivo;
+  DFe.Simulador.Soap, DFe.XmlTexto, DFe.Ambiente, DFe.Fuso, DFe.Host.LogArquivo,
+  DFe.Transmissor.Http;
 
 implementation
 

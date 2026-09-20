@@ -106,6 +106,8 @@ Cada fase termina com **testes verdes** e o critério abaixo; nada de "pronto" s
 
 ### Fase A — o simulador roda separado e o broker fala com ele
 
+> **Andamento (2026-09-20):** item 1 feito no FPC (`DFe.Transmissor.Http`, `DFe.Transmissor.Http.Cliente`, `TextoParaAcbr`; suíte pura 270/270 e Linux verdes, cliente exercitado por HTTP real contra o servidor do spike). Falta confirmar no Delphi. Itens 2 e 3 pendentes.
+
 1. `TDFeTransmissorHttp` (broker; `IDFeTransmissor` sobre um cliente HTTP dual: `fphttpclient` no FPC, `System.Net.HttpClient` no Delphi, atrás de IFDEF; **bytes/encoding** conforme o achado do spike: FPC entrega bytes UTF-8, Delphi `UnicodeString`, ver `DFe.XmlTexto`).
 2. Opção `[dfe] SimuladorURL=` em `DFe.Host.ACBr` + as salvaguardas.
 3. `simulador/`: executável `DFeSimulador` (Horse) com o handler puro chamando `TDFeSimuladorTransmissor`; trava (lock) em volta do núcleo, que não é thread-safe; cenário mínimo por arquivo.

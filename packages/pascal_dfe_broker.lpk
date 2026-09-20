@@ -105,6 +105,10 @@
         <Filename Value="..\src\DFe.Host.LogArquivo.pas"/>
         <UnitName Value="DFe.Host.LogArquivo"/>
       </Item>
+      <Item>
+        <Filename Value="..\src\DFe.Transmissor.Http.pas"/>
+        <UnitName Value="DFe.Transmissor.Http"/>
+      </Item>
     </Files>
     <RequiredPkgs>
       <Item>

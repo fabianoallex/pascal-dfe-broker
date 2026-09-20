@@ -29,6 +29,15 @@ interface
   a entrada intacta em vez de corromper. }
 function TextoDoAcbr(const ATextoDoAcbr: string): string;
 
+{ O inverso de TextoDoAcbr: texto nativo -> como o ACBr o guarda/espera. Serve
+  a quem FALA COM o ACBr por fora dele (o transporte HTTP do simulador,
+  DFe.Transmissor.Http, e o servidor do simulador): o adaptador SOAP do
+  simulador trabalha com o texto na convencao do ACBr, mas pela rede trafegam
+  bytes UTF-8 de verdade. No FPC e' a identidade; no Delphi, os bytes UTF-8 do
+  texto viram caracteres pela pagina ANSI do sistema (o mesmo mojibake que o
+  ACBr produz), de modo que TextoDoAcbr(TextoParaAcbr(X)) = X. }
+function TextoParaAcbr(const ATextoNativo: string): string;
+
 { Numero de CARACTERES (nao de bytes) do texto nativo do compilador. No FPC a
   String carrega bytes UTF-8, entao Length superconta acentos ('nao' com til =
   4 bytes, 3 caracteres) e um limite como o "15 a 255 caracteres" do xJust
@@ -75,6 +84,29 @@ begin
   end;
   if Pos(#$FFFD, Result) > 0 then // U+FFFD no proprio texto: nao era o formato do ACBr
     Result := ATextoDoAcbr;
+  {$ENDIF}
+end;
+
+function TextoParaAcbr(const ATextoNativo: string): string;
+{$IFNDEF FPC}
+var
+  LBytes: TBytes;
+  LAnsi: AnsiString;
+{$ENDIF}
+begin
+  {$IFDEF FPC}
+  Result := ATextoNativo;
+  {$ELSE}
+  if ATextoNativo = '' then
+  begin
+    Result := '';
+    Exit;
+  end;
+  // Bytes UTF-8 crus num AnsiString com a pagina ANSI -- NAO AnsiString(UTF8Encode(...)),
+  // que converteria TEXTO (ver o comentario de ComoOAcbrEntrega nos testes).
+  LBytes := TEncoding.UTF8.GetBytes(ATextoNativo);
+  SetString(LAnsi, PAnsiChar(@LBytes[0]), Length(LBytes));
+  Result := string(LAnsi);
   {$ENDIF}
 end;
 

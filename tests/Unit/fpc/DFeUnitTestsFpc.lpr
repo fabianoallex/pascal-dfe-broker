@@ -32,6 +32,7 @@ uses
   DFe.SimuladorSoapTests,
   DFe.SimuladorEventoTests,
   DFe.XmlTextoTests,
+  DFe.TransmissorHttpTests,
   DFe.AmbienteTests,
   DFe.FusoTests,
   DFe.LogArquivoTests;

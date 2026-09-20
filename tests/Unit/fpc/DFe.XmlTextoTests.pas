@@ -19,6 +19,7 @@ type
     procedure Ascii_Inalterado;
     procedure BytesUtf8_PassamSemConversao;
     procedure Vazio_Inalterado;
+    procedure TextoParaAcbr_EIdentidadeEInverso;
     procedure Tamanho_ContaCaracteresNaoBytes;
     procedure Motivo_AceitaAcentosLatin1;
     procedure Motivo_RecusaForaDeLatin1;
@@ -39,6 +40,16 @@ begin
   // "JOSE" com E acentuado, como bytes UTF-8 (C3 89)
   LUtf8 := 'JOS' + #$C3#$89;
   AssertEquals(LUtf8, TextoDoAcbr(LUtf8));
+end;
+
+procedure TDFeXmlTextoTests.TextoParaAcbr_EIdentidadeEInverso;
+var
+  LUtf8: string;
+begin
+  LUtf8 := 'JOS' + #$C3#$89;
+  AssertEquals(LUtf8, TextoParaAcbr(LUtf8));
+  AssertEquals(LUtf8, TextoDoAcbr(TextoParaAcbr(LUtf8)));
+  AssertEquals('', TextoParaAcbr(''));
 end;
 
 procedure TDFeXmlTextoTests.Vazio_Inalterado;
