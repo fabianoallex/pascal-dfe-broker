@@ -88,7 +88,7 @@ O contrato dos ganchos só se fixa depois da Fase B, com uso real; antes disso �
 
 ## Salvaguardas
 
-- **Um broker apontado para o simulador nunca conversa com a SEFAZ** — em produção isso seria silencioso e perigoso (documentos não chegam). Portanto: `SimuladorURL` **recusado** quando o ambiente do certificado é `producao`, a menos de um `SimuladorPermitirProducao=true` explícito; log de **AVISO em toda subida** e a cada ciclo dizendo que o transporte é simulado.
+- **Um broker apontado para o simulador nunca conversa com a SEFAZ** — em produção isso seria silencioso e perigoso (documentos não chegam). Portanto: `SimuladorURL` **recusado** quando o ambiente do certificado é `producao`, a menos de um `SimuladorPermitirProducao=true` explícito; **AVISO** no log a cada client criado (subida e recarga a quente) dizendo que o transporte é simulado. *(Implementado assim; "a cada ciclo" seria ruído.)*
 - O simulador escuta em `127.0.0.1` por padrão; qualquer outro *bind* é opção explícita (e sem autenticação na v1 — documentar).
 - O README do simulador declara, no topo, o mesmo que o do broker: **codifica a nossa leitura das NTs**, não é a SEFAZ.
 
@@ -106,7 +106,7 @@ Cada fase termina com **testes verdes** e o critério abaixo; nada de "pronto" s
 
 ### Fase A — o simulador roda separado e o broker fala com ele
 
-> **Andamento (2026-09-20):** item 1 feito no FPC (`DFe.Transmissor.Http`, `DFe.Transmissor.Http.Cliente`, `TextoParaAcbr`; suíte pura 270/270 e Linux verdes, cliente exercitado por HTTP real contra o servidor do spike). Falta confirmar no Delphi. Itens 2 e 3 pendentes.
+> **Andamento (2026-09-20):** item 1 feito no FPC (`DFe.Transmissor.Http`, `DFe.Transmissor.Http.Cliente`, `TextoParaAcbr`; suíte pura 270/270 e Linux verdes, cliente exercitado por HTTP real contra o servidor do spike). Item 2 também feito (`[dfe] SimuladorURL`/`SimuladorPermitirProducao` + `DecidirUsoDoSimulador`; salvaguarda verificada no executável do host console). Falta confirmar os dois no Delphi. Item 3 pendente.
 
 1. `TDFeTransmissorHttp` (broker; `IDFeTransmissor` sobre um cliente HTTP dual: `fphttpclient` no FPC, `System.Net.HttpClient` no Delphi, atrás de IFDEF; **bytes/encoding** conforme o achado do spike: FPC entrega bytes UTF-8, Delphi `UnicodeString`, ver `DFe.XmlTexto`).
 2. Opção `[dfe] SimuladorURL=` em `DFe.Host.ACBr` + as salvaguardas.

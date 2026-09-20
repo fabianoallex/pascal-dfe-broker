@@ -13,6 +13,7 @@ interface
 
 uses
   fpcunit, testregistry, SysUtils,
+  DFe.Types,
   DFe.Transmissor,
   DFe.Transmissor.Http;
 
@@ -50,6 +51,10 @@ type
     procedure Transmitir_ErroDeRede_DevolveErroInternoSemStatus;
     procedure Transmitir_ContaRequisicoes;
     procedure Transmitir_BytesUtf8_PassamIntactosNosDoisSentidos;
+    procedure Uso_UrlVazia_NaoUsado;
+    procedure Uso_Homologacao_PermitidoComAviso;
+    procedure Uso_Producao_Recusado;
+    procedure Uso_ProducaoComPermissaoExplicita_PermitidoComAvisoForte;
   end;
 
 implementation
@@ -251,6 +256,41 @@ begin
   LResp := LTransmissor.Transmitir('<e>' + ACAO + '</e>', URL_DIST, 'a', 'm');
   AssertEquals('<e>' + ACAO + '</e>', FFake.UltimoCorpo);
   AssertEquals('<r>' + ACAO + '</r>', LResp.Texto);
+end;
+
+procedure TDFeTransmissorHttpTests.Uso_UrlVazia_NaoUsado;
+var
+  LMsg: string;
+begin
+  AssertTrue(usNaoUsado = DecidirUsoDoSimulador('', daProducao, False, LMsg));
+  AssertEquals('', LMsg);
+  AssertTrue(usNaoUsado = DecidirUsoDoSimulador('   ', daHomologacao, True, LMsg));
+end;
+
+procedure TDFeTransmissorHttpTests.Uso_Homologacao_PermitidoComAviso;
+var
+  LMsg: string;
+begin
+  AssertTrue(usPermitido = DecidirUsoDoSimulador('http://127.0.0.1:9200', daHomologacao, False, LMsg));
+  AssertTrue('avisa que e simulado', Pos('SIMULADO', LMsg) > 0);
+  AssertTrue('diz para onde vai', Pos('http://127.0.0.1:9200', LMsg) > 0);
+end;
+
+procedure TDFeTransmissorHttpTests.Uso_Producao_Recusado;
+var
+  LMsg: string;
+begin
+  AssertTrue(usRecusado = DecidirUsoDoSimulador('http://127.0.0.1:9200', daProducao, False, LMsg));
+  AssertTrue('explica a recusa', Pos('producao', LMsg) > 0);
+  AssertTrue('diz como liberar', Pos('SimuladorPermitirProducao', LMsg) > 0);
+end;
+
+procedure TDFeTransmissorHttpTests.Uso_ProducaoComPermissaoExplicita_PermitidoComAvisoForte;
+var
+  LMsg: string;
+begin
+  AssertTrue(usPermitido = DecidirUsoDoSimulador('http://127.0.0.1:9200', daProducao, True, LMsg));
+  AssertTrue('aviso destaca PRODUCAO', Pos('EM PRODUCAO', LMsg) > 0);
 end;
 
 initialization

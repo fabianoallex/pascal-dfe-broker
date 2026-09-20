@@ -164,6 +164,7 @@ begin
     if not AmbienteCompleto(LRelatorio) then
       raise Exception.Create('Ambiente de execucao incompleto: ' + MensagemAmbienteIncompleto(LRelatorio));
 
+    FFabrica.AoLog := FLog.Registrar;
     FApp := TDFeAplicacao.Create(LConfig, FFabrica.CriarClient, FLog.Registrar);
     FApp.Iniciar;
     FExecutor := TDFeExecutorThread.Create(FApp, FLog);

@@ -153,6 +153,7 @@ begin
       if GSoVerificar then
         Exit;
 
+      GFabrica.AoLog := GLog.Registrar;
       GApp := TDFeAplicacao.Create(GCaminhoConfig, GFabrica.CriarClient, GLog.Registrar);
       GApp.Iniciar;
       InstalarTratadorDeParada(GApp.Parar);

@@ -156,6 +156,12 @@ type
   (Provider, CnpjCpf, UF) -- ver comentario de topo do unit. Falha alto e
   cedo, na inicializacao do host, em vez de criar uma unidade de trabalho
   quebrada (ou duas competindo pelo mesmo CNPJ) em silencio. }
+{ Interpreta o texto de um booleano de INI ('true'/'1' = True; vazio = ADefault;
+  o resto = False). Existe porque TCustomIniFile.ReadBool do Delphi NAO entende
+  'true'/'false' (ver CLAUDE.md, gotchas dual-compiler): toda leitura de booleano
+  de INI do projeto, inclusive nos hosts, passa por aqui. }
+function LerBooleano(const AValor: string; const ADefault: Boolean): Boolean;
+
 function CarregarConfig(const ACaminho: string): TDFeConfig;
 
 { Le a secao [broker] e as secoes [fila:<nome>] do MESMO arquivo. Separada de

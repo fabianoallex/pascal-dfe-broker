@@ -12,6 +12,7 @@ interface
 uses
   DUnitX.TestFramework,
   System.SysUtils,
+  DFe.Types,
   DFe.Transmissor,
   DFe.Transmissor.Http;
 
@@ -51,6 +52,10 @@ type
     [Test] procedure Transmitir_ErroDeRede_DevolveErroInternoSemStatus;
     [Test] procedure Transmitir_ContaRequisicoes;
     [Test] procedure Transmitir_Acentos_EnvelopeDoAcbrViraTextoNativoENaVolta;
+    [Test] procedure Uso_UrlVazia_NaoUsado;
+    [Test] procedure Uso_Homologacao_PermitidoComAviso;
+    [Test] procedure Uso_Producao_Recusado;
+    [Test] procedure Uso_ProducaoComPermissaoExplicita_PermitidoComAvisoForte;
   end;
 
 implementation
@@ -246,6 +251,41 @@ begin
   Assert.AreEqual('<e>' + TEXTO_ACENTUADO + '</e>', FFake.UltimoCorpo);
   // ...e a resposta volta na convencao do ACBr
   Assert.AreEqual('<r>' + ComoOAcbrEntrega(TEXTO_ACENTUADO) + '</r>', LResp.Texto);
+end;
+
+procedure TDFeTransmissorHttpTests.Uso_UrlVazia_NaoUsado;
+var
+  LMsg: string;
+begin
+  Assert.IsTrue(usNaoUsado = DecidirUsoDoSimulador('', daProducao, False, LMsg));
+  Assert.AreEqual('', LMsg);
+  Assert.IsTrue(usNaoUsado = DecidirUsoDoSimulador('   ', daHomologacao, True, LMsg));
+end;
+
+procedure TDFeTransmissorHttpTests.Uso_Homologacao_PermitidoComAviso;
+var
+  LMsg: string;
+begin
+  Assert.IsTrue(usPermitido = DecidirUsoDoSimulador('http://127.0.0.1:9200', daHomologacao, False, LMsg));
+  Assert.IsTrue(Pos('SIMULADO', LMsg) > 0, 'avisa que e simulado');
+  Assert.IsTrue(Pos('http://127.0.0.1:9200', LMsg) > 0, 'diz para onde vai');
+end;
+
+procedure TDFeTransmissorHttpTests.Uso_Producao_Recusado;
+var
+  LMsg: string;
+begin
+  Assert.IsTrue(usRecusado = DecidirUsoDoSimulador('http://127.0.0.1:9200', daProducao, False, LMsg));
+  Assert.IsTrue(Pos('producao', LMsg) > 0, 'explica a recusa');
+  Assert.IsTrue(Pos('SimuladorPermitirProducao', LMsg) > 0, 'diz como liberar');
+end;
+
+procedure TDFeTransmissorHttpTests.Uso_ProducaoComPermissaoExplicita_PermitidoComAvisoForte;
+var
+  LMsg: string;
+begin
+  Assert.IsTrue(usPermitido = DecidirUsoDoSimulador('http://127.0.0.1:9200', daProducao, True, LMsg));
+  Assert.IsTrue(Pos('EM PRODUCAO', LMsg) > 0, 'aviso destaca PRODUCAO');
 end;
 
 initialization

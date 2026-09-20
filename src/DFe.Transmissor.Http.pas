@@ -23,6 +23,7 @@ interface
 
 uses
   SysUtils,
+  DFe.Types,
   DFe.Transmissor;
 
 const
@@ -69,6 +70,21 @@ type
     property UltimaURL: string read FUltimaURL;
   end;
 
+type
+  TDFeUsoSimulador = (usNaoUsado, usPermitido, usRecusado);
+
+{ Decide o que fazer com [dfe] SimuladorURL (ver docs/simulador-standalone.md,
+  "Salvaguardas"). Um broker apontado para o simulador NAO conversa com a SEFAZ:
+  em producao os documentos simplesmente nao chegariam, e sem nada visivel.
+  - URL vazia: usNaoUsado (comportamento de sempre, AMensagem vazia);
+  - homologacao: usPermitido, com um AVISO de que o transporte e' simulado;
+  - producao: usRecusado, a menos que APermitirProducao (opcao explicita) --
+    ai usPermitido, com um AVISO mais forte.
+  AMensagem e' o texto para o log (AVISO) ou para a excecao (recusa). }
+function DecidirUsoDoSimulador(const ASimuladorURL: string;
+  const AAmbiente: TDFeAmbiente; const APermitirProducao: Boolean;
+  out AMensagem: string): TDFeUsoSimulador;
+
 { A URL oficial (AURLOriginal) sob a base do simulador: descarta esquema, host
   e porta da original e mantem caminho + query. Uma original sem esquema ja' e'
   tratada como caminho. A barra final da base e' ignorada. }
@@ -103,6 +119,37 @@ begin
     LCaminho := '/' + LCaminho;
 
   Result := LBase + LCaminho;
+end;
+
+function DecidirUsoDoSimulador(const ASimuladorURL: string;
+  const AAmbiente: TDFeAmbiente; const APermitirProducao: Boolean;
+  out AMensagem: string): TDFeUsoSimulador;
+begin
+  AMensagem := '';
+  if Trim(ASimuladorURL) = '' then
+  begin
+    Result := usNaoUsado;
+    Exit;
+  end;
+  if AAmbiente = daHomologacao then
+  begin
+    Result := usPermitido;
+    AMensagem := 'TRANSPORTE SIMULADO: as consultas vao para ' + Trim(ASimuladorURL) +
+      ', NAO para a SEFAZ (SimuladorURL)';
+  end
+  else if APermitirProducao then
+  begin
+    Result := usPermitido;
+    AMensagem := 'TRANSPORTE SIMULADO EM PRODUCAO (SimuladorPermitirProducao=true): as consultas vao para ' +
+      Trim(ASimuladorURL) + ', NAO para a SEFAZ -- nenhum documento real chegara';
+  end
+  else
+  begin
+    Result := usRecusado;
+    AMensagem := 'SimuladorURL esta definido, mas o ambiente e producao: o simulador substitui a SEFAZ e ' +
+      'nenhum documento real chegaria. Use Ambiente=homologacao ou, se for de proposito, ' +
+      'SimuladorPermitirProducao=true';
+  end;
 end;
 
 constructor TDFeTransmissorHttp.Create(const ABaseURL: string;

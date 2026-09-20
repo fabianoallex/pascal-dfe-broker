@@ -13,6 +13,11 @@ unit DFe.Host.ACBr;
     [dfe]
     Ambiente=producao            ; ou homologacao (padrao: producao); pode ser sobrescrito por [certificado:*]
     PathSchemas=Schemas          ; XSDs oficiais (padrao: 'Schemas' ao lado do exe)
+    SimuladorURL=http://127.0.0.1:9200   ; opcional: leva as consultas a um SIMULADOR da SEFAZ
+                                 ; (outro processo) em vez de a SEFAZ -- ver
+                                 ; docs/simulador-standalone.md. RECUSADO com
+                                 ; Ambiente=producao, salvo SimuladorPermitirProducao=true
+    SimuladorPermitirProducao=false
 
     [certificado:matriz]
     ArquivoPFX=matriz.pfx        ; relativo = relativo a pasta do INI
@@ -36,16 +41,25 @@ uses
   DFe.Ambiente.ACBr,
   DFe.Provider,
   DFe.Config,
+  DFe.Transmissor,
+  DFe.Transmissor.Http,
+  DFe.Transmissor.Http.Cliente,
+  DFe.Host.Aplicacao,
   DFe.Client.ACBrNFe;
 
 type
   TDFeFabricaClientesACBr = class
   private
     FCaminhoConfig: string;
+    FLog: TDFeLogProc;
     function Resolver(const ACaminho: string): string;
     function PathSchemas: string;
   public
     constructor Create(const ACaminhoConfig: string);
+
+    { Onde o AVISO de transporte simulado vai (o host liga ao log dele). Sem
+      isto o aviso nao aparece -- por isso os hosts SEMPRE ligam. }
+    property AoLog: TDFeLogProc read FLog write FLog;
 
     { E' a TDFeClientFactory do host (of object). Le o INI a cada chamada, entao
       um alias novo numa recarga a quente ja' traz o proprio .pfx. }
@@ -91,6 +105,9 @@ var
   LIni: TMemIniFile;
   LSecao, LSenhaEnv: string;
   LCredencial: TDFeCredencialCertificado;
+  LSimuladorURL, LMensagem: string;
+  LPermitirProducao: Boolean;
+  LTransmissor: IDFeTransmissor;
 begin
   if not SameText(ACertificado.ProviderIdentificador, 'nfe') then
     raise Exception.CreateFmt(
@@ -103,6 +120,8 @@ begin
     LCredencial.ArquivoPFX := Resolver(LIni.ReadString(LSecao, 'ArquivoPFX', ''));
     LCredencial.Senha := LIni.ReadString(LSecao, 'Senha', '');
     LSenhaEnv := LIni.ReadString(LSecao, 'SenhaEnv', '');
+    LSimuladorURL := Trim(LIni.ReadString('dfe', 'SimuladorURL', ''));
+    LPermitirProducao := LerBooleano(LIni.ReadString('dfe', 'SimuladorPermitirProducao', ''), False);
   finally
     LIni.Free;
   end;
@@ -120,12 +139,26 @@ begin
     raise Exception.CreateFmt('Config: secao "%s": arquivo "%s" nao existe', [LSecao, LCredencial.ArquivoPFX]);
 
   LCredencial.PathSchemas := PathSchemas;
+
+  // Transporte simulado (outro processo), com as salvaguardas de DecidirUsoDoSimulador.
+  LTransmissor := nil;
+  case DecidirUsoDoSimulador(LSimuladorURL, ACertificado.Ambiente, LPermitirProducao, LMensagem) of
+    usRecusado:
+      raise Exception.CreateFmt('Config: certificado "%s": %s', [ACertificado.Alias, LMensagem]);
+    usPermitido:
+      begin
+        LTransmissor := TDFeTransmissorHttp.Create(LSimuladorURL, TDFeHttpPostPadrao.Create);
+        if Assigned(FLog) then
+          FLog('AVISO', Format('[%s] %s', [ACertificado.Alias, LMensagem]));
+      end;
+  end;
+
   // O ambiente vem da config ja' interpretada (DFe.Config): e' o MESMO valor que
   // a unidade usa para escolher o cursor, entao client e cursor nao divergem.
   if ACertificado.Ambiente = daHomologacao then
-    Result := TDFeDistribuicaoClientACBrNFe.Create(LCredencial, taHomologacao)
+    Result := TDFeDistribuicaoClientACBrNFe.Create(LCredencial, taHomologacao, LTransmissor)
   else
-    Result := TDFeDistribuicaoClientACBrNFe.Create(LCredencial, taProducao);
+    Result := TDFeDistribuicaoClientACBrNFe.Create(LCredencial, taProducao, LTransmissor);
 end;
 
 function TDFeFabricaClientesACBr.VerificarAmbiente: TDFeRelatorioAmbiente;
