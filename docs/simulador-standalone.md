@@ -12,6 +12,16 @@ Hoje o simulador vive dentro do processo de teste: o `TDFeSimuladorTransmissor` 
 
 **Não é objetivo:** substituir a SEFAZ de homologação; emular autorização/cancelamento/inutilização de NFe; validar XML contra XSD; TLS mútuo (Fase 5 opcional do plano original).
 
+## Decisão: onde o simulador vive (2026-09-21)
+
+O simulador **permanece sob o `pascal-dfe-broker`**. Ele existe para atender o que o broker precisa (testar a Distribuição de DFe e a manifestação sem certificado nem SEFAZ) e tem o modo standalone (`DFeSimulador`, imagem Docker, API admin) como **opção** para quem quiser usá-lo sozinho.
+
+- **Posicionamento:** simulador da Distribuição de DFe da NFe, para testar o broker. Não é um SEFAZ genérico, e a documentação não deve sugerir isso (ver "Limites").
+- **Por que não separar agora:** um projeto à parte tem custo contínuo (repositório, versões, documentação, suporte, manutenção contra NTs que mudam) e não há hoje demanda externa confirmada que o justifique. Separar só faz sentido se o objetivo passar a ser **mais amplo** (mais serviços e tipos de documento), o que é outra decisão.
+- **Critério para reabrir:** (1) um pedido concreto de usuários externos, ou (2) o nosso próprio uso pedindo serviços que hoje não simulamos. Sem um dos dois, permanece como está.
+- **O que manter para não fechar a porta:** as regras de dependência acima (o núcleo `DFe.Simulador*` só depende de `DFe.Types`, `DFe.Transmissor` e `DFe.XmlTexto`; nenhuma unit de produção do broker usa o simulador). Um check simples no CI pode garantir isso.
+- **Ampliar o escopo é uma decisão consciente:** cada serviço simulado é fidelidade a manter contra as NTs (ver "Riscos"). Só entra o que um teste do broker ou um usuário real pedir, e com fixtures a partir de `docs/referencias/`.
+
 ## O que já temos e serve como está
 
 | Peça | Papel |
@@ -177,7 +187,7 @@ e `docker stop` rápido. **O job do CI ainda não rodou** no GitHub.
 ## Decisões em aberto
 
 1. **Contorno do Horse no FPC/Windows** (`Horse.FPC.inc`, `const` × `constref`): por ora só documentado (`simulador/spike-horse/LEIAME.md`); avaliar PR upstream depois. Enquanto isso o build Windows/FPC do simulador precisa do contorno (script que copia `src` com o ajuste) — resolver na Fase A.
-2. **Repositório definitivo e nome**: fica aqui até maturar; nome próprio (sem "broker") na extração.
+2. **Repositório definitivo e nome**: fica aqui (decisão de 2026-09-21, com o critério para reabrir na seção "Decisão: onde o simulador vive"); nome próprio (sem "broker") se houver extração.
 3. **JSON**: leitor/escritor plano próprio × `System.JSON`/`fpjson` com IFDEF.
 4. **Delphi Win64** do Horse (spike só Win32) e **Linux/Delphi**: fora do escopo até haver demanda.
 5. **Persistência de estado** e **autenticação da API admin**: fora da v1.

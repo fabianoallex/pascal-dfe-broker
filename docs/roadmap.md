@@ -72,7 +72,8 @@ Limitações conhecidas e aceitas, que podem deixar de valer se o uso crescer.
 
 - HTTPS opcional, só se houver demanda.
 - Simular outros serviços além da Distribuição de DFe (Consulta Protocolo, Status do Serviço).
-- Extrair para repositório próprio (o desenho já favorece: o núcleo não depende do broker).
+- Extrair para repositório próprio (o desenho já favorece: o núcleo não depende do broker). **Decidido em 2026-09-21 manter sob este projeto**; só se reabre por pedido concreto de usuários externos ou se o nosso uso pedir mais serviços (ver [`docs/simulador-standalone.md`](simulador-standalone.md)).
+- Verificar se a ACBrLib permite trocar as URLs dos serviços: isso decide quem consegue apontar a própria aplicação para o simulador.
 - PR ao Horse (`const` vs `constref` em `Horse.FPC.inc`, que hoje exige contorno no FPC/Windows).
 - Propor ao projeto ACBr os achados acumulados em [`docs/acbr-achados.md`](acbr-achados.md): só quando o projeto estiver viabilizado e, de preferência, em uso pela comunidade.
 

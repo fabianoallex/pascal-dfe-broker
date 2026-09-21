@@ -155,6 +155,8 @@ SimuladorURL=http://127.0.0.1:9200
 
 - O log avisa `TRANSPORTE SIMULADO` a cada certificado. O broker **recusa subir** com `SimuladorURL` e
   `Ambiente=producao` (os documentos reais nunca chegariam), salvo `SimuladorPermitirProducao=true`.
+- O `SimuladorURL` aceita **qualquer servidor HTTP que fale o protocolo da Distribuição de DFe**, não só
+  este simulador: o broker só troca o transporte e continua usando o cliente ACBr real.
 - O certificado do broker precisa casar com o CNPJ da conta (o de teste
   `tests/Integration/AcbrSim/cert-teste/valido.pfx`, senha `teste123`, é o CNPJ `11222333000181`).
 
