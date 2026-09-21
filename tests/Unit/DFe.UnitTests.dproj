@@ -191,6 +191,7 @@
         <DCCReference Include="..\..\src\DFe.Simulador.Admin.pas"/>
         <DCCReference Include="..\..\src\DFe.Simulador.Regras.pas"/>
         <DCCReference Include="..\..\simulador\exemplos\limite-consultas\DFe.Simulador.Exemplo.LimiteConsultas.pas"/>
+        <DCCReference Include="..\..\exemplos\consumidor\pascal\ConsumidorDFeVcl\uDFeDocumento.pas"/>
         <DCCReference Include="DFe.TestDoubles.pas"/>
         <DCCReference Include="DFe.RoutingKeyTests.pas"/>
         <DCCReference Include="DFe.TypesTests.pas"/>
@@ -213,6 +214,7 @@
         <DCCReference Include="DFe.SimuladorAdminTests.pas"/>
         <DCCReference Include="DFe.SimuladorRegrasTests.pas"/>
         <DCCReference Include="DFe.SimuladorExemploTests.pas"/>
+        <DCCReference Include="DFe.ConsumidorDocumentoTests.pas"/>
         <DCCReference Include="DFe.AmbienteTests.pas"/>
         <DCCReference Include="DFe.FusoTests.pas"/>
         <DCCReference Include="DFe.LogArquivoTests.pas"/>

@@ -36,6 +36,7 @@ uses
   DFe.Simulador.Regras in '..\..\src\DFe.Simulador.Regras.pas',
   DFe.Simulador.Exemplo.LimiteConsultas in '..\..\simulador\exemplos\limite-consultas\DFe.Simulador.Exemplo.LimiteConsultas.pas',
   DFe.Host.LogArquivo in '..\..\src\DFe.Host.LogArquivo.pas',
+  uDFeDocumento in '..\..\exemplos\consumidor\pascal\ConsumidorDFeVcl\uDFeDocumento.pas',
   DFe.TestDoubles in 'DFe.TestDoubles.pas',
   DFe.RoutingKeyTests in 'DFe.RoutingKeyTests.pas',
   DFe.TypesTests in 'DFe.TypesTests.pas',
@@ -58,6 +59,7 @@ uses
   DFe.SimuladorAdminTests in 'DFe.SimuladorAdminTests.pas',
   DFe.SimuladorRegrasTests in 'DFe.SimuladorRegrasTests.pas',
   DFe.SimuladorExemploTests in 'DFe.SimuladorExemploTests.pas',
+  DFe.ConsumidorDocumentoTests in 'DFe.ConsumidorDocumentoTests.pas',
   DFe.AmbienteTests in 'DFe.AmbienteTests.pas',
   DFe.FusoTests in 'DFe.FusoTests.pas',
   DFe.LogArquivoTests in 'DFe.LogArquivoTests.pas';

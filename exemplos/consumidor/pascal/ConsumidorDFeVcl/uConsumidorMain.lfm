@@ -1,0 +1,393 @@
+object frmConsumidor: TfrmConsumidor
+  Left = 0
+  Height = 775
+  Top = 0
+  Width = 1250
+  Caption = 'Consumidor DFe (pascal-dfe-broker)'
+  Color = clBtnFace
+  ClientHeight = 775
+  ClientWidth = 1250
+  DesignTimePPI = 120
+  Font.Color = clWindowText
+  Font.Height = -15
+  Font.Name = 'Segoe UI'
+  Position = poScreenCenter
+  LCLVersion = '4.4.0.0'
+  OnClose = FormClose
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  OnShow = FormShow
+  object pnlTopo: TPanel
+    Left = 0
+    Height = 158
+    Top = 0
+    Width = 1250
+    ClientHeight = 158
+    ClientWidth = 1250
+    Align = alTop
+    BevelOuter = bvNone
+    Caption = ''
+    TabOrder = 0
+    object gbConexao: TGroupBox
+      Left = 10
+      Height = 150
+      Top = 2
+      Width = 600
+      ClientHeight = 125
+      ClientWidth = 595
+      Caption = ' Conexao '
+      TabOrder = 0
+      object lblHost: TLabel
+        Left = 15
+        Height = 19
+        Top = 28
+        Width = 38
+        Caption = 'Host:'
+      end
+      object edtHost: TEdit
+        Left = 75
+        Height = 29
+        Top = 22
+        Width = 188
+        TabOrder = 0
+        Text = '127.0.0.1'
+      end
+      object lblPorta: TLabel
+        Left = 282
+        Height = 19
+        Top = 28
+        Width = 42
+        Caption = 'Porta:'
+      end
+      object edtPorta: TEdit
+        Left = 335
+        Height = 29
+        Top = 22
+        Width = 75
+        TabOrder = 1
+        Text = '5672'
+      end
+      object lblVHost: TLabel
+        Left = 15
+        Height = 19
+        Top = 60
+        Width = 50
+        Caption = 'VHost:'
+      end
+      object edtVHost: TEdit
+        Left = 75
+        Height = 29
+        Top = 55
+        Width = 62
+        TabOrder = 2
+        Text = '/'
+      end
+      object lblUsuario: TLabel
+        Left = 160
+        Height = 19
+        Top = 60
+        Width = 56
+        Caption = 'Usuario:'
+      end
+      object edtUsuario: TEdit
+        Left = 225
+        Height = 29
+        Top = 55
+        Width = 125
+        TabOrder = 3
+        Text = 'guest'
+      end
+      object lblSenha: TLabel
+        Left = 368
+        Height = 19
+        Top = 60
+        Width = 48
+        Caption = 'Senha:'
+      end
+      object edtSenha: TEdit
+        Left = 422
+        Height = 29
+        Top = 55
+        Width = 150
+        PasswordChar = '*'
+        TabOrder = 4
+        Text = 'guest'
+      end
+      object btnConectar: TButton
+        Left = 15
+        Height = 32
+        Top = 92
+        Width = 138
+        Caption = 'Conectar'
+        TabOrder = 5
+        OnClick = btnConectarClick
+      end
+      object lblStatus: TLabel
+        Left = 170
+        Height = 19
+        Top = 99
+        Width = 75
+        Caption = 'Desconectado'
+        Font.Style = [fsBold]
+      end
+    end
+    object gbOrigem: TGroupBox
+      Left = 620
+      Height = 150
+      Top = 2
+      Width = 620
+      ClientHeight = 125
+      ClientWidth = 615
+      Anchors = [akTop, akLeft, akRight]
+      Caption = ' O que consumir '
+      TabOrder = 1
+      object rbPropria: TRadioButton
+        Left = 15
+        Height = 24
+        Top = 25
+        Width = 238
+        Caption = 'Fila propria, padrao:'
+        Checked = True
+        TabOrder = 0
+        TabStop = True
+        OnClick = rbOrigemClick
+      end
+      object edtPadrao: TEdit
+        Left = 258
+        Height = 29
+        Top = 22
+        Width = 200
+        TabOrder = 1
+        Text = 'nfe.#'
+      end
+      object rbNomeada: TRadioButton
+        Left = 15
+        Height = 24
+        Top = 58
+        Width = 238
+        Caption = 'Fila nomeada (duravel):'
+        TabOrder = 2
+        OnClick = rbOrigemClick
+      end
+      object edtFila: TEdit
+        Left = 258
+        Height = 29
+        Top = 55
+        Width = 200
+        TabOrder = 3
+        Text = 'documentos'
+      end
+      object chkSalvar: TCheckBox
+        Left = 15
+        Height = 24
+        Top = 92
+        Width = 238
+        Caption = 'Salvar XML na pasta:'
+        TabOrder = 4
+      end
+      object edtPasta: TEdit
+        Left = 258
+        Height = 29
+        Top = 88
+        Width = 348
+        Anchors = [akTop, akLeft, akRight]
+        TabOrder = 5
+        Text = 'xml-recebidos'
+      end
+      object btnConsumir: TButton
+        Left = 470
+        Height = 62
+        Top = 20
+        Width = 135
+        Anchors = [akTop, akRight]
+        Caption = 'Iniciar consumo'
+        TabOrder = 6
+        OnClick = btnConsumirClick
+      end
+    end
+  end
+  object pnlContadores: TPanel
+    Left = 0
+    Height = 35
+    Top = 158
+    Width = 1250
+    ClientHeight = 35
+    ClientWidth = 1250
+    Align = alTop
+    BevelOuter = bvNone
+    Caption = ''
+    TabOrder = 1
+    object lblContadores: TLabel
+      Left = 10
+      Height = 19
+      Top = 9
+      Width = 500
+      Caption = 'Recebidas: 0'
+    end
+    object btnLimparLista: TButton
+      Left = 1078
+      Height = 32
+      Top = 1
+      Width = 162
+      Anchors = [akTop, akRight]
+      Caption = 'Limpar lista'
+      TabOrder = 0
+      OnClick = btnLimparListaClick
+    end
+  end
+  object lvDocs: TListView
+    Left = 0
+    Height = 225
+    Top = 192
+    Width = 1250
+    Align = alTop
+    GridLines = True
+    HideSelection = False
+    ReadOnly = True
+    RowSelect = True
+    TabOrder = 2
+    ViewStyle = vsReport
+    OnSelectItem = lvDocsSelectItem
+    Columns = <
+      item
+        Caption = 'Hora'
+        Width = 78
+      end
+      item
+        Caption = 'Situacao'
+        Width = 125
+      end
+      item
+        Caption = 'Routing key'
+        Width = 338
+      end
+      item
+        Caption = 'XML'
+        Width = 112
+      end
+      item
+        Caption = 'Chave de acesso'
+        Width = 375
+      end
+      item
+        Caption = 'Detalhe'
+        Width = 500
+      end>
+  end
+  object pnlBaixo: TPanel
+    Left = 0
+    Height = 212
+    Top = 562
+    Width = 1250
+    ClientHeight = 212
+    ClientWidth = 1250
+    Align = alBottom
+    BevelOuter = bvNone
+    Caption = ''
+    TabOrder = 3
+    object gbManifestacao: TGroupBox
+      Left = 0
+      Height = 212
+      Top = 0
+      Width = 538
+      ClientHeight = 188
+      ClientWidth = 532
+      Align = alLeft
+      Caption = ' Manifestacao do destinatario '
+      TabOrder = 0
+      object lblAlias: TLabel
+        Left = 15
+        Height = 19
+        Top = 25
+        Width = 38
+        Caption = 'Alias:'
+      end
+      object edtAlias: TEdit
+        Left = 120
+        Height = 29
+        Top = 20
+        Width = 162
+        TabOrder = 0
+        Text = 'matriz'
+      end
+      object lblChave: TLabel
+        Left = 15
+        Height = 19
+        Top = 55
+        Width = 88
+        Caption = 'Chave (44):'
+      end
+      object edtChave: TEdit
+        Left = 120
+        Height = 29
+        Top = 50
+        Width = 400
+        MaxLength = 44
+        TabOrder = 1
+        Text = ''
+      end
+      object lblTipo: TLabel
+        Left = 15
+        Height = 19
+        Top = 85
+        Width = 38
+        Caption = 'Tipo:'
+      end
+      object cboTipo: TComboBox
+        Left = 120
+        Height = 29
+        Top = 80
+        Width = 250
+        Style = csDropDownList
+        TabOrder = 2
+      end
+      object lblJustificativa: TLabel
+        Left = 15
+        Height = 19
+        Top = 115
+        Width = 100
+        Caption = 'Justificativa:'
+      end
+      object edtJustificativa: TEdit
+        Left = 120
+        Height = 29
+        Top = 110
+        Width = 400
+        TabOrder = 3
+        Text = ''
+      end
+      object btnManifestar: TButton
+        Left = 120
+        Height = 32
+        Top = 148
+        Width = 250
+        Caption = 'Enviar comando'
+        TabOrder = 4
+        OnClick = btnManifestarClick
+      end
+    end
+    object mmoLog: TMemo
+      Left = 538
+      Height = 212
+      Top = 0
+      Width = 712
+      Align = alClient
+      ReadOnly = True
+      ScrollBars = ssVertical
+      TabOrder = 1
+    end
+  end
+  object mmoXml: TMemo
+    Left = 0
+    Height = 145
+    Top = 418
+    Width = 1250
+    Align = alClient
+    Font.Height = -15
+    Font.Name = 'Courier New'
+    ReadOnly = True
+    ScrollBars = ssBoth
+    TabOrder = 4
+    WordWrap = False
+  end
+end

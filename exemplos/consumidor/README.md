@@ -27,6 +27,42 @@ novo      nfe.evento.cancelamento.sp.12345678000199  cnpj=12345678000199 uf=sp
 
 Com o host de verdade (`hosts/console` ou o serviço) é igual: aponte `--host/--porta/--usuario/--senha` para o `[broker]` do seu `dfe.ini`.
 
+## Consumidor em Pascal (Delphi e Lazarus)
+
+[`pascal/ConsumidorDFeVcl`](pascal/ConsumidorDFeVcl) é o mesmo consumidor com tela, escrito **só com o lado cliente** do [pascal-amqp-faa](https://github.com/fabianoallex/pascal-amqp-faa) (nenhuma unit do broker é linkada — é a prova de que o cliente AMQP basta). Um só fonte para **VCL (Delphi)** e **LCL (Lazarus/FPC)**, no estilo dos samples da lib.
+
+![Consumidor Delphi (Win32) contra o host e o simulador: lista, XML, manifestação e log](../../docs/img/consumidor-delphi.png)
+
+*A imagem é do build Delphi Win32, com dados sintéticos do simulador: três resumos de NF-e e um cancelamento chegaram; o primeiro documento foi selecionado (a chave foi para o campo) e a ciência enviada; o `nfe.evento.ciencia` na última linha é o resultado.*
+
+O que ele mostra, na ordem do código (`uConsumidorMain.pas` tem o comentário de cada passo):
+
+1. **Conectar** com reconexão automática (a lib refaz fila, binding e consumer sozinha).
+2. **Consumir** de dois jeitos: fila **própria** (exclusiva, ligada a um padrão como `nfe.#`) ou fila **nomeada** e durável do `dfe.ini` (ao ligar, mostra quantas mensagens já esperavam).
+3. **Processar e só depois confirmar** (`Ack`): "salvar o XML numa pasta" é o processamento; se falhar, a mensagem **não** é confirmada e volta quando o consumo parar.
+4. **Deduplicar pela chave de acesso** (a coluna *Situação* mostra `novo` / `REPETIDO`).
+5. **Manifestar**: selecione um documento na lista (a chave vai para o campo) e envie o comando; o resultado volta como evento na mesma tela.
+
+`uDFeDocumento.pas` (ler a routing-key e o XML, montar o comando) é uma unit **pura**, sem VCL/LCL/AMQP, e é testada nos dois frameworks (`tests/Unit`, `DFe.ConsumidorDocumentoTests`) — inclusive que o comando que ela monta é aceito pelo `InterpretarComando` do host.
+
+**Compilar e rodar**
+
+- **Lazarus/FPC**: `lazbuild exemplos/consumidor/pascal/ConsumidorDFeVcl/ConsumidorDFeVcl.lpi` (não precisa registrar o pacote da lib: o `.lpi` aponta para `vendor/pascal-amqp-faa/src`; exige o submódulo inicializado).
+- **Delphi**: abra `ConsumidorDFeVcl.dproj` (ou o `PascalDfeBroker.groupproj`).
+
+Sem argumentos, abre e você clica **Conectar** → **Iniciar consumo**. Para demonstrar sem clicar: `ConsumidorDFeVcl --auto` (conecta e consome) com `--host=`, `--porta=`, `--fila=documentos` (fila nomeada) e `--salvar=pasta`.
+
+```
+# terminal 1
+DFeDemo --porta 5672 --intervalo 5        # ou o host + simulador do guia de uso
+# terminal 2
+ConsumidorDFeVcl --auto
+```
+
+Para o ciclo completo com manifestação, use o roteiro de [`docs/guia-de-uso.md`](../../docs/guia-de-uso.md) (simulador + `DFeBrokerConsole`) e, com o host no ar, ligue o consumidor na fila `documentos` (`--fila=documentos`); a ciência volta na fila `eventos` (`--fila=eventos`) como `nfe.evento.ciencia.<uf>.<cnpj>`. Sem host ouvindo, o broker devolve o comando e a tela avisa.
+
+> **Verificado:** compila no **Delphi (VCL, Win32)** e no **Lazarus/FPC (Windows)**; nos dois rodou contra o host + simulador, com manifestação de ida e volta. Só no FPC/LCL: contra o `DFeDemo`, fila nomeada com mensagens acumuladas e gravação dos XML. No Linux, apenas compila e linka (LCL nogui, no `testar-linux.sh`). **Não verificado:** Linux com tela (GTK2/Qt), macOS e Delphi Win64; na tela, a queda e reconexão do broker, o caminho de falha ao salvar (sem `Ack`) e a marca `REPETIDO` (a chave de deduplicação é coberta pelos testes da unit pura, mas nunca chegou uma repetição de verdade).
+
 ## O contrato
 
 - **Exchange** `dfe`, tipo **topic**, durável.

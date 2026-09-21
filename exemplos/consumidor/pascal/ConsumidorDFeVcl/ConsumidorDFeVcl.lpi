@@ -7,10 +7,9 @@
       <Flags>
         <MainUnitHasCreateFormStatements Value="False"/>
         <MainUnitHasTitleStatement Value="False"/>
-        <MainUnitHasScaledStatement Value="False"/>
       </Flags>
       <SessionStorage Value="InProjectDir"/>
-      <Title Value="DFeUnitTestsFpc"/>
+      <Title Value="ConsumidorDFeVcl"/>
       <UseAppBundle Value="False"/>
       <ResourceType Value="res"/>
     </General>
@@ -23,25 +22,27 @@
     </PublishOptions>
     <RunParams>
       <FormatVersion Value="2"/>
-      <local>
-        <CommandLineParams Value="--all --format=plain"/>
-      </local>
     </RunParams>
     <RequiredPackages>
       <Item>
-        <PackageName Value="pascal_dfe_broker"/>
-      </Item>
-      <Item>
-        <PackageName Value="FPCUnitTestRunner"/>
-      </Item>
-      <Item>
-        <PackageName Value="FCL"/>
+        <PackageName Value="LCL"/>
       </Item>
     </RequiredPackages>
     <Units>
       <Unit>
-        <Filename Value="DFeUnitTestsFpc.lpr"/>
+        <Filename Value="ConsumidorDFeVcl.dpr"/>
         <IsPartOfProject Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="uDFeDocumento.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="uConsumidorMain.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="frmConsumidor"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
       </Unit>
     </Units>
   </ProjectOptions>
@@ -49,11 +50,12 @@
     <Version Value="11"/>
     <PathDelim Value="\"/>
     <Target>
-      <Filename Value="DFeUnitTestsFpc"/>
+      <Filename Value="ConsumidorDFeVcl"/>
     </Target>
     <SearchPaths>
-      <OtherUnitFiles Value="..\..\..\simulador\exemplos\limite-consultas;..\..\..\exemplos\consumidor\pascal\ConsumidorDFeVcl"/>
-      <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
+      <IncludeFiles Value="..\..\..\..\vendor\pascal-amqp-faa\src"/>
+      <OtherUnitFiles Value="..\..\..\..\vendor\pascal-amqp-faa\src"/>
+      <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)-$(LCLWidgetType)"/>
     </SearchPaths>
     <Parsing>
       <SyntaxOptions>
@@ -67,7 +69,6 @@
     </CodeGeneration>
     <Linking>
       <Debugging>
-        <UseHeaptrc Value="True"/>
         <DebugInfoType Value="dsDwarf3"/>
       </Debugging>
     </Linking>

@@ -155,6 +155,8 @@ python exemplos/consumidor/python/consumir.py --padrao "nfe.#"
 Ele declara uma fila própria ligada a `nfe.#` e fica esperando. Este é **todo** o código que um consumidor
 precisa (~120 linhas, boa parte comentário e formatação; sem nada de fiscal): é a prova de que o consumo é agnóstico de linguagem.
 
+Quer mostrar o lado **Delphi**? O mesmo papel, com tela, é o [`ConsumidorDFeVcl`](../exemplos/consumidor/README.md#consumidor-em-pascal-delphi-e-lazarus) (`ConsumidorDFeVcl --auto`): só o cliente AMQP da lib, um fonte para VCL e LCL. Ele lista o que chega, salva o XML antes de confirmar, e tem o botão de manifestação.
+
 ### 4.5 Passo 4 — chegam documentos (e o "656 sem esperar uma hora")
 
 Em um terceiro terminal, publique dois resumos de NF-e e um evento de cancelamento **no simulador**
@@ -429,7 +431,7 @@ Diga isto antes que perguntem:
 - systemd: verificado em **contêiner**, não em máquina real. ARM: não testado. Delphi para Linux: não testado.
 - A parada do Serviço Windows **com um tick em andamento** (espera de até 60 s) não foi exercitada.
 - Só a NFe. Só **Distribuição** e **manifestação** — o simulador não cobre emissão, cancelamento etc.
-- Fora do Python, os consumidores não foram testados (mas AMQP 0-9-1 é padrão).
+- Fora do Python e do sample Pascal (`ConsumidorDFeVcl`, só no Lazarus/FPC), os consumidores não foram testados (mas AMQP 0-9-1 é padrão).
 
 ---
 

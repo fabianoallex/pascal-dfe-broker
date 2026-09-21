@@ -48,7 +48,7 @@ set -uo pipefail
 
 echo "=== suite pura (FPCUnit) ==="
 cd /proj/tests/Unit/fpc
-fpc -Mdelphi -Sh -Fu/proj/src -Fu/proj/tests/Unit/fpc -Fu/proj/simulador/exemplos/limite-consultas -Fi/proj/src -FU/out -FE/out \
+fpc -Mdelphi -Sh -Fu/proj/src -Fu/proj/tests/Unit/fpc -Fu/proj/simulador/exemplos/limite-consultas -Fu/proj/exemplos/consumidor/pascal/ConsumidorDFeVcl -Fi/proj/src -FU/out -FE/out \
     -oDFeUnitTestsFpc DFeUnitTestsFpc.lpr 2>&1 | grep -E "Fatal|Error:|lines compiled"
 /out/DFeUnitTestsFpc --all --format=plain > /out/pura.txt 2>&1; RCP=$?
 grep -E "Number of|unfreed" /out/pura.txt
@@ -95,7 +95,7 @@ timeout 300 ./AcbrSimTests --all --format=plain > /out/resultado.txt 2>&1; RCI=$
 echo "saida da integracao=$RCI (0 = tudo passou; 124 = estourou o tempo)"
 grep -E "Number of|Time:" /out/resultado.txt | head -6 || true
 grep -A2 "Message:" /out/resultado.txt | head -4 | cut -c1-400 || true
-RCA=0; RCH=0; RCD=0
+RCA=0; RCH=0; RCD=0; RCC=0
 if [ ! -d /proj/vendor/pascal-amqp-faa/src ]; then
   echo; echo "=== integracao AMQP embutido e host console: PULADA (vendor/pascal-amqp-faa nao inicializado: git submodule update --init vendor/pascal-amqp-faa) ==="
 else
@@ -150,9 +150,20 @@ else
   cut -c1-160 /out/demo.txt
   echo "saida do demo apos SIGTERM=$RCD (0 = parada limpa)"
   if ! grep -q "publicado  nfe.documento" /out/demo.txt || ! grep -q "Encerrando" /out/demo.txt; then RCD=1; fi
+
+  # O consumidor Pascal com tela (VCL/LCL): so COMPILA e LINKA aqui (LCL nogui: nao ha tela no
+  # contêiner para rodar). Pega o que quebra o build fora do Windows (LCLIntf, threads, units da lib).
+  echo; echo "=== consumidor Pascal (exemplos/consumidor/pascal): compila e linka (LCL nogui) ==="
+  mkdir -p /out/consumidor
+  cd /proj/exemplos/consumidor/pascal/ConsumidorDFeVcl
+  fpc -Mdelphi -Sh -Fu/proj/vendor/pascal-amqp-faa/src -Fi/proj/vendor/pascal-amqp-faa/src \
+      -Fu$LAZ/lcl/units/x86_64-linux/nogui -Fu$LAZ/lcl/units/x86_64-linux \
+      -Fu$LAZ/components/lazutils/lib/x86_64-linux -dLCL -dLCLnogui \
+      -FU/out/consumidor -FE/out/consumidor -oConsumidorDFeVcl ConsumidorDFeVcl.dpr 2>&1 | grep -E "Fatal|Error:|lines compiled"
+  if [ ! -x /out/consumidor/ConsumidorDFeVcl ]; then RCC=1; echo "FALHOU: o consumidor Pascal nao compilou"; fi
 fi
 
 # codigo de saida do script = falha se QUALQUER suite falhou
-if [ "$RCP" -ne 0 ] || [ "$RCI" -ne 0 ] || [ "$RCA" -ne 0 ] || [ "$RCH" -ne 0 ] || [ "$RCD" -ne 0 ]; then exit 1; fi
+if [ "$RCP" -ne 0 ] || [ "$RCI" -ne 0 ] || [ "$RCA" -ne 0 ] || [ "$RCH" -ne 0 ] || [ "$RCD" -ne 0 ] || [ "$RCC" -ne 0 ]; then exit 1; fi
 exit 0
 '

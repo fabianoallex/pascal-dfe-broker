@@ -31,7 +31,7 @@ Não. O projeto compila com **FPC/Lazarus**, que é gratuito (Windows e Linux). 
 Com qualquer cliente AMQP 0-9-1 (pika, amqplib, RabbitMQ.Client, Bunny…). Basta a exchange `dfe` e a routing-key. Há dois consumidores de exemplo em Python em [`exemplos/consumidor/`](../exemplos/consumidor/README.md). Consumidores em outras linguagens ainda não foram testados (mas o protocolo é padrão).
 
 **Meu sistema é Delphi. Consumo como?**
-Com o cliente AMQP do [pascal-amqp-faa](https://github.com/fabianoallex/pascal-amqp-faa), o mesmo broker embutido, ou qualquer cliente AMQP 0-9-1. Não há ainda um exemplo de consumidor em Delphi neste repositório.
+Com o cliente AMQP do [pascal-amqp-faa](https://github.com/fabianoallex/pascal-amqp-faa), o mesmo broker embutido, ou qualquer cliente AMQP 0-9-1. O exemplo pronto é o [`ConsumidorDFeVcl`](../exemplos/consumidor/README.md#consumidor-em-pascal-delphi-e-lazarus): uma tela VCL/LCL (um só fonte) que conecta, consome fila própria ou nomeada, salva o XML e só então confirma, deduplica pela chave e envia a manifestação — usando só o cliente AMQP. Compila e roda no Delphi (VCL, Win32) e no Lazarus/FPC (Windows); no Linux só compila e linka.
 
 **Preciso instalar RabbitMQ?**
 Não: o broker vem embutido. Se você já tem um RabbitMQ, use `Modo=externo` no `dfe.ini`.

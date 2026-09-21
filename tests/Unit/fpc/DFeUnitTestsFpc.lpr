@@ -37,6 +37,7 @@ uses
   DFe.SimuladorAdminTests,
   DFe.SimuladorRegrasTests,
   DFe.SimuladorExemploTests,
+  DFe.ConsumidorDocumentoTests,
   DFe.AmbienteTests,
   DFe.FusoTests,
   DFe.LogArquivoTests;

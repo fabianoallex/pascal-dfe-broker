@@ -23,6 +23,12 @@ novo      nfe.evento.cancelamento.rs.11222333000181  cnpj=11222333000181 uf=rs
           resEvento  chave=35260998765432000110550010000000031000237570  tpEvento=110111
 ```
 
+E o mesmo consumidor em **Delphi** (VCL, com o cliente AMQP do pascal-amqp-faa), recebendo os documentos e mandando uma ciência da operação — o resultado volta como o evento da última linha:
+
+![Consumidor Delphi: lista de documentos, XML, manifestação e log](docs/img/consumidor-delphi.png)
+
+O fonte é o mesmo para Delphi e Lazarus: [`exemplos/consumidor`](exemplos/consumidor/README.md#consumidor-em-pascal-delphi-e-lazarus).
+
 ## Veja funcionando, sem certificado
 
 **Sem compilar nada (Windows x64):** baixe o pacote da [release v0.1.0](https://github.com/fabianoallex/pascal-dfe-broker/releases/latest) — traz os executáveis, o simulador, as DLLs, um certificado de teste e um `LEIAME.md` de 6 passos.
@@ -37,7 +43,7 @@ Automatizar a consulta de documentos fiscais que envolvem sua empresa (Distribui
 
 - **Poller por certificado** — consulta periodicamente a Distribuição de DFe, respeitando o intervalo mínimo da SEFAZ (1 h), e mantém o **cursor de NSU** persistido com escrita atômica: é o ponto de maior risco (um cursor corrompido significa documento perdido ou reconsultado para sempre). O cursor só avança depois que o lote inteiro foi publicado e confirmado pelo broker — entrega *pelo menos uma vez*, então deduplique pela chave de acesso.
 - **Broker AMQP 0-9-1 embutido** — do [pascal-amqp-faa](https://github.com/fabianoallex/pascal-amqp-faa), dentro do próprio processo, **durável** por padrão. Não exige RabbitMQ, mas fala o protocolo padrão: dá para apontar para um externo.
-- **Contrato público de routing-key** — exchange `dfe` (topic), routing-key `<tipo>.<categoria>.<uf>.<cnpj>`. Quem só quer cancelamentos assina `nfe.evento.cancelamento.#`. Consumidores de exemplo (Python) em [`exemplos/consumidor/`](exemplos/consumidor/README.md).
+- **Contrato público de routing-key** — exchange `dfe` (topic), routing-key `<tipo>.<categoria>.<uf>.<cnpj>`. Quem só quer cancelamentos assina `nfe.evento.cancelamento.#`. Consumidores de exemplo (Python e uma tela Delphi/Lazarus) em [`exemplos/consumidor/`](exemplos/consumidor/README.md).
 - **Manifestação do destinatário** — ciência, confirmação, desconhecimento e operação não realizada, por um comando na fila; o resultado (ou a rejeição da SEFAZ) volta como evento. Há modo automático por certificado, **desligado por padrão** (é um ato fiscal).
 - **Vários certificados** (inclusive troca antes do vencimento) e **recarga a quente** do arquivo de configuração.
 - **Providers por tipo de documento** — NFe na v1; CTe e MDFe entram sem tocar no core (ver [`CONTRIBUTING.md`](CONTRIBUTING.md)).
@@ -122,7 +128,7 @@ Se a versão vigente no [Portal Nacional da NF-e](https://www.nfe.fazenda.gov.br
 | Ver funcionando, entender e apresentar | [`docs/guia-de-uso.md`](docs/guia-de-uso.md) |
 | Tirar dúvidas comuns | [`docs/faq.md`](docs/faq.md) |
 | Entender as decisões de projeto | [`docs/architecture.md`](docs/architecture.md) |
-| Consumir os documentos em outra linguagem | [`exemplos/consumidor/`](exemplos/consumidor/README.md) |
+| Consumir os documentos (Python, Delphi/Lazarus, outra linguagem) | [`exemplos/consumidor/`](exemplos/consumidor/README.md) |
 | Preparar o ambiente (OpenSSL, libxml2, XSDs) | [`docs/dependencias-runtime.md`](docs/dependencias-runtime.md) |
 | Rodar como serviço / no Linux | [`hosts/servico/LEIAME.md`](hosts/servico/LEIAME.md) · [`docs/linux.md`](docs/linux.md) |
 | Usar o simulador da SEFAZ | [`simulador/LEIAME.md`](simulador/LEIAME.md) |
