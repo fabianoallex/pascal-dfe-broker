@@ -8,7 +8,7 @@ Dúvidas e ideias: [Discussions](https://github.com/fabianoallex/pascal-dfe-brok
 
 1. **Validar em homologação com um certificado real** — o projeto nunca foi executado contra a SEFAZ. A [issue #1](https://github.com/fabianoallex/pascal-dfe-broker/issues/1) é um roteiro; mesmo um "consultei em homologação e voltou 137" já é informação valiosa. Comece pela demo com o simulador ([`docs/guia-de-uso.md`](docs/guia-de-uso.md)) para confirmar que o seu ambiente está certo antes de usar o certificado.
 2. **Novos tipos de documento** — CT-e e MDF-e (seção abaixo).
-3. **Consumidores de exemplo** em outras linguagens (Node, C#, Java, PHP…) e em Delphi — hoje só há Python.
+3. **Consumidores de exemplo** em outras linguagens (Node, C#, Java, PHP…) — hoje há Python e Pascal (Delphi/Lazarus, com tela).
 4. **Uma imagem Docker do broker** (só o simulador tem `Dockerfile`).
 5. **Documentação** — dúvida que você teve e que o texto não respondeu é um bug de documentação; abra uma issue ou um PR. Traduções são bem-vindas.
 

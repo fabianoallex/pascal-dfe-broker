@@ -72,9 +72,9 @@ python exemplos\python\manifestar.py --alias matriz --tipo ciencia --chave 35260
 
 O resultado volta como evento: `nfe.evento.ciencia.rs.11222333000181`.
 
-**6. Teste a durabilidade:** com o broker parado, as mensagens ficam na fila `documentos`; ao religar, `python exemplos\python\consumir.py --fila documentos` as recebe.
+**6. Teste a durabilidade:** com o consumidor parado, publique mais documentos (passo 4, o `demo-publicar.ps1` de novo) e depois **mate o broker à força**: `Stop-Process -Name DFeBrokerConsole -Force` (um `Ctrl+C` é a parada limpa e não prova nada). Religue o broker (passo 2) e rode `python exemplos\python\consumir.py --fila documentos`: as mensagens que estavam na fila `documentos` continuam lá, guardadas em disco.
 
-Se a porta 5672 ou 9200 estiver ocupada (Docker, WSL…), troque `Porta=` e `SimuladorURL=` no `dfe.ini`, passe `--porta` ao simulador e aos scripts Python, e `-Simulador http://127.0.0.1:<porta>` ao `demo-publicar.ps1`.
+Se a porta 5672 ou 9200 estiver ocupada (Docker e WSL costumam usar a 5672), faça uma **cópia do `dfe.ini` nesta mesma pasta** (por exemplo `dfe-5673.ini`; os caminhos do arquivo são relativos à pasta dele), troque `Porta=` (e `SimuladorURL=`, se mudar a do simulador) nessa cópia e rode o broker com `--config dfe-5673.ini`. Passe `--porta 5673` aos scripts Python (`consumir.py`, `manifestar.py`), `--porta <n>` ao simulador e `-Simulador http://127.0.0.1:<n>` ao `demo-publicar.ps1`.
 
 Para parar: `Ctrl+C` no simulador e no broker. Para recomeçar do zero, apague `cursores.dat` e a pasta `broker\`.
 
