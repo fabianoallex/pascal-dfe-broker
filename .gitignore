@@ -61,3 +61,6 @@ hosts/console/logs/
 
 # saidas do demo
 tools/demo/*.exe
+
+# XML gravados pelo consumidor Pascal (--salvar, pasta padrao xml-recebidos)
+xml-recebidos/
