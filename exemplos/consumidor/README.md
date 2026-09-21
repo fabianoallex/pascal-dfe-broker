@@ -61,7 +61,7 @@ ConsumidorDFeVcl --auto
 
 Para o ciclo completo com manifestação, use o roteiro de [`docs/guia-de-uso.md`](../../docs/guia-de-uso.md) (simulador + `DFeBrokerConsole`) e, com o host no ar, ligue o consumidor na fila `documentos` (`--fila=documentos`); a ciência volta na fila `eventos` (`--fila=eventos`) como `nfe.evento.ciencia.<uf>.<cnpj>`. Sem host ouvindo, o broker devolve o comando e a tela avisa.
 
-> **Verificado:** compila no **Delphi (VCL, Win32)** e no **Lazarus/FPC (Windows)**; nos dois rodou contra o host + simulador, com manifestação de ida e volta. Só no FPC/LCL: contra o `DFeDemo`, fila nomeada com mensagens acumuladas e gravação dos XML. No Linux, apenas compila e linka (LCL nogui, no `testar-linux.sh`). **Não verificado:** Linux com tela (GTK2/Qt), macOS e Delphi Win64; na tela, a queda e reconexão do broker, o caminho de falha ao salvar (sem `Ack`) e a marca `REPETIDO` (a chave de deduplicação é coberta pelos testes da unit pura, mas nunca chegou uma repetição de verdade).
+> **Verificado:** compila no **Delphi (VCL, Win32)** e no **Lazarus/FPC (Windows)**; nos dois rodou contra o host + simulador, com manifestação de ida e volta. No Delphi Win32, a marca `REPETIDO` foi provada ao vivo (o mesmo documento publicado duas vezes: `novo`, depois `REPETIDO`). Só no FPC/LCL: contra o `DFeDemo`, fila nomeada com mensagens acumuladas e gravação dos XML. No Linux, apenas compila e linka (LCL nogui, no `testar-linux.sh`). **Não verificado:** Linux com tela (GTK2/Qt), macOS e Delphi Win64; na tela, a queda e reconexão do broker e o caminho de falha ao salvar (sem `Ack`). Uma variante **sem tela** (console, para servidor/Linux) ainda não existe: é a [issue #11](https://github.com/fabianoallex/pascal-dfe-broker/issues/11).
 
 ## O contrato
 
