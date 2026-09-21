@@ -134,6 +134,7 @@ Se a versão vigente no [Portal Nacional da NF-e](https://www.nfe.fazenda.gov.br
 | Rodar como serviço / no Linux | [`hosts/servico/LEIAME.md`](hosts/servico/LEIAME.md) · [`docs/linux.md`](docs/linux.md) |
 | Usar o simulador da SEFAZ | [`simulador/LEIAME.md`](simulador/LEIAME.md) |
 | Rodar os testes | [`docs/testes.md`](docs/testes.md) |
+| Saber o que está no radar do projeto | [`docs/roadmap.md`](docs/roadmap.md) |
 | Contribuir | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
 | Reportar um problema de segurança | [`SECURITY.md`](SECURITY.md) |
 | English | [`README.en.md`](README.en.md) |
