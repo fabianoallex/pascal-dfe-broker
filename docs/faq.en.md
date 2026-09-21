@@ -1,5 +1,7 @@
 # Frequently asked questions
 
+> English translation of [`faq.md`](faq.md) (Portuguese). If the two ever differ, the Portuguese file is the reference.
+
 Short answers. For the step-by-step guide, see [`guia-de-uso.md`](guia-de-uso.md) (Portuguese); for the reasons behind the design decisions, see [`architecture.md`](architecture.md) (Portuguese).
 
 ## About the project
@@ -31,7 +33,7 @@ No. The project builds with **FPC/Lazarus**, which is free and available for Win
 Use any AMQP 0-9-1 client (pika, amqplib, RabbitMQ.Client, Bunny, and others). Connect to the `dfe` exchange and use the routing key. Two Python consumer examples are in [`exemplos/consumidor/`](../exemplos/consumidor/README.md). Consumers in other languages have not been tested yet, but the protocol is standard.
 
 **My system is written in Delphi. How do I consume messages?**
-Use the AMQP client from [pascal-amqp-faa](https://github.com/fabianoallex/pascal-amqp-faa), the same embedded broker, or any AMQP 0-9-1 client. This repository does not yet include a Delphi consumer example.
+Use the AMQP client from [pascal-amqp-faa](https://github.com/fabianoallex/pascal-amqp-faa), the same embedded broker, or any AMQP 0-9-1 client. The ready-made example is [`ConsumidorDFeVcl`](../exemplos/consumidor/README.md#consumidor-em-pascal-delphi-e-lazarus): a VCL/LCL window (one source for both) that connects, consumes an own or a named queue, saves the XML and only then acknowledges it, deduplicates by key, and sends the manifestation, using only the AMQP client. It builds and runs on Delphi (VCL, Win32) and on Lazarus/FPC (Windows); on Linux it only compiles and links.
 
 **Do I need to install RabbitMQ?**
 No. The broker is embedded. If you already have RabbitMQ, set `Modo=externo` in `dfe.ini`.
@@ -39,8 +41,8 @@ No. The broker is embedded. If you already have RabbitMQ, set `Modo=externo` in 
 **Can I lose a document?**
 The NSU cursor advances only after the broker confirms the entire batch, using an atomic write, and queues are durable. Delivery is **at least once**, so the same document may arrive more than once; deduplicate by the **access key** (44 digits). If a consumer stops after receiving a message but before acknowledging it (`ack`), it will receive the message again. A queue with no consumer and no bound queue discards messages (pub/sub behavior), so `dfe.ini` must declare at least one `[fila:*]` queue.
 
-**What is the difference between an exclusive queue and a named queue?**
-An **exclusive** queue is declared by the consumer, receives a copy of each message, and disappears when the consumer disconnects. A **named** queue is declared in `dfe.ini`, is durable, and stores messages while no one is reading; multiple consumers of the same queue share the work. Use a named queue to integrate with an ERP.
+**What is the difference between an own queue and a named queue?**
+An **own** queue is declared by the consumer, receives a copy of each message, and disappears when the consumer disconnects. A **named** queue is declared in `dfe.ini`, is durable, and stores messages while no one is reading; multiple consumers of the same queue share the work. Use a named queue to integrate with an ERP.
 
 **How often does it query SEFAZ?**
 When there are no new documents, it queries at most once per hour per certificate, which is the minimum interval required by SEFAZ. Do not lower `IntervaloBaseSegundos`: querying sooner triggers status 656 (improper use) and blocks the CNPJ for one hour. If there are still documents to receive, it continues fetching batches during the same cycle.
