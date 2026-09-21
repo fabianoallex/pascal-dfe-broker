@@ -117,7 +117,7 @@ If the current version on the [Portal Nacional da NF-e](https://www.nfe.fazenda.
 
 | To… | Read |
 |---|---|
-| See it working, understand and present it | [`docs/guia-de-uso.md`](docs/guia-de-uso.md) (pt) |
+| See it working, understand and present it | [`docs/user-guide.en.md`](docs/user-guide.en.md) (English); [`docs/guia-de-uso.md`](docs/guia-de-uso.md) (Portuguese) |
 | Common questions | [`docs/faq.md`](docs/faq.md) (pt) |
 | Design decisions | [`docs/architecture.md`](docs/architecture.md) (pt) |
 | Consume documents from another language | [`exemplos/consumidor/`](exemplos/consumidor/README.md) (pt) |
