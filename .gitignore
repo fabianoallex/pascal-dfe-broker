@@ -67,3 +67,6 @@ xml-recebidos/
 
 # relatorios da prova do fechamento do consumidor (exemplos/consumidor/pascal/ConsumidorDFeVcl/prova)
 exemplos/consumidor/pascal/ConsumidorDFeVcl/prova/prova-*.txt
+
+# ACBr: exportado do SVN oficial por tools/obter-acbr.sh (nao e mais submodulo)
+/vendor/ACBr/

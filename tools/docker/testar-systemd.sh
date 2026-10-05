@@ -7,7 +7,7 @@
 #   tools/docker/testar-systemd.sh
 #
 # Requer Docker com suporte a --privileged e cgroup v2 (Docker Desktop/WSL2 serve).
-# Pre-requisito: vendor/ACBr inicializado (XSDs) -- tools/init-acbr-submodule.sh.
+# Pre-requisito: vendor/ACBr inicializado (XSDs) -- tools/obter-acbr.sh.
 set -euo pipefail
 export MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL="*"
 

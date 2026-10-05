@@ -12,7 +12,7 @@ tools/docker/testar-linux.sh --so-pura    # só a suíte pura (~10 s depois da 1
 tools/docker/testar-linux.sh --sem-link   # integração SEM o link libxml2.so (a recusa que o operador veria)
 ```
 
-A 1ª execução constrói a imagem `dfe-linux-teste` (`tools/docker/Dockerfile.linux-teste`, ~1 min, autocontida: `debian:bookworm-slim` + `fpc` + `lcl-nogui-2.2` + `lcl-units-2.2` + `libssl3` + `libxml2`). A integração precisa de `vendor/ACBr` inicializado (`tools/init-acbr-submodule.sh`). Resultado da última verificação (2026-09-20; os números crescem a cada fase, ver o cabeçalho do `CLAUDE.md`):
+A 1ª execução constrói a imagem `dfe-linux-teste` (`tools/docker/Dockerfile.linux-teste`, ~1 min, autocontida: `debian:bookworm-slim` + `fpc` + `lcl-nogui-2.2` + `lcl-units-2.2` + `libssl3` + `libxml2`). A integração precisa de `vendor/ACBr` inicializado (`tools/obter-acbr.sh`). Resultado da última verificação (2026-09-20; os números crescem a cada fase, ver o cabeçalho do `CLAUDE.md`):
 
 | Suíte | Resultado |
 |---|---|

@@ -25,6 +25,18 @@ aparece aqui.
   Nos `.lpi`, `pascal_common_faa` é o primeiro pacote, apontando para
   `vendor/pascal-common-faa/packages` com `Prefer="True"` (uma cópia registrada na IDE não
   ganha dela); nos `.dproj`, `vendor\pascal-common-faa\src` entrou no caminho de busca.
+- **O ACBr deixou de ser submódulo git.** O mirror git não oficial usado até aqui
+  (`MirrorProjetoACBr/ACBr`) sumiu do GitHub. Agora `tools/obter-acbr.sh` (que substitui o
+  `tools/init-acbr-submodule.sh`) baixa do **SVN oficial** do Projeto ACBr a mesma revisão de
+  antes, `trunk2@48289`, só com as pastas que o projeto usa, para `vendor/ACBr`. O conteúdo foi
+  conferido arquivo por arquivo contra o checkout antigo. Precisa do cliente `svn` ou do Docker.
+  **Quem já tem um clone**, antes ou depois do `git pull`:
+
+  ```
+  git submodule deinit -f vendor/ACBr
+  rm -rf vendor/ACBr .git/modules/vendor/ACBr
+  ./tools/obter-acbr.sh
+  ```
 - O broker embutido roda os atores das filas num pool próprio, e não mais no pool que divide
   com os callbacks do cliente AMQP no mesmo processo. Um teste novo
   (`Publicar_ComPcPoolSaturado_NaoDependeDoPool`) prova que, com o pool do processo saturado,

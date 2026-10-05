@@ -153,14 +153,14 @@ Ou seja: usar a ACBrLib em produção de graça exigiria cada usuário do broker
 
 Fontes: [Sobre o Projeto ACBr](https://projetoacbr.com.br/sobre/), [Questões Importantes - Projeto ACBr](https://www.projetoacbr.com.br/forum/sac/questoes-importantes/), [ACBr Downloads](https://projetoacbr.com.br/pro/downloads/), [ACBrLib DEMO - Download Livre](https://www.projetoacbr.com.br/forum/topic/63052-acbrlib-demo-download-livre/), [Utilizando distribuição DFe NFe - Delphi (TecnoSpeed)](https://tsdn.tecnospeed.com.br/blog-da-consultoria-tecnica-tecnospeed/post/utilizando-distribuicao-dfe-nfe-delphi) — consultadas em 2026-09-18. Decisão original (ACBrLib) tinha fontes de 2026-09-17: documentação oficial da ACBrLib em `acbr.sourceforge.io/ACBrLib/` e do ACBrMonitor.
 
-### Fonte dos componentes clássicos — decidido: submodule do mirror git, não instalado na IDE
+### Fonte dos componentes clássicos — decidido: export do SVN oficial numa revisão fixa, não instalado na IDE
 
 Duas dúvidas resolvidas juntas (2026-09-18):
 
-1. **O repositório oficial do Projeto ACBr é SVN** (`svn://svn.code.sf.net/p/acbr/code/trunk2`) — não dá pra usar como `git submodule` diretamente. Existe um mirror não oficial, [`MirrorProjetoACBr/ACBr`](https://github.com/MirrorProjetoACBr/ACBr), sincronizado automaticamente via `git-svn`: cada commit carrega um trailer `git-svn-id` apontando pra revisão exata do SVN, e está ativo (commits diários). Um mirror mais antigo e mais popular (`frones/ACBr`) apareceu nas buscas mas está parado desde 2025-08-01 — não é uma alternativa viável hoje.
+1. **O repositório oficial do Projeto ACBr é SVN** (`svn://svn.code.sf.net/p/acbr/code/trunk2`) — não dá pra usar como `git submodule` diretamente. Até 2026-10-05 o projeto usava como submódulo um mirror não oficial (`MirrorProjetoACBr/ACBr`, sincronizado por `git-svn`); **o mirror e a organização dele sumiram do GitHub nesse dia**, e qualquer clone novo ficou sem o ACBr. Desde então o ACBr vem **direto do SVN oficial**, sem depender de mirror de terceiros.
 2. **Não precisamos instalar os componentes na IDE.** O broker só instancia `TACBrNFe`/`TACBrCTe`/`TACBrMDFe` em código (nunca arrasta componente pra tela), então não existe motivo pra registrar um pacote de design-time na paleta — basta as units estarem no search path do projeto. Isso também resolve uma preocupação à parte: instalação na IDE é estado global da máquina (uma versão só, pra qualquer projeto aberto nela); search path é por projeto, então branches diferentes do broker podem, em tese, apontar pra revisões diferentes do ACBr sem conflito.
 
-**Decidido: `git submodule` do mirror (`vendor/ACBr`), com clone parcial (`--filter=blob:none`) + `sparse-checkout` em modo cone.** O repositório inteiro do mirror tem ~1,3 GB (é o monorepo do ACBr inteiro — SAT, ECF, boletos, dezenas de provedores de NFSe, demos Android/iOS/React — não só Distribuição de DFe). O sparse-checkout restringe o que é baixado/checked-out a:
+**Decidido: `tools/obter-acbr.sh` exporta do SVN oficial (`https://svn.code.sf.net/p/acbr/code/trunk2`), numa revisão fixa, só as pastas que o projeto usa, para `vendor/ACBr`** (pasta comum, ignorada pelo git). O trunk2 inteiro tem ~1,3 GB (é o monorepo do ACBr inteiro — SAT, ECF, boletos, dezenas de provedores de NFSe, demos Android/iOS/React — não só Distribuição de DFe). O script exporta:
 
 - `Fontes/ACBrComum` — base compartilhada por todo componente ACBr.
 - `Fontes/ACBrDFe` — units soltos de base da Distribuição de DFe (`ACBrDFeComum.DistDFeInt.pas`/`RetDistDFeInt.pas`, entre outros) mais os subdiretórios `ACBrNFe`, `ACBrCTe`, `ACBrMDFe` e `Comum`. Os demais subdiretórios de `ACBrDFe` (`ACBrBPe`, `ACBrGNRE`, `ACBrReinf`, `ACBrNFSe`, etc. — outros tipos de documento que não são DFe de interesse deste projeto) ficam fora do escopo.
@@ -172,11 +172,11 @@ Duas dúvidas resolvidas juntas (2026-09-18):
 - `Fontes/PCNComum` — conversões compartilhadas (`pcnConversao`, `TACBrTipoAmbiente`, etc.) usadas por `ACBrDFeConfiguracoes`.
 - `Fontes/Terceiros` — dependências vendored pelo próprio ACBr que os componentes de DFe usam (Synapse/`synalist` para HTTP, `GZIPUtils`/`ZLibExGZ` para o `docZip`, `LibXmlSec` para assinatura XML).
 
-Resultado: ~70 MB em vez de ~1,3 GB. **Escopo confirmado por compilação real** (2026-09-18) — ver "Implementação real de `IDFeDistribuicaoClient`: `DFe.Client.ACBrNFe`" abaixo. Não é necessariamente o mínimo absoluto (pode sobrar alguma coisa não estritamente necessária), mas é o que o compilador de fato pediu, não mais uma estimativa por inspeção de diretório.
+Mais `Exemplos/ACBrDFe/Schemas/NFe`, os XSDs que o ACBr exige em execução. Resultado: 64 MB (1895 arquivos) em vez de ~1,3 GB. **Escopo confirmado por compilação real** (2026-09-18) — ver "Implementação real de `IDFeDistribuicaoClient`: `DFe.Client.ACBrNFe`" abaixo. Não é necessariamente o mínimo absoluto (pode sobrar alguma coisa não estritamente necessária), mas é o que o compilador de fato pediu, não mais uma estimativa por inspeção de diretório.
 
-`git submodule update --init` sozinho, sem mais nada, baixaria o repositório inteiro (sparse-checkout não é gravado em `.gitmodules`, é configuração local do submodule). Por isso existe `tools/init-acbr-submodule.sh`, que faz o clone parcial + define o sparse-checkout num só passo, idempotente — rodar uma vez por clone do `pascal-dfe-broker`.
+O script é idempotente (`vendor/ACBr/REVISAO-SVN.txt` guarda a revisão exportada) e precisa do cliente `svn` **ou** do Docker (sem `svn`, o export roda num contêiner Debian) — rodar uma vez por clone do `pascal-dfe-broker`.
 
-**Pinado em**: commit `578954903fdbe5c8ca57fe1a35b79c6c49e1ec79` do mirror (SVN `trunk2@48289`, 2026-09-17). Não há tags de versão no mirror — só a branch `master` (mais ruído de branches do dependabot) — então atualizar significa apontar pra um commit novo específico (que corresponde 1:1 a uma revisão SVN, via o trailer `git-svn-id`), nunca "pegar a última".
+**Revisão fixa: `trunk2@48289`** (2026-09-17), a mesma que o submódulo antigo tinha (commit `578954903fdbe5c8ca57fe1a35b79c6c49e1ec79` do mirror). Conferido arquivo por arquivo: o export do SVN tem o mesmo conteúdo que o checkout do mirror (só finais de linha diferem, por conversão do git no Windows). Atualizar significa mudar a revisão no script, nunca "pegar a última".
 
 ### Implementação real de `IDFeDistribuicaoClient`: `DFe.Client.ACBrNFe`
 

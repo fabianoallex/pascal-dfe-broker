@@ -60,7 +60,7 @@ Em uma variável de ambiente (`SenhaEnv=NOME` no `dfe.ini`), não no arquivo. Nu
 ## Operação e segurança
 
 **Que dependências preciso instalar?**
-OpenSSL 3 e **libxml2** (as duas obrigatórias, até para consultar) e os XSDs da NFe (já no submódulo do ACBr). `DFeBrokerConsole --config dfe.ini --verificar-ambiente` diz o que falta. Ver [`dependencias-runtime.md`](dependencias-runtime.md).
+OpenSSL 3 e **libxml2** (as duas obrigatórias, até para consultar) e os XSDs da NFe (vêm com o ACBr, pelo `tools/obter-acbr.sh`). `DFeBrokerConsole --config dfe.ini --verificar-ambiente` diz o que falta. Ver [`dependencias-runtime.md`](dependencias-runtime.md).
 
 **O broker embutido é seguro?**
 Por padrão escuta só em `127.0.0.1`, com `guest/guest`. Se abrir para a rede (`BindAddress=0.0.0.0`), **troque usuário e senha** e proteja a porta. O `dfe.ini` não tem, hoje, opção de TLS para o AMQP embutido; se precisar de conexão criptografada pela rede, mantenha o `BindAddress` em `127.0.0.1` e use uma VPN ou um túnel.

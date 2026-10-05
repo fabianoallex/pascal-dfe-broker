@@ -66,17 +66,17 @@ Delphi e FPC/Lazarus, **desde o início** — mesmo padrão dual-compiler do pas
 
 ## Como compilar e rodar
 
-Depende de submódulos em `vendor/`: o broker [pascal-amqp-faa](https://github.com/fabianoallex/pascal-amqp-faa) (~4 MB) e a [pascal-common-faa](https://github.com/fabianoallex/pascal-common-faa) que ele usa (o projeto fornece a cópia dela, como manda a regra de uma cópia por aplicação), o ACBr (clone parcial de ~75 MB) e, só para o simulador, o [Horse](https://github.com/HashLoad/horse). **Não use `--recurse-submodules`**: ele baixaria o monorepo inteiro do ACBr (~1,3 GB).
+Depende de submódulos em `vendor/`: o broker [pascal-amqp-faa](https://github.com/fabianoallex/pascal-amqp-faa) (~4 MB) e a [pascal-common-faa](https://github.com/fabianoallex/pascal-common-faa) que ele usa (o projeto fornece a cópia dela, como manda a regra de uma cópia por aplicação) e, só para o simulador, o [Horse](https://github.com/HashLoad/horse). O ACBr **não** é submódulo: `tools/obter-acbr.sh` baixa do SVN oficial do Projeto ACBr, numa revisão fixa, só as pastas que o projeto usa (~65 MB); precisa do cliente `svn` ou do Docker.
 
-> **Windows:** clone num caminho **curto** (ex.: `C:\dev\`). O ACBr tem pastas profundas, e um caminho longo faz o Git recusar o clone do submódulo (`Filename too long`).
+> **Windows:** clone num caminho **curto** (ex.: `C:\dev\`). O ACBr tem pastas profundas, e um caminho longo pode estourar o limite de tamanho de caminho do Windows.
 
 Estes comandos foram executados num clone limpo e funcionam (Git Bash no Windows, ou shell Linux):
 
 ```
 git clone https://github.com/fabianoallex/pascal-dfe-broker
 cd pascal-dfe-broker
-git submodule update --init vendor/pascal-amqp-faa
-sh tools/init-acbr-submodule.sh                                  # ~2 min na 1a vez
+git submodule update --init vendor/pascal-amqp-faa vendor/pascal-common-faa
+sh tools/obter-acbr.sh                                           # ~2 min na 1a vez (svn ou Docker)
 ```
 
 **Broker (host console) com FPC/Lazarus:**
@@ -98,7 +98,7 @@ lazbuild simulador/DFeSimulador.lpi
 
 **Executar:** `DFeBrokerConsole --config dfe.ini` (modelo comentado em `hosts/console/dfe.exemplo.ini`).
 
-**Dependências de execução — não vêm no repositório:** OpenSSL 3 (`libssl` + `libcrypto`), **libxml2** e os XSDs da NFe (estes já vêm no submódulo do ACBr). Faltar algo só aparece em execução, por isso existe `DFeBrokerConsole --config dfe.ini --verificar-ambiente`: confere tudo e diz o que falta e como obter ([`docs/dependencias-runtime.md`](docs/dependencias-runtime.md)).
+**Dependências de execução — não vêm no repositório:** OpenSSL 3 (`libssl` + `libcrypto`), **libxml2** e os XSDs da NFe (estes vêm com o ACBr, pelo `tools/obter-acbr.sh`). Faltar algo só aparece em execução, por isso existe `DFeBrokerConsole --config dfe.ini --verificar-ambiente`: confere tudo e diz o que falta e como obter ([`docs/dependencias-runtime.md`](docs/dependencias-runtime.md)).
 
 **Mais:** demo sintética `tools/demo/DFeDemo` · Serviço Windows em [`hosts/servico/LEIAME.md`](hosts/servico/LEIAME.md) · Linux/systemd em [`docs/linux.md`](docs/linux.md) · testes em [`docs/testes.md`](docs/testes.md).
 

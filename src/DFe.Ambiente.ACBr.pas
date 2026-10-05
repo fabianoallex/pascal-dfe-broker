@@ -174,7 +174,7 @@ begin
   LPath := IncludeTrailingPathDelimiter(LPath);
 
   LCorrecao := 'Copie os XSDs oficiais de NFe para "' + LPath + '" (no repositorio: ' +
-    'vendor/ACBr/Exemplos/ACBrDFe/Schemas/NFe, depois de tools/init-acbr-submodule.sh; ou o ' +
+    'vendor/ACBr/Exemplos/ACBrDFe/Schemas/NFe, depois de tools/obter-acbr.sh; ou o ' +
     'pacote de schemas do portal da NF-e) ou informe outra pasta em PathSchemas.';
 
   LTotal := 0;

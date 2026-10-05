@@ -7,7 +7,7 @@
 #                                             # a recusa que o operador veria (esperado: falha)
 #   tools/docker/testar-linux.sh --so-pura    # so' a suite pura (rapido, ~10 s)
 #
-# Pre-requisito da integracao: vendor/ACBr inicializado (tools/init-acbr-submodule.sh).
+# Pre-requisito da integracao: vendor/ACBr inicializado (tools/obter-acbr.sh).
 # Para os testes AMQP e o host: vendor/pascal-amqp-faa e vendor/pascal-common-faa, sem --recursive
 # (git submodule update --init vendor/pascal-amqp-faa vendor/pascal-common-faa).
 # Para o simulador standalone (a integracao por HTTP): vendor/horse (git submodule update --init vendor/horse).

@@ -62,7 +62,7 @@ In an environment variable (`SenhaEnv=NAME` in `dfe.ini`), not in the file. For 
 ## Operations and security
 
 **Which dependencies do I need to install?**
-OpenSSL 3 and **libxml2** are both required, even for querying, as are the NF-e XSDs (already included in the ACBr submodule). `DFeBrokerConsole --config dfe.ini --verificar-ambiente` reports missing dependencies. See [`dependencias-runtime.md`](dependencias-runtime.md) (Portuguese).
+OpenSSL 3 and **libxml2** are both required, even for querying, as are the NF-e XSDs (they come with ACBr, via `tools/obter-acbr.sh`). `DFeBrokerConsole --config dfe.ini --verificar-ambiente` reports missing dependencies. See [`dependencias-runtime.md`](dependencias-runtime.md) (Portuguese).
 
 **Is the embedded broker secure?**
 By default, it listens only on `127.0.0.1` and uses `guest/guest`. If you expose it to the network (`BindAddress=0.0.0.0`), **change the username and password** and protect the port. `dfe.ini` currently has no TLS option for the embedded AMQP broker. For encrypted network connections, keep `BindAddress` at `127.0.0.1` and use a VPN or tunnel.

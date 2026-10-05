@@ -309,7 +309,7 @@ procedure TDFeAcbrSimHttpTests.ExigirAmbienteDeEvento;
 begin
   if not FileExists(DiretorioSchemasDeEvento + 'envEvento_v1.00.xsd') then
     Ignore('XSDs oficiais de NFe nao encontrados em ' + DiretorioSchemasDeEvento +
-      ' (rode tools/init-acbr-submodule.sh)');
+      ' (rode tools/obter-acbr.sh)');
   if not InitLibXml2Interface then
     Ignore('libxml2 nativa nao encontrada -- ver docs/dependencias-runtime.md');
 end;

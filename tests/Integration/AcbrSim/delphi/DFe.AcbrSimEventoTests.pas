@@ -8,7 +8,7 @@ unit DFe.AcbrSimEventoTests;
 
   Requisitos alem dos de DFe.AcbrSimTests: libxml2 nativa acessivel (ver
   docs/simulador-sefaz.md, "Sonda da Fase 4") e os XSDs oficiais de NFe em
-  vendor\ACBr\Exemplos\ACBrDFe\Schemas\NFe (tools\init-acbr-submodule.sh).
+  vendor\ACBr\Exemplos\ACBrDFe\Schemas\NFe (tools\obter-acbr.sh).
   Sem eles os testes sao IGNORADOS no FPC (nao passam em silencio: o runner
   conta os ignorados). No Delphi o DUnitX nao ignora em execucao, entao eles
   FALHAM com o prefixo 'AMBIENTE NAO PREPARADO'. }
@@ -175,7 +175,7 @@ procedure TDFeAcbrSimEventoTests.ExigirAmbiente;
 begin
   if not FileExists(DiretorioSchemas + 'envEvento_v1.00.xsd') then
     Assert.Fail('AMBIENTE NAO PREPARADO (o DUnitX nao ignora em execucao): ' + 'XSDs oficiais de NFe nao encontrados em ' + DiretorioSchemas +
-      ' (rode tools/init-acbr-submodule.sh)');
+      ' (rode tools/obter-acbr.sh)');
   if not InitLibXml2Interface then
     Assert.Fail('AMBIENTE NAO PREPARADO (o DUnitX nao ignora em execucao): ' + 'libxml2 nativa nao encontrada (libxml2.dll x64 no PATH) -- ver docs/simulador-sefaz.md, "Sonda da Fase 4"');
 end;
