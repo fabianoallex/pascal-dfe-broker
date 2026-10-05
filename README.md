@@ -31,7 +31,7 @@ O fonte é o mesmo para Delphi e Lazarus: [`exemplos/consumidor`](exemplos/consu
 
 ## Veja funcionando, sem certificado
 
-**Sem compilar nada (Windows x64):** baixe o pacote da [release v0.2.0](https://github.com/fabianoallex/pascal-dfe-broker/releases/tag/v0.2.0) — traz os executáveis, o simulador, as DLLs, um certificado de teste e um `LEIAME.md` de 6 passos.
+**Sem compilar nada (Windows x64):** baixe o pacote da [release v0.2.1](https://github.com/fabianoallex/pascal-dfe-broker/releases/tag/v0.2.1) — traz os executáveis, o simulador, as DLLs, um certificado de teste e um `LEIAME.md` de 6 passos.
 
 O projeto inclui um **simulador da SEFAZ**. O [`docs/guia-de-uso.md`](docs/guia-de-uso.md) leva você, passo a passo, de "acabei de compilar" a ver documentos chegando numa fila, reproduzir o bloqueio de consumo indevido (656) em segundos e mandar uma manifestação do destinatário; a configuração da demo está em [`exemplos/demo-simulador/`](exemplos/demo-simulador/dfe.ini). Não conhece o vocabulário (NSU, cStat, resNFe…)? O guia tem um glossário, e há um [FAQ](docs/faq.md).
 
