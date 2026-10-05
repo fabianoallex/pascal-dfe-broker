@@ -8,10 +8,12 @@ LPI=/proj/hosts/console/DFeBrokerConsole.lpi
 conv() { tr ";" "\n" | sed "s#\\\\#/#g"; }
 UNITS=$(grep -o "OtherUnitFiles Value=\"[^\"]*\"" $LPI | sed "s/.*Value=\"//; s/\"\$//" | conv | sed "s#^#-Fu#" | tr "\n" " ")
 INCS=$(grep -o "IncludeFiles Value=\"[^\"]*\"" $LPI | sed "s/.*Value=\"//; s/\"\$//" | conv | sed "s#^#-Fi#" | tr "\n" " ")
+# A pascal-common-faa entra pelo pacote no .lpi; aqui, que o fpc e chamado direto, pelo -Fu.
+PCF=/proj/vendor/pascal-common-faa/src
 LAZ=/usr/lib/lazarus/2.2.6
 mkdir -p /out/host
 cd /proj/hosts/console
-fpc -Mdelphi -Sh $UNITS $INCS \
+fpc -Mdelphi -Sh $UNITS $INCS -Fu$PCF -Fi$PCF \
     -Fu$LAZ/lcl/units/x86_64-linux/nogui -Fu$LAZ/lcl/units/x86_64-linux \
     -Fu$LAZ/components/lazutils/lib/x86_64-linux -dLCL -dLCLnogui \
     -FU/out/host -FE/out/host -oDFeBrokerConsole DFeBrokerConsole.dpr 2>&1 | grep -E "Fatal|Error:|lines compiled"

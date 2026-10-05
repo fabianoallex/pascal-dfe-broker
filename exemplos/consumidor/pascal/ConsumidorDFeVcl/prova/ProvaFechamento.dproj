@@ -1,6 +1,6 @@
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
-        <ProjectGuid>{3C7A5E19-84D2-4B60-A1F3-6E9D0B2C7A41}</ProjectGuid>
+        <ProjectGuid>{5649663C-7AFA-4550-8404-32AF96A1F663}</ProjectGuid>
         <ProjectVersion>20.1</ProjectVersion>
         <FrameworkType>VCL</FrameworkType>
         <Base>True</Base>
@@ -8,8 +8,8 @@
         <Platform Condition="'$(Platform)'==''">Win32</Platform>
         <TargetedPlatforms>3</TargetedPlatforms>
         <AppType>Application</AppType>
-        <MainSource>ConsumidorDFeVcl.dpr</MainSource>
-        <ProjectName Condition="'$(ProjectName)'==''">ConsumidorDFeVcl</ProjectName>
+        <MainSource>ProvaFechamento.dpr</MainSource>
+        <ProjectName Condition="'$(ProjectName)'==''">ProvaFechamento</ProjectName>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Base' or '$(Base)'!=''">
         <Base>true</Base>
@@ -38,9 +38,9 @@
         <DCC_DcuOutput>.\$(Platform)\$(Config)</DCC_DcuOutput>
         <DCC_ExeOutput>.\$(Platform)\$(Config)</DCC_ExeOutput>
         <DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;Vcl;Vcl.Imaging;Vcl.Touch;Vcl.Samples;Vcl.Shell;$(DCC_Namespace)</DCC_Namespace>
-        <DCC_UnitSearchPath>..\..\..\..\vendor\pascal-amqp-faa\src;..\..\..\..\vendor\pascal-common-faa\src;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_UnitSearchPath>..;..\..\..\..\..\vendor\pascal-amqp-faa\src;..\..\..\..\..\vendor\pascal-common-faa\src;..\..\..\..\..\vendor\pascal-amqp-faa\src\server;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <Icon_MainIcon>$(BDS)\bin\delphi_PROJECTICON.ico</Icon_MainIcon>
-        <SanitizedProjectName>ConsumidorDFeVcl</SanitizedProjectName>
+        <SanitizedProjectName>ProvaFechamento</SanitizedProjectName>
         <UsingDelphiRTL>true</UsingDelphiRTL>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win32)'!=''">
@@ -80,11 +80,12 @@
         <DelphiCompile Include="$(MainSource)">
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
-        <DCCReference Include="uConsumidorMain.pas">
+        <DCCReference Include="..\uConsumidorMain.pas">
             <Form>frmConsumidor</Form>
             <FormType>dfm</FormType>
         </DCCReference>
-        <DCCReference Include="uDFeDocumento.pas"/>
+        <DCCReference Include="..\uDFeDocumento.pas"/>
+        <DCCReference Include="uProva.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
@@ -103,7 +104,7 @@
         <BorlandProject>
             <Delphi.Personality>
                 <Source>
-                    <Source Name="MainSource">ConsumidorDFeVcl.dpr</Source>
+                    <Source Name="MainSource">ProvaFechamento.dpr</Source>
                 </Source>
             </Delphi.Personality>
             <Platforms>

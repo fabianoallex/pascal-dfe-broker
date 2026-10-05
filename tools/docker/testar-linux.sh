@@ -8,7 +8,8 @@
 #   tools/docker/testar-linux.sh --so-pura    # so' a suite pura (rapido, ~10 s)
 #
 # Pre-requisito da integracao: vendor/ACBr inicializado (tools/init-acbr-submodule.sh).
-# Para os testes AMQP e o host: vendor/pascal-amqp-faa (git submodule update --init vendor/pascal-amqp-faa).
+# Para os testes AMQP e o host: vendor/pascal-amqp-faa e vendor/pascal-common-faa, sem --recursive
+# (git submodule update --init vendor/pascal-amqp-faa vendor/pascal-common-faa).
 # Para o simulador standalone (a integracao por HTTP): vendor/horse (git submodule update --init vendor/horse).
 set -euo pipefail
 export MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL="*"
@@ -46,12 +47,31 @@ docker run --rm \
   --entrypoint bash dfe-linux-teste -c '
 set -uo pipefail
 
+# heaptrc em toda suite e no host. No FPC do Debian o relatorio de saida do heaptrc NAO
+# aparece no console (gotcha 5 da pascal-common-faa): so com HEAPTRC=log=<arquivo>. Por
+# isso o "0 vazamento" e conferido NO ARQUIVO -- procurar a linha no console passaria
+# com um vazamento.
+HEAP="-gh -gl"
+confere_heap() {
+  if grep -q "^0 unfreed memory blocks" "$1" 2>/dev/null; then
+    echo "heaptrc ($2): 0 unfreed memory blocks"
+    return 0
+  fi
+  echo "FALHOU heaptrc ($2): sem a linha \"0 unfreed memory blocks\" em $1"
+  grep -E "unfreed|Call trace" "$1" 2>/dev/null | head -10
+  return 1
+}
+# A pascal-common-faa entra pelo pacote nos .lpi; aqui, que o fpc e chamado direto, pelo -Fu.
+PCF=/proj/vendor/pascal-common-faa/src
+COMUM="-Fu$PCF -Fi$PCF"
+
 echo "=== suite pura (FPCUnit) ==="
 cd /proj/tests/Unit/fpc
-fpc -Mdelphi -Sh -Fu/proj/src -Fu/proj/tests/Unit/fpc -Fu/proj/simulador/exemplos/limite-consultas -Fu/proj/exemplos/consumidor/pascal/ConsumidorDFeVcl -Fi/proj/src -FU/out -FE/out \
+fpc -Mdelphi -Sh $HEAP -Fu/proj/src -Fu/proj/tests/Unit/fpc -Fu/proj/simulador/exemplos/limite-consultas -Fu/proj/exemplos/consumidor/pascal/ConsumidorDFeVcl -Fi/proj/src -FU/out -FE/out \
     -oDFeUnitTestsFpc DFeUnitTestsFpc.lpr 2>&1 | grep -E "Fatal|Error:|lines compiled"
-/out/DFeUnitTestsFpc --all --format=plain > /out/pura.txt 2>&1; RCP=$?
-grep -E "Number of|unfreed" /out/pura.txt
+HEAPTRC="log=/out/heap-pura.txt" /out/DFeUnitTestsFpc --all --format=plain > /out/pura.txt 2>&1; RCP=$?
+grep -E "Number of" /out/pura.txt
+confere_heap /out/heap-pura.txt "suite pura" || RCP=1
 if [ "$SO_PURA" = "1" ]; then exit $RCP; fi
 
 echo; echo "=== integracao ACBr x simulador ==="
@@ -62,7 +82,7 @@ UNITS=$(grep -o "OtherUnitFiles Value=\"[^\"]*\"" $LPI | sed "s/.*Value=\"//; s/
 INCS=$(grep -o "IncludeFiles Value=\"[^\"]*\"" $LPI | sed "s/.*Value=\"//; s/\"\$//" | conv | sed "s#^#-Fi#" | tr "\n" " ")
 LAZ=/usr/lib/lazarus/2.2.6
 cd /proj/tests/Integration/AcbrSim
-fpc -Mdelphi -Sh $UNITS $INCS \
+fpc -Mdelphi -Sh $HEAP $UNITS $INCS \
     -Fu$LAZ/lcl/units/x86_64-linux/nogui -Fu$LAZ/lcl/units/x86_64-linux \
     -Fu$LAZ/components/lazutils/lib/x86_64-linux -dLCL -dLCLnogui \
     -FU/out -FE/out -oAcbrSimTests AcbrSimTests.lpr 2>&1 | grep -E "Fatal|Error:|lines compiled"
@@ -91,24 +111,26 @@ else
   echo "(sem o link libxml2.so -- o ACBr nao vai achar a libxml2)"
 fi
 cd /out
-timeout 300 ./AcbrSimTests --all --format=plain > /out/resultado.txt 2>&1; RCI=$?
+HEAPTRC="log=/out/heap-acbrsim.txt" timeout 300 ./AcbrSimTests --all --format=plain > /out/resultado.txt 2>&1; RCI=$?
 echo "saida da integracao=$RCI (0 = tudo passou; 124 = estourou o tempo)"
 grep -E "Number of|Time:" /out/resultado.txt | head -6 || true
 grep -A2 "Message:" /out/resultado.txt | head -4 | cut -c1-400 || true
+if [ "$SEM_LINK" = "0" ]; then confere_heap /out/heap-acbrsim.txt "integracao ACBr x simulador" || RCI=1; fi
 RCA=0; RCH=0; RCD=0; RCC=0
-if [ ! -d /proj/vendor/pascal-amqp-faa/src ]; then
-  echo; echo "=== integracao AMQP embutido e host console: PULADA (vendor/pascal-amqp-faa nao inicializado: git submodule update --init vendor/pascal-amqp-faa) ==="
+if [ ! -d /proj/vendor/pascal-amqp-faa/src ] || [ ! -d $PCF ]; then
+  echo; echo "=== integracao AMQP embutido e host console: PULADA (vendor/pascal-amqp-faa ou vendor/pascal-common-faa nao inicializado: git submodule update --init vendor/pascal-amqp-faa vendor/pascal-common-faa) ==="
 else
   echo; echo "=== integracao AMQP embutido (broker in-process, sem ACBr) ==="
   mkdir -p /out/amqp
   cd /proj/tests/Integration/AmqpBroker
-  fpc -Mdelphi -Sh -Fu/proj/src -Fu/proj/vendor/pascal-amqp-faa/src -Fu/proj/vendor/pascal-amqp-faa/src/server -Fu/proj/tests/Unit/fpc \
+  fpc -Mdelphi -Sh $HEAP -Fu/proj/src -Fu/proj/vendor/pascal-amqp-faa/src -Fu/proj/vendor/pascal-amqp-faa/src/server -Fu/proj/tests/Unit/fpc $COMUM \
       -Fi/proj/src -Fi/proj/vendor/pascal-amqp-faa/src -FU/out/amqp -FE/out/amqp -oAmqpBrokerTests AmqpBrokerTests.lpr 2>&1 | grep -E "Fatal|Error:|lines compiled"
   cd /out/amqp
-  timeout 300 ./AmqpBrokerTests --all --format=plain > /out/amqp.txt 2>&1; RCA=$?
+  HEAPTRC="log=/out/heap-amqp.txt" timeout 300 ./AmqpBrokerTests --all --format=plain > /out/amqp.txt 2>&1; RCA=$?
   echo "saida da integracao AMQP=$RCA (0 = tudo passou; 124 = estourou o tempo)"
   grep -E "Number of|Time:" /out/amqp.txt | head -6 || true
   grep -A2 "Message:" /out/amqp.txt | head -6 | cut -c1-400 || true
+  confere_heap /out/heap-amqp.txt "integracao AMQP" || RCA=1
 
   echo; echo "=== host console: compila, sobe, recebe SIGTERM ==="
   HLPI=/proj/hosts/console/DFeBrokerConsole.lpi
@@ -119,13 +141,13 @@ else
   LAZ=/usr/lib/lazarus/2.2.6
   mkdir -p /out/host /out/host-cfg
   cd /proj/hosts/console
-  fpc -Mdelphi -Sh $HUNITS $HINCS \
+  fpc -Mdelphi -Sh $HEAP $HUNITS $HINCS $COMUM \
       -Fu$LAZ/lcl/units/x86_64-linux/nogui -Fu$LAZ/lcl/units/x86_64-linux \
       -Fu$LAZ/components/lazutils/lib/x86_64-linux -dLCL -dLCLnogui \
       -FU/out/host -FE/out/host -oDFeBrokerConsole DFeBrokerConsole.dpr 2>&1 | grep -E "Fatal|Error:|lines compiled"
   printf "[dfe]\nPathSchemas=/proj/vendor/ACBr/Exemplos/ACBrDFe/Schemas/NFe\n[broker]\nPorta=25672\n[fila:documentos]\nRoutingKey=nfe.documento.#\n" > /out/host-cfg/dfe.ini
   ln -sf /usr/lib/x86_64-linux-gnu/libxml2.so.2 /usr/lib/x86_64-linux-gnu/libxml2.so
-  /out/host/DFeBrokerConsole --config /out/host-cfg/dfe.ini > /out/host.txt 2>&1 &
+  HEAPTRC="log=/out/heap-host.txt" /out/host/DFeBrokerConsole --config /out/host-cfg/dfe.ini > /out/host.txt 2>&1 &
   HPID=$!
   sleep 8
   kill -TERM $HPID
@@ -133,6 +155,7 @@ else
   cut -c1-220 /out/host.txt
   echo "saida do host apos SIGTERM=$RCH (0 = parada limpa)"
   if ! grep -q "Encerrando" /out/host.txt; then RCH=1; fi
+  confere_heap /out/heap-host.txt "host console apos SIGTERM" || RCH=1
 
   echo; echo "=== demo (tools/demo/DFeDemo): compila, publica NFes sinteticas, recebe SIGTERM ==="
   DLPI=/proj/tools/demo/DFeDemo.lpi
@@ -141,8 +164,8 @@ else
   DINCS=$(grep -o "IncludeFiles Value=\"[^\"]*\"" $DLPI | sed "s/.*Value=\"//; s/\"\$//" | dconv | sed "s#^#-Fi#" | tr "\n" " ")
   mkdir -p /out/demo
   cd /proj/tools/demo
-  fpc -Mdelphi -Sh $DUNITS $DINCS -FU/out/demo -FE/out/demo -oDFeDemo DFeDemo.dpr 2>&1 | grep -E "Fatal|Error:|lines compiled"
-  /out/demo/DFeDemo --porta 25693 --intervalo 1 > /out/demo.txt 2>&1 &
+  fpc -Mdelphi -Sh $HEAP $DUNITS $DINCS $COMUM -FU/out/demo -FE/out/demo -oDFeDemo DFeDemo.dpr 2>&1 | grep -E "Fatal|Error:|lines compiled"
+  HEAPTRC="log=/out/heap-demo.txt" /out/demo/DFeDemo --porta 25693 --intervalo 1 > /out/demo.txt 2>&1 &
   DPID=$!
   sleep 5
   kill -TERM $DPID
@@ -150,17 +173,26 @@ else
   cut -c1-160 /out/demo.txt
   echo "saida do demo apos SIGTERM=$RCD (0 = parada limpa)"
   if ! grep -q "publicado  nfe.documento" /out/demo.txt || ! grep -q "Encerrando" /out/demo.txt; then RCD=1; fi
+  confere_heap /out/heap-demo.txt "demo apos SIGTERM" || RCD=1
 
   # O consumidor Pascal com tela (VCL/LCL): so COMPILA e LINKA aqui (LCL nogui: nao ha tela no
   # contêiner para rodar). Pega o que quebra o build fora do Windows (LCLIntf, threads, units da lib).
   echo; echo "=== consumidor Pascal (exemplos/consumidor/pascal): compila e linka (LCL nogui) ==="
   mkdir -p /out/consumidor
   cd /proj/exemplos/consumidor/pascal/ConsumidorDFeVcl
-  fpc -Mdelphi -Sh -Fu/proj/vendor/pascal-amqp-faa/src -Fi/proj/vendor/pascal-amqp-faa/src \
+  fpc -Mdelphi -Sh -Fu/proj/vendor/pascal-amqp-faa/src -Fi/proj/vendor/pascal-amqp-faa/src $COMUM \
       -Fu$LAZ/lcl/units/x86_64-linux/nogui -Fu$LAZ/lcl/units/x86_64-linux \
       -Fu$LAZ/components/lazutils/lib/x86_64-linux -dLCL -dLCLnogui \
       -FU/out/consumidor -FE/out/consumidor -oConsumidorDFeVcl ConsumidorDFeVcl.dpr 2>&1 | grep -E "Fatal|Error:|lines compiled"
   if [ ! -x /out/consumidor/ConsumidorDFeVcl ]; then RCC=1; echo "FALHOU: o consumidor Pascal nao compilou"; fi
+  # A prova do fechamento com trabalho em andamento (prova/ProvaFechamento): idem, so compila.
+  mkdir -p /out/prova
+  cd /proj/exemplos/consumidor/pascal/ConsumidorDFeVcl/prova
+  fpc -Mdelphi -Sh -Fu.. -Fu/proj/vendor/pascal-amqp-faa/src -Fu/proj/vendor/pascal-amqp-faa/src/server -Fi/proj/vendor/pascal-amqp-faa/src $COMUM \
+      -Fu$LAZ/lcl/units/x86_64-linux/nogui -Fu$LAZ/lcl/units/x86_64-linux \
+      -Fu$LAZ/components/lazutils/lib/x86_64-linux -dLCL -dLCLnogui \
+      -FU/out/prova -FE/out/prova -oProvaFechamento ProvaFechamento.dpr 2>&1 | grep -E "Fatal|Error:|lines compiled"
+  if [ ! -x /out/prova/ProvaFechamento ]; then RCC=1; echo "FALHOU: a prova do fechamento nao compilou"; fi
 fi
 
 # codigo de saida do script = falha se QUALQUER suite falhou

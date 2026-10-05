@@ -12,7 +12,7 @@ Os números atuais (que mudam a cada fase) ficam no [`CLAUDE.md`](../CLAUDE.md),
 
 ## Pré-requisitos
 
-- Os submódulos inicializados (ver o README): `vendor/pascal-amqp-faa`, `vendor/ACBr` e, para o simulador, `vendor/horse`.
+- Os submódulos inicializados (ver o README): `vendor/pascal-amqp-faa`, `vendor/pascal-common-faa`, `vendor/ACBr` e, para o simulador, `vendor/horse`.
 - O pacote Lazarus registrado, uma vez por máquina: `lazbuild --add-package-link packages/pascal_dfe_broker.lpk`.
 - Para a integração com o ACBr: **OpenSSL 3, libxml2 e os XSDs** ([`dependencias-runtime.md`](dependencias-runtime.md)). Sem eles, os testes que exigem libxml2 e XSDs são **ignorados** (14 deles) e os de distribuição falham dizendo o que falta.
 - Para os testes HTTP de integração: o executável do simulador compilado (`simulador/DFeSimulador`, ver o README). Sem ele o teste **falha** e diz como compilar.
@@ -30,7 +30,14 @@ lazbuild tests/Integration/AmqpBroker/AmqpBrokerTests.lpi
 tests/Integration/AmqpBroker/AmqpBrokerTests --all --format=plain   # AMQP
 ```
 
-(No Windows os executáveis têm `.exe`.) O `heaptrc` está ligado nas suítes pura e AMQP: um vazamento aparece no relatório do fim da execução, e o resultado esperado é **0 vazamento**.
+(No Windows os executáveis têm `.exe`.) O `heaptrc` está ligado nas três suítes (pura, ACBr x simulador e AMQP): o resultado esperado é **0 vazamento**. Para ver o relatório de um jeito que vale em qualquer plataforma, mande-o para um arquivo e confira a linha `0 unfreed memory blocks` nele:
+
+```
+HEAPTRC="log=heap.txt" tests/Unit/fpc/DFeUnitTestsFpc --all --format=plain
+grep "unfreed memory blocks" heap.txt
+```
+
+No FPC do Debian o relatório de saída do `heaptrc` **não aparece no console**, só no arquivo; não procurar a linha na saída do teste, que passaria em silêncio com um vazamento. O `tools/docker/testar-linux.sh` faz essa conferência no arquivo para as três suítes, o host e o demo.
 
 Se um build parecer usar código antigo depois de você mudar um arquivo de `src/`, force: `lazbuild -B -r tests/Unit/fpc/DFeUnitTestsFpc.lpi`.
 

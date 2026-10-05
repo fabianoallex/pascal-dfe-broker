@@ -7,3 +7,6 @@
 [submodule "vendor/horse"]
 	path = vendor/horse
 	url = https://github.com/HashLoad/horse.git
+[submodule "vendor/pascal-common-faa"]
+	path = vendor/pascal-common-faa
+	url = https://github.com/fabianoallex/pascal-common-faa.git

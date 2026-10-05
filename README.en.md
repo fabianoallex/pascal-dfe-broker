@@ -58,7 +58,7 @@ Delphi and FPC/Lazarus, **from day one** — the same dual-compiler pattern as p
 
 ## Building and running
 
-Depends on submodules under `vendor/`: the [pascal-amqp-faa](https://github.com/fabianoallex/pascal-amqp-faa) broker (~4 MB), ACBr (~75 MB partial clone) and, for the simulator only, [Horse](https://github.com/HashLoad/horse). **Do not use `--recurse-submodules`**: it would download the whole ACBr monorepo (~1.3 GB).
+Depends on submodules under `vendor/`: the [pascal-amqp-faa](https://github.com/fabianoallex/pascal-amqp-faa) broker (~4 MB) and the [pascal-common-faa](https://github.com/fabianoallex/pascal-common-faa) it uses (this project provides that copy, per the one-copy-per-application rule), ACBr (~75 MB partial clone) and, for the simulator only, [Horse](https://github.com/HashLoad/horse). **Do not use `--recurse-submodules`**: it would download the whole ACBr monorepo (~1.3 GB).
 
 > **Windows:** clone into a **short** path (e.g. `C:\dev\`). ACBr has deep folders, and a long path makes Git refuse the submodule clone (`Filename too long`).
 

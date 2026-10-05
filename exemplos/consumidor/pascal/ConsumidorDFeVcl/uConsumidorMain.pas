@@ -25,9 +25,22 @@ unit uConsumidorMain;
 
   Compila nos dois mundos a partir do MESMO fonte (padrao dos samples GUI da
   lib): callbacks nomeados ('of object'), marshals descartaveis + TThread.Queue
-  para a UI, e eventos de conexao saltando pelo AmqpPool (gotcha do
+  para a UI, e eventos de conexao saltando pelo PcPool (gotcha do
   TThread.Queue descartado no FPC; ver uEventosMain, no sample EventosTopicVcl
-  da lib). }
+  da lib).
+
+  FECHAR: o PcPool e' um pool para o processo inteiro, liberado so' na
+  finalizacao da PascalCommon.ThreadPool, e a VCL/LCL liberam as forms ANTES de
+  qualquer finalizacao. Um item que ainda esteja na fila do pool (ou um marshal
+  ainda no TThread.Queue) quando a form some roda depois, contra a form
+  liberada -- medido em prova/ProvaFechamento (cenario pool): o ConexaoCaiu de
+  um marshal rodou na form ja' liberada, chamado pelo CheckSynchronize do
+  Destroy do PcPool. Por isso tudo que leva a form para fora da thread da UI
+  (TConexaoEventoWork e os marshals) se conta em FEmVoo do construtor ao
+  destrutor, e o FormCloseQuery cala os produtores e espera essa conta zerar,
+  rodando CheckSynchronize. Nenhum desses objetos le controle: na LCL, ler um
+  controle de outra thread e' um SendMessage para a thread da UI, que e'
+  justamente a que esta' esperando. }
 
 interface
 
@@ -41,7 +54,7 @@ uses
   {$ENDIF}
   SysUtils, Classes, Contnrs,
   Graphics, Controls, Forms, Dialogs, StdCtrls, ComCtrls, ExtCtrls,
-  AMQP.Wire, AMQP.Threading, AMQP.Connection,
+  AMQP.Wire, PascalCommon.Threading, PascalCommon.ThreadPool, AMQP.Connection,
   AMQP.Exchange.Methods, AMQP.Queue.Methods, AMQP.Basic.Methods,
   uDFeDocumento;
 
@@ -95,7 +108,7 @@ type
     mmoXml: TMemo;
     procedure FormCreate(Sender: TObject);
     procedure FormShow(Sender: TObject);
-    procedure FormClose(Sender: TObject; var Action: TCloseAction);
+    procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure FormDestroy(Sender: TObject);
     procedure btnConectarClick(Sender: TObject);
     procedure btnConsumirClick(Sender: TObject);
@@ -118,6 +131,9 @@ type
     FVistas: TStringList;      // chaves de dedup ja' vistas (ordenada)
     FDocs: TObjectList;        // TDocItem, na mesma ordem das linhas de lvDocs
     FRecebidas, FNovas, FRepetidas, FIlegiveis, FSalvas: Integer;
+    // Itens de pool e marshals vivos que apontam para esta form (atomico:
+    // incrementado por qualquer thread, do construtor ao destrutor deles).
+    FEmVoo: Integer;
     function ScrollAtBottom(AHandle: HWND): Boolean;
     procedure Log(const AMsg: string);
     procedure AtualizarControles;
@@ -163,6 +179,9 @@ const
 const
   MAX_LINHAS = 1000;  // a lista guarda as ultimas; o que passar disso sai pela ponta
   PREFETCH = 20;      // nao confirmadas em voo por vez
+  // Quanto o fechamento espera os itens/marshals em voo antes de desistir
+  // (e recusar fechar, em vez de deixa-los rodar contra a form liberada).
+  ESPERA_FECHAR_MS = 10000;
 
 function NovoSufixo: string;
 var
@@ -176,46 +195,66 @@ type
   // Um objeto por chamada: TThread.Queue no FPC so' aceita 'procedure of
   // object' SEM PARAMETROS, entao os dados viajam num objeto descartavel (nao
   // num campo da form, que teria corrida entre callbacks concorrentes). Se
-  // autodestroi apos rodar.
-  TLogMarshal = class
+  // autodestroi apos rodar. Conta-se em Form.FEmVoo do Create ao Destroy (ver
+  // FormCloseQuery).
+  TFormMarshal = class
+  public
     Form: TfrmConsumidor;
+    constructor Create(AForm: TfrmConsumidor);
+    destructor Destroy; override;
+  end;
+
+  TLogMarshal = class(TFormMarshal)
     Texto: string;
     procedure Execute;
   end;
 
-  TDocMarshal = class
-    Form: TfrmConsumidor;
+  TDocMarshal = class(TFormMarshal)
     RoutingKey, Xml, Arquivo: string;
     Info: TDFeInfo;
     Redelivered: Boolean;
     procedure Execute;
   end;
 
-  TDevolvidoMarshal = class
-    Form: TfrmConsumidor;
+  TDevolvidoMarshal = class(TFormMarshal)
     RoutingKey: string;
     procedure Execute;
   end;
 
   TConexaoEvento = (ceCaiu, ceVoltou, ceFalhou);
 
-  TConexaoMarshal = class
-    Form: TfrmConsumidor;
+  TConexaoMarshal = class(TFormMarshal)
     Evento: TConexaoEvento;
     procedure Execute;
   end;
 
   { Eventos de conexao rodam na thread de RECONEXAO da lib, que morre logo apos
     o OnReconnect -- no FPC um TThread.Queue postado por thread que morre antes
-    do bombeio e' DESCARTADO. Salto por um worker persistente do AmqpPool. }
-  TConexaoEventoWork = class(TAMQPWorkItem)
+    do bombeio e' DESCARTADO. Salto por um worker persistente do PcPool. Conta-se
+    em Form.FEmVoo do Create ao Destroy: o Destroy tambem roda quando o pool
+    libera o item sem executa-lo, e e' o ultimo acesso dele a form. }
+  TConexaoEventoWork = class(TPcWorkItem)
   private
     FForm: TfrmConsumidor;
     FEvento: TConexaoEvento;
   public
     constructor Create(AForm: TfrmConsumidor; AEvento: TConexaoEvento);
+    destructor Destroy; override;
     procedure Execute; override;
   end;
+
+constructor TFormMarshal.Create(AForm: TfrmConsumidor);
+begin
+  inherited Create;
+  Form := AForm;
+  PcAtomicInc(Form.FEmVoo);
+end;
+
+destructor TFormMarshal.Destroy;
+begin
+  PcAtomicDec(Form.FEmVoo);
+  inherited;
+end;
 
 procedure TLogMarshal.Execute;
 begin
@@ -250,14 +289,22 @@ begin
   inherited Create;
   FForm := AForm;
   FEvento := AEvento;
+  PcAtomicInc(FForm.FEmVoo);
+end;
+
+destructor TConexaoEventoWork.Destroy;
+begin
+  PcAtomicDec(FForm.FEmVoo);
+  inherited;
 end;
 
 procedure TConexaoEventoWork.Execute;
 var
   LMarshal: TConexaoMarshal;
 begin
-  LMarshal := TConexaoMarshal.Create;
-  LMarshal.Form := FForm;
+  // O marshal se conta antes de este item se descontar (no Destroy, depois do
+  // Execute): a conta da form nao passa por zero no meio do caminho.
+  LMarshal := TConexaoMarshal.Create(FForm);
   LMarshal.Evento := FEvento;
   TThread.Queue(nil, LMarshal.Execute);
 end;
@@ -324,19 +371,31 @@ begin
   FVistas.Free;
 end;
 
-procedure TfrmConsumidor.FormClose(Sender: TObject; var Action: TCloseAction);
+procedure TfrmConsumidor.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+var
+  LPrazo: UInt64;
 begin
-  // Cancela o consumo primeiro (drena os callbacks em voo); depois os canais.
+  // 1) Calar quem produz: o Cancel e o Free do canal drenam os callbacks de
+  //    entrega em voo; o Free da conexao espera a thread de reconexao (a que
+  //    chama OnDesconectado & cia.). Depois disto nada novo aponta para a form.
   PararConsumo;
   FreeAndNil(FCanalPub);
-  // Os marshals que os callbacks postaram ainda estao na fila do
-  // TThread.Queue -- bombear aqui os drena com a form ainda viva.
-  Application.ProcessMessages;
   FreeAndNil(FConn);
-  // O Free da conexao encerra a thread de reconexao; um TConexaoEventoWork ja
-  // enfileirado no pool pode estar postando o ultimo marshal NESTE instante.
-  Sleep(100);
-  Application.ProcessMessages;
+  // 2) Esperar o que ja' saiu: itens na fila do PcPool e marshals no
+  //    TThread.Queue. CheckSynchronize (e nao Sleep) porque os marshals so'
+  //    rodam quando alguem bombeia a fila, e depois do laco de mensagens
+  //    ninguem bombeia -- no Delphi eles ainda vazariam.
+  LPrazo := PcTickMs + ESPERA_FECHAR_MS;
+  while (PcAtomicGet(FEmVoo) > 0) and (PcTickMs < LPrazo) do
+    CheckSynchronize(10);
+  CanClose := PcAtomicGet(FEmVoo) = 0;
+  if not CanClose then
+  begin
+    Log(Format('Ainda ha %d tarefa(s) em andamento apontando para esta janela ' +
+      '(o pool de threads do processo esta ocupado). Tente fechar de novo.',
+      [PcAtomicGet(FEmVoo)]));
+    AtualizarControles;
+  end;
 end;
 
 function TfrmConsumidor.ScrollAtBottom(AHandle: HWND): Boolean;
@@ -366,8 +425,7 @@ procedure TfrmConsumidor.QueueLog(const ATexto: string);
 var
   LMarshal: TLogMarshal;
 begin
-  LMarshal := TLogMarshal.Create;
-  LMarshal.Form := Self;
+  LMarshal := TLogMarshal.Create(Self);
   LMarshal.Texto := ATexto;
   TThread.Queue(nil, LMarshal.Execute);
 end;
@@ -507,21 +565,21 @@ begin
   AtualizarControles;
 end;
 
-// Os tres eventos de conexao saltam pelo AmqpPool em vez de postar direto
+// Os tres eventos de conexao saltam pelo PcPool em vez de postar direto
 // (ver o comentario de TConexaoEventoWork).
 procedure TfrmConsumidor.OnDesconectado(AConnection: TAMQPConnection);
 begin
-  AmqpPool.Queue(TConexaoEventoWork.Create(Self, ceCaiu));
+  PcPool.Queue(TConexaoEventoWork.Create(Self, ceCaiu));
 end;
 
 procedure TfrmConsumidor.OnReconectado(AConnection: TAMQPConnection);
 begin
-  AmqpPool.Queue(TConexaoEventoWork.Create(Self, ceVoltou));
+  PcPool.Queue(TConexaoEventoWork.Create(Self, ceVoltou));
 end;
 
 procedure TfrmConsumidor.OnReconexaoFalhou(AConnection: TAMQPConnection);
 begin
-  AmqpPool.Queue(TConexaoEventoWork.Create(Self, ceFalhou));
+  PcPool.Queue(TConexaoEventoWork.Create(Self, ceFalhou));
 end;
 
 procedure TfrmConsumidor.ConexaoCaiu;
@@ -711,8 +769,7 @@ procedure TfrmConsumidor.OnDocumento(AChannel: TAMQPChannel; const ADelivery: TA
 var
   LMarshal: TDocMarshal;
 begin
-  LMarshal := TDocMarshal.Create;
-  LMarshal.Form := Self;
+  LMarshal := TDocMarshal.Create(Self);
   LMarshal.RoutingKey := ADelivery.RoutingKey;
   LMarshal.Xml := ADelivery.BodyAsText;      // UTF-8 -> texto nativo
   LMarshal.Info := LerXml(LMarshal.Xml);
@@ -858,8 +915,7 @@ procedure TfrmConsumidor.OnDevolvida(AChannel: TAMQPChannel; const AReturned: TA
 var
   LMarshal: TDevolvidoMarshal;
 begin
-  LMarshal := TDevolvidoMarshal.Create;
-  LMarshal.Form := Self;
+  LMarshal := TDevolvidoMarshal.Create(Self);
   LMarshal.RoutingKey := AReturned.RoutingKey;
   TThread.Queue(nil, LMarshal.Execute);
 end;

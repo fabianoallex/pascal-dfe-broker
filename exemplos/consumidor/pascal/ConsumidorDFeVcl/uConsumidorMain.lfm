@@ -13,7 +13,7 @@ object frmConsumidor: TfrmConsumidor
   Font.Name = 'Segoe UI'
   Position = poScreenCenter
   LCLVersion = '4.4.0.0'
-  OnClose = FormClose
+  OnCloseQuery = FormCloseQuery
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   OnShow = FormShow

@@ -12,8 +12,10 @@ unit DFe.AmqpPublicadorTests;
 interface
 
 uses
-  fpcunit, testregistry, SysUtils,
+  fpcunit, testregistry, SysUtils, SyncObjs,
   AMQP.Wire,
+  PascalCommon.Threading,
+  PascalCommon.ThreadPool,
   AMQP.Basic.Methods,
   AMQP.Queue.Methods,
   AMQP.Connection,
@@ -46,9 +48,44 @@ type
     procedure Publicar_SemFilaLigada_NaoEErro;
     procedure Publicar_BrokerForaDoAr_LevantaPublicacaoFalhou;
     procedure Publicar_DepoisQueOBrokerReinicia_Reconecta;
+    procedure Publicar_ComPcPoolSaturado_NaoDependeDoPool;
   end;
 
 implementation
+
+type
+  { Prende um worker do PcPool ate' o evento ser sinalizado. Conta-se em
+    GBloqueiosVivos do Create ao Destroy: o teste espera essa conta zerar antes
+    de liberar o evento que os itens ainda podem estar olhando. }
+  TBloqueioPcPool = class(TPcWorkItem)
+  private
+    FEvento: TEvent;
+  public
+    constructor Create(AEvento: TEvent);
+    destructor Destroy; override;
+    procedure Execute; override;
+  end;
+
+var
+  GBloqueiosVivos: Integer = 0;
+
+constructor TBloqueioPcPool.Create(AEvento: TEvent);
+begin
+  inherited Create;
+  FEvento := AEvento;
+  PcAtomicInc(GBloqueiosVivos);
+end;
+
+destructor TBloqueioPcPool.Destroy;
+begin
+  PcAtomicDec(GBloqueiosVivos);
+  inherited;
+end;
+
+procedure TBloqueioPcPool.Execute;
+begin
+  FEvento.WaitFor(30000);
+end;
 
 const
   XML_COM_ACENTO =
@@ -245,6 +282,50 @@ begin
   IniciarBroker(LPorta);
   // a conexao velha foi descartada na falha; esta chamada reabre sozinha
   LPublicador.Publicar('nfe.documento.sp.12345678000190', '<depois/>');
+end;
+
+procedure TDFeAmqpPublicadorTests.Publicar_ComPcPoolSaturado_NaoDependeDoPool;
+var
+  LEvento: TEvent;
+  LPublicador: IDFePublicador;
+  LMsg: TAMQPGetResult;
+  LInicio, LPrazo, LDecorrido: UInt64;
+  I: Integer;
+begin
+  // O PcPool e' um pool para o processo inteiro: callbacks de consumer deste
+  // cliente e de outras libs *-faa, que podem bloquear. O publicador do host
+  // so' espera o confirm (que a thread de leitura entrega) e o broker embutido
+  // roda os atores das filas num pool proprio (D37 do pascal-amqp-faa), entao
+  // declarar, publicar, confirmar e ler nao podem depender de um worker livre
+  // no PcPool. Com os atores no PcPool, o Queue.Declare esperaria 15 s.
+  LEvento := TEvent.Create(nil, True, False, '');
+  try
+    for I := 1 to PcPool.MaxWorkers + 1 do
+      PcPool.Queue(TBloqueioPcPool.Create(LEvento));
+    try
+      LPrazo := PcTickMs + 5000;
+      while (PcPool.QueueDepth = 0) and (PcTickMs < LPrazo) do
+        Sleep(5);
+      AssertTrue('PcPool saturado', PcPool.QueueDepth > 0);
+
+      LInicio := PcTickMs;
+      AbrirCliente;
+      LigarFila('t.saturado', '#');
+      LPublicador := NovoPublicador;
+      LPublicador.Publicar('nfe.documento.sp.12345678000190', '<a/>');
+      AssertTrue('mensagem chegou', EsperarMensagem('t.saturado', LMsg));
+      LDecorrido := PcTickMs - LInicio;
+      AssertTrue(Format('declarar+publicar+confirmar+get levou %d ms ' +
+        'com o PcPool saturado', [LDecorrido]), LDecorrido < 5000);
+    finally
+      LEvento.SetEvent;
+      LPrazo := PcTickMs + 10000;
+      while (PcAtomicGet(GBloqueiosVivos) > 0) and (PcTickMs < LPrazo) do
+        Sleep(5);
+    end;
+  finally
+    LEvento.Free;
+  end;
 end;
 
 initialization

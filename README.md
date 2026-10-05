@@ -66,7 +66,7 @@ Delphi e FPC/Lazarus, **desde o início** — mesmo padrão dual-compiler do pas
 
 ## Como compilar e rodar
 
-Depende de submódulos em `vendor/`: o broker [pascal-amqp-faa](https://github.com/fabianoallex/pascal-amqp-faa) (~4 MB), o ACBr (clone parcial de ~75 MB) e, só para o simulador, o [Horse](https://github.com/HashLoad/horse). **Não use `--recurse-submodules`**: ele baixaria o monorepo inteiro do ACBr (~1,3 GB).
+Depende de submódulos em `vendor/`: o broker [pascal-amqp-faa](https://github.com/fabianoallex/pascal-amqp-faa) (~4 MB) e a [pascal-common-faa](https://github.com/fabianoallex/pascal-common-faa) que ele usa (o projeto fornece a cópia dela, como manda a regra de uma cópia por aplicação), o ACBr (clone parcial de ~75 MB) e, só para o simulador, o [Horse](https://github.com/HashLoad/horse). **Não use `--recurse-submodules`**: ele baixaria o monorepo inteiro do ACBr (~1,3 GB).
 
 > **Windows:** clone num caminho **curto** (ex.: `C:\dev\`). O ACBr tem pastas profundas, e um caminho longo faz o Git recusar o clone do submódulo (`Filename too long`).
 

@@ -21,9 +21,9 @@ jobs:
         # SEM submodules aqui: o do ACBr e' um monorepo de ~1,3 GB; o script abaixo
         # faz o clone parcial (~70 MB) so' do que o projeto usa.
 
-      - name: Submodulos (pascal-amqp-faa completo, ACBr parcial)
+      - name: Submodulos (pascal-amqp-faa e pascal-common-faa completos, sem recursive; ACBr parcial)
         run: |
-          git submodule update --init vendor/pascal-amqp-faa vendor/horse
+          git submodule update --init vendor/pascal-amqp-faa vendor/pascal-common-faa vendor/horse
           ./tools/init-acbr-submodule.sh
 
       - name: Suites (pura, ACBr x simulador, AMQP, host console)
@@ -51,9 +51,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Submodulos (pascal-amqp-faa completo, ACBr parcial)
+      - name: Submodulos (pascal-amqp-faa e pascal-common-faa completos, sem recursive; ACBr parcial)
         run: |
-          git submodule update --init vendor/pascal-amqp-faa vendor/horse
+          git submodule update --init vendor/pascal-amqp-faa vendor/pascal-common-faa vendor/horse
           ./tools/init-acbr-submodule.sh
 
       - name: Unit de systemd (subida, queda + reinicio, SIGTERM, exit 2)

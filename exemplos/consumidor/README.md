@@ -47,7 +47,7 @@ O que ele mostra, na ordem do código (`uConsumidorMain.pas` tem o comentário d
 
 **Compilar e rodar**
 
-- **Lazarus/FPC**: `lazbuild exemplos/consumidor/pascal/ConsumidorDFeVcl/ConsumidorDFeVcl.lpi` (não precisa registrar o pacote da lib: o `.lpi` aponta para `vendor/pascal-amqp-faa/src`; exige o submódulo inicializado).
+- **Lazarus/FPC**: `lazbuild exemplos/consumidor/pascal/ConsumidorDFeVcl/ConsumidorDFeVcl.lpi` (não precisa registrar o pacote da lib: o `.lpi` aponta para `vendor/pascal-amqp-faa/src` e usa o pacote `pascal_common_faa` de `vendor/pascal-common-faa`; exige os dois submódulos inicializados).
 - **Delphi**: abra `ConsumidorDFeVcl.dproj` (ou o `PascalDfeBroker.groupproj`).
 
 Sem argumentos, abre e você clica **Conectar** → **Iniciar consumo**. Para demonstrar sem clicar: `ConsumidorDFeVcl --auto` (conecta e consome) com `--host=`, `--porta=`, `--fila=documentos` (fila nomeada) e `--salvar=pasta`.

@@ -9,7 +9,7 @@
         <MainUnitHasTitleStatement Value="False"/>
       </Flags>
       <SessionStorage Value="InProjectDir"/>
-      <Title Value="ConsumidorDFeVcl"/>
+      <Title Value="ProvaFechamento"/>
       <UseAppBundle Value="False"/>
       <ResourceType Value="res"/>
     </General>
@@ -26,7 +26,7 @@
     <RequiredPackages>
       <Item>
         <PackageName Value="pascal_common_faa"/>
-        <DefaultFilename Value="..\..\..\..\vendor\pascal-common-faa\packages\pascal_common_faa.lpk" Prefer="True"/>
+        <DefaultFilename Value="..\..\..\..\..\vendor\pascal-common-faa\packages\pascal_common_faa.lpk" Prefer="True"/>
       </Item>
       <Item>
         <PackageName Value="LCL"/>
@@ -34,15 +34,19 @@
     </RequiredPackages>
     <Units>
       <Unit>
-        <Filename Value="ConsumidorDFeVcl.dpr"/>
+        <Filename Value="ProvaFechamento.dpr"/>
         <IsPartOfProject Value="True"/>
       </Unit>
       <Unit>
-        <Filename Value="uDFeDocumento.pas"/>
+        <Filename Value="uProva.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit>
       <Unit>
-        <Filename Value="uConsumidorMain.pas"/>
+        <Filename Value="..\uDFeDocumento.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\uConsumidorMain.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="frmConsumidor"/>
         <HasResources Value="True"/>
@@ -54,11 +58,11 @@
     <Version Value="11"/>
     <PathDelim Value="\"/>
     <Target>
-      <Filename Value="ConsumidorDFeVcl"/>
+      <Filename Value="ProvaFechamento"/>
     </Target>
     <SearchPaths>
-      <IncludeFiles Value="..\..\..\..\vendor\pascal-amqp-faa\src"/>
-      <OtherUnitFiles Value="..\..\..\..\vendor\pascal-amqp-faa\src"/>
+      <IncludeFiles Value="..\..\..\..\..\vendor\pascal-amqp-faa\src"/>
+      <OtherUnitFiles Value="..;..\..\..\..\..\vendor\pascal-amqp-faa\src;..\..\..\..\..\vendor\pascal-amqp-faa\src\server"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)-$(LCLWidgetType)"/>
     </SearchPaths>
     <Parsing>
@@ -74,6 +78,7 @@
     <Linking>
       <Debugging>
         <DebugInfoType Value="dsDwarf3"/>
+        <UseHeaptrc Value="True"/>
       </Debugging>
     </Linking>
   </CompilerOptions>

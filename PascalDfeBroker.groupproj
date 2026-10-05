@@ -33,6 +33,9 @@
         <Projects Include="exemplos\consumidor\pascal\ConsumidorDFeVcl\ConsumidorDFeVcl.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="exemplos\consumidor\pascal\ConsumidorDFeVcl\prova\ProvaFechamento.dproj">
+            <Dependencies/>
+        </Projects>
     </ItemGroup>
     <ProjectExtensions>
         <Borland.Personality>Default.Personality.12</Borland.Personality>
@@ -131,14 +134,23 @@
     <Target Name="ConsumidorDFeVcl:Make">
         <MSBuild Projects="exemplos\consumidor\pascal\ConsumidorDFeVcl\ConsumidorDFeVcl.dproj" Targets="Make"/>
     </Target>
+    <Target Name="ProvaFechamento">
+        <MSBuild Projects="exemplos\consumidor\pascal\ConsumidorDFeVcl\prova\ProvaFechamento.dproj"/>
+    </Target>
+    <Target Name="ProvaFechamento:Clean">
+        <MSBuild Projects="exemplos\consumidor\pascal\ConsumidorDFeVcl\prova\ProvaFechamento.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="ProvaFechamento:Make">
+        <MSBuild Projects="exemplos\consumidor\pascal\ConsumidorDFeVcl\prova\ProvaFechamento.dproj" Targets="Make"/>
+    </Target>
     <Target Name="Build">
-        <CallTarget Targets="DFe_UnitTests;AcbrClientSmoke;AcbrSimDelphiTests;AmqpBrokerDelphiTests;DFeBrokerConsole;DFeBrokerServico;SpikeHorse;DFeSimulador;DFeSimuladorLimite;ConsumidorDFeVcl"/>
+        <CallTarget Targets="DFe_UnitTests;AcbrClientSmoke;AcbrSimDelphiTests;AmqpBrokerDelphiTests;DFeBrokerConsole;DFeBrokerServico;SpikeHorse;DFeSimulador;DFeSimuladorLimite;ConsumidorDFeVcl;ProvaFechamento"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="DFe_UnitTests:Clean;AcbrClientSmoke:Clean;AcbrSimDelphiTests:Clean;AmqpBrokerDelphiTests:Clean;DFeBrokerConsole:Clean;DFeBrokerServico:Clean;SpikeHorse:Clean;DFeSimulador:Clean;DFeSimuladorLimite:Clean;ConsumidorDFeVcl:Clean"/>
+        <CallTarget Targets="DFe_UnitTests:Clean;AcbrClientSmoke:Clean;AcbrSimDelphiTests:Clean;AmqpBrokerDelphiTests:Clean;DFeBrokerConsole:Clean;DFeBrokerServico:Clean;SpikeHorse:Clean;DFeSimulador:Clean;DFeSimuladorLimite:Clean;ConsumidorDFeVcl:Clean;ProvaFechamento:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="DFe_UnitTests:Make;AcbrClientSmoke:Make;AcbrSimDelphiTests:Make;AmqpBrokerDelphiTests:Make;DFeBrokerConsole:Make;DFeBrokerServico:Make;SpikeHorse:Make;DFeSimulador:Make;DFeSimuladorLimite:Make;ConsumidorDFeVcl:Make"/>
+        <CallTarget Targets="DFe_UnitTests:Make;AcbrClientSmoke:Make;AcbrSimDelphiTests:Make;AmqpBrokerDelphiTests:Make;DFeBrokerConsole:Make;DFeBrokerServico:Make;SpikeHorse:Make;DFeSimulador:Make;DFeSimuladorLimite:Make;ConsumidorDFeVcl:Make;ProvaFechamento:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>
