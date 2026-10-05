@@ -7,6 +7,23 @@ aparece aqui.
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-05
+
+### Mudado
+
+- **pascal-amqp-faa v0.1.2** e **pascal-common-faa v1.2.0** (submódulos). Sem mudança de
+  configuração nem de compilação.
+
+### Corrigido
+
+- **Comandos de manifestação podiam ser processados fora da ordem em que foram publicados.**
+  A fila `dfe.comandos` era consumida num canal comum, e nele a lib AMQP entrega as mensagens
+  em paralelo (comportamento documentado dela). Uma `ciencia` seguida de `confirmacao` para a
+  mesma chave podia sair invertida, e a SEFAZ rejeitaria a ciência (655). A fonte de comandos
+  agora usa um canal com entrega serial, na ordem do broker. Apareceu ao subir a
+  pascal-common-faa, cujo pool passou a abrir workers durante uma rajada; antes a ordem se
+  mantinha por acaso.
+
 ## [0.2.0] - 2026-10-05
 
 ### Mudado
@@ -68,6 +85,7 @@ aparece aqui.
 Pré-lançamento para demonstração com o simulador da SEFAZ (pacote Windows x64). Nunca executado
 contra a SEFAZ real. Ver a [release](https://github.com/fabianoallex/pascal-dfe-broker/releases/tag/v0.1.0).
 
-[Unreleased]: https://github.com/fabianoallex/pascal-dfe-broker/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/fabianoallex/pascal-dfe-broker/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/fabianoallex/pascal-dfe-broker/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/fabianoallex/pascal-dfe-broker/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/fabianoallex/pascal-dfe-broker/releases/tag/v0.1.0

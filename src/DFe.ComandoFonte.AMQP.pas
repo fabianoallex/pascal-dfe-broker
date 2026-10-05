@@ -114,7 +114,10 @@ begin
   FConexao := TAMQPConnection.Create(FParams);
   try
     FConexao.Open;
-    FCanal := FConexao.CreateChannel;
+    // Canal com worker dedicado: entrega serial, na ordem do broker. Num canal
+    // comum as entregas rodam em paralelo no PcPool e o Enqueue abaixo pode
+    // sair invertido (ciencia depois de confirmacao vira 655 na SEFAZ).
+    FCanal := FConexao.CreateChannel(True);
     DeclararExchangeDfe(FCanal, FExchange);
     FCanal.DeclareQueue(TAMQPQueueDeclare.Create(FFila, True));
 

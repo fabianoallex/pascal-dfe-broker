@@ -46,6 +46,7 @@ type
     procedure ComandoValido_ChegaInterpretado;
     procedure ComandoComAcento_ChegaIntegro;
     procedure DoisComandos_SaemNaOrdem;
+    procedure RajadaDeComandos_SaemNaOrdemDoBroker;
     procedure SemComando_NaoBloqueiaEDevolveFalso;
     procedure ComandoInvalido_EDescartadoEAvisado;
     procedure ManifestacaoManual_PontaAPonta_ResultadoSaiNaExchange;
@@ -174,6 +175,38 @@ begin
   AssertEquals('ciencia', LComando.TipoEvento);
   AssertTrue('segundo chegou', EsperarComando(LIntf, LComando));
   AssertEquals('confirmacao', LComando.TipoEvento);
+end;
+
+procedure TDFeAmqpComandoFonteTests.RajadaDeComandos_SaemNaOrdemDoBroker;
+const
+  N = 40;
+var
+  LFonte: TDFeComandoFonteAMQP;
+  LIntf: IDFeComandoFonte;
+  LComando: TDFeComandoManifestacao;
+  I: Integer;
+
+  function Justificativa(AIndice: Integer): string;
+  begin
+    Result := 'Comando de teste numero ' + IntToStr(AIndice);
+  end;
+
+begin
+  // Uma rajada com o consumidor ja' ligado: num canal comum as entregas rodam
+  // em paralelo no PcPool e saem fora de ordem (medido com a common >= 1.1.3).
+  // A fonte usa CreateChannel(True), que entrega uma de cada vez.
+  LFonte := TDFeComandoFonteAMQP.Create(Params);
+  LIntf := LFonte;
+  LFonte.Iniciar;
+
+  for I := 1 to N do
+    EnviarComando(Corpo('operacaonaorealizada', Justificativa(I)));
+
+  for I := 1 to N do
+  begin
+    AssertTrue('comando ' + IntToStr(I) + ' chegou', EsperarComando(LIntf, LComando));
+    AssertEquals('ordem do broker', Justificativa(I), LComando.Justificativa);
+  end;
 end;
 
 procedure TDFeAmqpComandoFonteTests.SemComando_NaoBloqueiaEDevolveFalso;

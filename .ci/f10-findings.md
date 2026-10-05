@@ -106,6 +106,33 @@ acontece na parada (fonte de comando `dfe.comandos`), e nada mais no processo us
 o `PcPool`. Nao medido; registrado por ser a unica espera sincrona do host por
 trabalho do `PcPool`.
 
+### 7. Comandos fora de ordem ao subir a common para 1.2.0 (defeito do BROKER, nao do amqp; corrigido)
+
+**Correcao da atribuicao**: a primeira versao deste item culpou o despacho do
+amqp. Errado. Paralelismo dentro do canal e' o comportamento **documentado** do
+pascal-amqp-faa (README, "Concorrencia e ordenacao de mensagens": "paralelismo
+por padrao, ordem por opt-in"), e a ordem se pede com `CreateChannel(True)`.
+O defeito era do `DFe.ComandoFonte.AMQP`, que consumia num canal comum e contava
+com a ordem do `Enqueue` na fila propria (opcao 3 do README).
+
+Mecanismo: cada `Basic.Deliver` vira um item independente no `PcPool`. Ate' a
+common 1.1.2, o `Queue` so' abria worker com `FIdle = 0`, entao duas entregas
+seguidas caiam no mesmo worker e saiam em ordem por acaso; a 1.1.3 (`73767ad`,
+correta) abre worker quando `FQueue.Count > FIdle`.
+
+**Medido** (FPC 3.2.2, Windows x64, suite AMQP inteira em laco):
+`DoisComandos_SaemNaOrdem` falhou em 3/20 com common `v1.2.0` + amqp `v0.1.0`
+e em 0/20 com a `v1.1.1`. Corrigido com `FCanal := FConexao.CreateChannel(True)`
+na fonte, e subidos juntos amqp `v0.1.2` + common `v1.2.0`: 0/30 (20 testes,
+0 vazamento). Teste novo `RajadaDeComandos_SaemNaOrdemDoBroker` (40 comandos,
+FPC + espelho DUnitX); com a linha revertida (mutante) a suite falha em 9/10.
+
+**Para o pascal-amqp-faa (so' documentacao)**: a opcao 3 do README diz que a
+thread dedicada processa "em ordem de chegada", sem avisar que, num canal comum,
+a ordem de chegada na fila da aplicacao ja' nao e' a do broker. Foi essa a
+armadilha. Sugestao: dizer que a opcao 3 so' preserva a ordem com
+`CreateChannel(True)` ou `Qos(1)` (README.md e README.en.md).
+
 ## O que funcionou como documentado (nenhuma acao)
 
 - `.lpi` com `pascal_common_faa` primeiro, `DefaultFilename` + `Prefer="True"`:
