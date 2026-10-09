@@ -82,7 +82,6 @@ lazbuild hosts/console/DFeBrokerConsole.lpi
 
 ```
 git submodule update --init vendor/horse
-sh simulador/preparar-horse.sh                                   # Windows/FPC only: a 1-line workaround in Horse
 lazbuild simulador/DFeSimulador.lpi
 ```
 

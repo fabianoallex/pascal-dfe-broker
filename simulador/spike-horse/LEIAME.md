@@ -1,5 +1,9 @@
 # Spike do Horse como casca HTTP do simulador (descartável)
 
+> **Atualização (2026-10-09):** o achado do FPC/Windows abaixo foi corrigido no próprio Horse
+> na 3.3.3 (commit `7a9a9cb`, issue #542). O `vendor/horse` está na 3.3.12 e compila sem
+> alteração nos dois compiladores; o contorno saiu. O texto abaixo é o registro do spike.
+
 Pergunta: o Horse (`vendor/horse`, v3.3.0, commit `72cc45f`) serve para hospedar o
 simulador da SEFAZ nos **dois** compiladores? Rotas em `SpikeHorseRotas.pas`
 (unit única, compartilhada); `SpikeHorse.lpr` (FPC) e `SpikeHorse.dpr/.dproj` (Delphi).

@@ -163,12 +163,14 @@ SimuladorURL=http://127.0.0.1:9200
 ## Compilar
 
 - **FPC/Linux:** `fpc -Mdelphi -dUseCThreads -Fu src -Fu vendor/horse/src simulador/DFeSimulador.lpr`
-  (ou `lazbuild simulador/DFeSimulador.lpi` depois de `sh simulador/preparar-horse.sh`).
-- **FPC/Windows:** `sh simulador/preparar-horse.sh` (copia o Horse para `simulador/build/` com o contorno de
-  uma linha em `Horse.FPC.inc`, ver `simulador/spike-horse/LEIAME.md`) e `lazbuild simulador\DFeSimulador.lpi`.
-- **Delphi:** projeto `DFeSimulador` no `PascalDfeBroker.groupproj` (usa `vendor/horse/src` direto).
+  (ou `lazbuild simulador/DFeSimulador.lpi`).
+- **FPC/Windows:** `lazbuild simulador\DFeSimulador.lpi`.
+- **Delphi:** projeto `DFeSimulador` no `PascalDfeBroker.groupproj`.
 
-Requer `git submodule update --init vendor/horse`.
+Os três usam `vendor/horse/src` direto (Horse 3.3.12). Requer `git submodule update --init vendor/horse`.
+Até a v0.2.1 o FPC/Windows precisava de um contorno (`simulador/preparar-horse.sh`, removido): o
+Horse 3.3.2 escolhia `const` no comparador genérico onde o FPC 3.2.2 declara `constref`; corrigido
+no próprio Horse na 3.3.3 (commit `7a9a9cb`, issue #542).
 
 ## Testes
 

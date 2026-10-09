@@ -11,8 +11,8 @@ unit DFe.AcbrSimHttpTests;
   Cada teste sobe o executavel numa porta propria com um cenario que ele mesmo
   escreve (a API admin so' chega na Fase B) e o derruba no TearDown.
 
-  REQUISITO: compilar antes  lazbuild simulador\DFeSimulador.lpi  (em Windows
-  precisa antes de  sh simulador/preparar-horse.sh ). Sem o executavel o teste
+  REQUISITO: compilar antes  lazbuild simulador\DFeSimulador.lpi . Sem o
+  executavel o teste
   FALHA (nao ignora) dizendo isso. }
 
 {$mode delphi}{$H+}
@@ -137,8 +137,8 @@ begin
     LExecutavel := CaminhoDoSimulador;
   if not FileExists(LExecutavel) then
     Fail('simulador nao encontrado em ' + ExpandFileName(LExecutavel) +
-      ' -- compile antes: lazbuild simulador\DFeSimulador.lpi (Windows: sh simulador/preparar-horse.sh primeiro;' +
-      ' o exemplo: lazbuild simulador\exemplos\limite-consultas\DFeSimuladorLimite.lpi)');
+      ' -- compile antes: lazbuild simulador\DFeSimulador.lpi (e o exemplo:' +
+      ' lazbuild simulador\exemplos\limite-consultas\DFeSimuladorLimite.lpi)');
 
   Inc(GProximaPorta);
   FPorta := GProximaPorta;

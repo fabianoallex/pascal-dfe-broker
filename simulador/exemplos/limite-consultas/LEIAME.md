@@ -19,7 +19,7 @@ o "barrado" e o "liberado" em segundos.
 ## Rodar
 
 ```
-lazbuild simulador\exemplos\limite-consultas\DFeSimuladorLimite.lpi     # FPC (antes: sh simulador/preparar-horse.sh, no Windows)
+lazbuild simulador\exemplos\limite-consultas\DFeSimuladorLimite.lpi     # FPC
 DFeSimuladorLimite --porta 9200
 ```
 

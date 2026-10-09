@@ -186,7 +186,7 @@ e `docker stop` rápido. **O job do CI ainda não rodou** no GitHub.
 
 ## Decisões em aberto
 
-1. **Contorno do Horse no FPC/Windows** (`Horse.FPC.inc`, `const` × `constref`): por ora só documentado (`simulador/spike-horse/LEIAME.md`); avaliar PR upstream depois. Enquanto isso o build Windows/FPC do simulador precisa do contorno (script que copia `src` com o ajuste) — resolver na Fase A.
+1. ~~**Contorno do Horse no FPC/Windows**~~ (`Horse.FPC.inc`, `const` × `constref`): **resolvido em 2026-10-09** — corrigido no próprio Horse na 3.3.3 (commit `7a9a9cb`, issue #542); o submódulo foi para a 3.3.12 e o contorno (`simulador/preparar-horse.sh`) saiu.
 2. **Repositório definitivo e nome**: fica aqui (decisão de 2026-09-21, com o critério para reabrir na seção "Decisão: onde o simulador vive"); nome próprio (sem "broker") se houver extração.
 3. **JSON**: leitor/escritor plano próprio × `System.JSON`/`fpjson` com IFDEF.
 4. **Delphi Win64** do Horse (spike só Win32) e **Linux/Delphi**: fora do escopo até haver demanda.

@@ -90,7 +90,6 @@ lazbuild hosts/console/DFeBrokerConsole.lpi
 
 ```
 git submodule update --init vendor/horse
-sh simulador/preparar-horse.sh                                   # só Windows/FPC: contorno de 1 linha no Horse
 lazbuild simulador/DFeSimulador.lpi
 ```
 

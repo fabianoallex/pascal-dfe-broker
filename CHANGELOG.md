@@ -7,6 +7,14 @@ aparece aqui.
 
 ## [Unreleased]
 
+### Mudado
+
+- **Horse 3.3.12** (submódulo `vendor/horse`, era 3.3.2). O Horse 3.3.3 corrigiu o `const` ×
+  `constref` que impedia compilar no FPC 3.2.2 para Windows, então o contorno
+  `simulador/preparar-horse.sh` (e a cópia `simulador/build/horse-src`) saiu: os `.lpi` do
+  simulador e do exemplo usam `vendor/horse/src` direto, como o Delphi e o Linux já faziam. Quem
+  compila o simulador no FPC/Windows pula esse passo.
+
 ## [0.2.1] - 2026-10-05
 
 ### Mudado

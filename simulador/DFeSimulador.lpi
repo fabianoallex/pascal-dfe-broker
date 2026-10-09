@@ -51,7 +51,7 @@
       <Filename Value="DFeSimulador"/>
     </Target>
     <SearchPaths>
-      <OtherUnitFiles Value="build\horse-src"/>
+      <OtherUnitFiles Value="..\vendor\horse\src"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Parsing>
